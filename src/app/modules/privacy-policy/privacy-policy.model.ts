@@ -13,7 +13,7 @@ const PrivacyPolicySchema: Schema = new Schema(
   { 
     timestamps: true,
     toJSON: { 
-      transform: function(doc, ret) {
+      transform: function(doc, ret:any) {
         ret.createdAt = new Date(ret.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
         ret.updatedAt = new Date(ret.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
       }

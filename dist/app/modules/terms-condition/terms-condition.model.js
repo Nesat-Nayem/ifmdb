@@ -39,7 +39,7 @@ const TermsConditionSchema = new mongoose_1.Schema({
     content: {
         type: String,
         required: true,
-        default: '<p>Privacy Policy content goes here.</p>'
+        default: '<p>Terms & Conditions content goes here.</p>'
     }
 }, {
     timestamps: true,
@@ -47,6 +47,7 @@ const TermsConditionSchema = new mongoose_1.Schema({
         transform: function (doc, ret) {
             ret.createdAt = new Date(ret.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
             ret.updatedAt = new Date(ret.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+            return ret;
         }
     }
 });

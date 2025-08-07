@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateToken = void 0;
 // utils/generateToken.ts
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+// import { IStaff } from '../modules/staff/staff.model';
 const generateToken = (user) => {
     const payload = {
         userId: user._id,

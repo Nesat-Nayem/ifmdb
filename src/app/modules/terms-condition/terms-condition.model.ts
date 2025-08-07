@@ -6,15 +6,16 @@ const TermsConditionSchema: Schema = new Schema(
     content: { 
       type: String, 
       required: true,
-      default: '<p>Privacy Policy content goes here.</p>'
+      default: '<p>Terms & Conditions content goes here.</p>'
     }
   },
   { 
     timestamps: true,
     toJSON: { 
-      transform: function(doc, ret) {
+      transform: function(doc: any, ret: any) {
         ret.createdAt = new Date(ret.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
         ret.updatedAt = new Date(ret.updatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        return ret;
       }
     }
   }

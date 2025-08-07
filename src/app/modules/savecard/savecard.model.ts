@@ -41,7 +41,7 @@ const SaveCardSchema: Schema = new Schema(
   { 
     timestamps: true,
     toJSON: { 
-      transform: function(doc, ret) {
+      transform: function(doc, ret:any) {
         // Mask card number for security
         if (ret.cardNumber) {
           ret.cardNumber = '****' + ret.cardNumber.slice(-4);
