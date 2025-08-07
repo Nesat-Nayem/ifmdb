@@ -19,7 +19,7 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:8080',
+        url: 'https://ifmdb.atpuae.com',
         description: 'Development server',
       },
     ],
@@ -465,7 +465,7 @@ export const setupEnhancedSwagger = (app: Application): void => {
     res.send(specs);
   });
 
-  console.log('📚 Enhanced Swagger documentation available at: http://localhost:8080/api-docs');
+  console.log('📚 Enhanced Swagger documentation available at: https://ifmdb.atpuae.com/api-docs');
 };
 
 export default specs;

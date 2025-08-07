@@ -12,7 +12,13 @@ const app = (0, express_1.default)();
 const cors_1 = __importDefault(require("cors"));
 // parsers
 app.use(express_1.default.json());
-app.use((0, cors_1.default)());
+// CORS configuration for production
+app.use((0, cors_1.default)({
+    origin: '*', // Allow all origins for now
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    credentials: false
+}));
 // swagger configuration
 (0, swagger_1.setupSwagger)(app);
 // application routes

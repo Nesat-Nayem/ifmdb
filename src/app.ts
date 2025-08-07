@@ -8,7 +8,14 @@ import cors from 'cors';
 
 // parsers
 app.use(express.json());
-app.use(cors())
+
+// CORS configuration for production
+app.use(cors({
+  origin: '*', // Allow all origins for now
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  credentials: false
+}));
 
 // swagger configuration
 setupSwagger(app);

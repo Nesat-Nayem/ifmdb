@@ -23,7 +23,7 @@ const options = {
         },
         servers: [
             {
-                url: 'http://localhost:8080',
+                url: 'https://ifmdb.atpuae.com',
                 description: 'Development server',
             },
         ],
@@ -463,7 +463,7 @@ const setupEnhancedSwagger = (app) => {
         res.setHeader('Content-Type', 'application/json');
         res.send(specs);
     });
-    console.log('📚 Enhanced Swagger documentation available at: http://localhost:8080/api-docs');
+    console.log('📚 Enhanced Swagger documentation available at: https://ifmdb.atpuae.com/api-docs');
 };
 exports.setupEnhancedSwagger = setupEnhancedSwagger;
 exports.default = specs;
