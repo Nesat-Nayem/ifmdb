@@ -9,7 +9,8 @@ type TResponse<T> = {
     page?: number;
     limit?: number;
     total?: number;
-    totalPages?: number;
+        totalPages?: number;
+    [key: string]: any;
   };
 };
 

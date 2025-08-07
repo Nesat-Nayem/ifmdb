@@ -30,7 +30,7 @@ const validateRequest = (schema) => {
                     path: err.path.join('.'),
                     message: err.message,
                 }));
-                return res.status(http_status_1.default.BAD_REQUEST).json({
+                res.status(http_status_1.default.BAD_REQUEST).json({
                     success: false,
                     message: 'Validation Error',
                     errors: errorMessages,

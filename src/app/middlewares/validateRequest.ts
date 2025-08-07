@@ -2,7 +2,9 @@ import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 import httpStatus from 'http-status';
 
-const validateRequest = (schema: ZodSchema) => {
+import { RequestHandler } from 'express';
+
+const validateRequest = (schema: ZodSchema): RequestHandler => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       await schema.parseAsync({
@@ -18,7 +20,7 @@ const validateRequest = (schema: ZodSchema) => {
           message: err.message,
         }));
 
-        return res.status(httpStatus.BAD_REQUEST).json({
+                res.status(httpStatus.BAD_REQUEST).json({
           success: false,
           message: 'Validation Error',
           errors: errorMessages,

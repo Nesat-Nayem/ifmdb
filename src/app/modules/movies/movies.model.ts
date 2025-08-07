@@ -240,7 +240,7 @@ movieSchema.index({ averageRating: -1 });
 movieSchema.index({ imdbRating: -1 });
 
 // Pre-save middleware to calculate average rating
-movieSchema.pre('save', function(next) {
+movieSchema.pre('save', function(this: any, next) {
   if (this.reviews && this.reviews.length > 0) {
     const totalRating = this.reviews.reduce((sum: number, review: any) => sum + review.rating, 0);
     this.averageRating = totalRating / this.reviews.length;
