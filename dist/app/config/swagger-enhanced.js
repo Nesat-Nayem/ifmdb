@@ -1,46 +1,48 @@
-    import swaggerJSDoc from 'swagger-jsdoc';
-import swaggerUi from 'swagger-ui-express';
-import { Application } from 'express';
-
-const options: swaggerJSDoc.Options = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'IFMDB',
-      version: '1.0.0',
-      // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
-      contact: {
-        name: 'BigSell Team',
-        email: 'support@bigsell.com',
-      },
-      license: {
-        name: 'ISC',
-      },
-    },
-    servers: [
-      {
-        url: 'http://localhost:8080',
-        description: 'Development server',
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
-      },
-    },
-  },
-  apis: ['./src/routes/*.ts', './src/controllers/*.ts'],
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-const specs = swaggerJSDoc(options);
-
-export const setupEnhancedSwagger = (app: Application): void => {
-  // Modern ElysiaJS-inspired Swagger UI with enhanced styling
-  const customCss = `
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.setupEnhancedSwagger = void 0;
+const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
+const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const options = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'IFMDB',
+            version: '1.0.0',
+            // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
+            contact: {
+                name: 'BigSell Team',
+                email: 'support@bigsell.com',
+            },
+            license: {
+                name: 'ISC',
+            },
+        },
+        servers: [
+            {
+                url: 'http://localhost:8080',
+                description: 'Development server',
+            },
+        ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                },
+            },
+        },
+    },
+    apis: ['./src/routes/*.ts', './src/controllers/*.ts'],
+};
+const specs = (0, swagger_jsdoc_1.default)(options);
+const setupEnhancedSwagger = (app) => {
+    // Modern ElysiaJS-inspired Swagger UI with enhanced styling
+    const customCss = `
     /* Import modern fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
     
@@ -406,9 +408,8 @@ export const setupEnhancedSwagger = (app: Application): void => {
       }
     }
   `;
-
-  // Custom HTML with additional styling
-  const customHtml = `
+    // Custom HTML with additional styling
+    const customHtml = `
     <!DOCTYPE html>
     <html>
       <head>
@@ -453,19 +454,16 @@ export const setupEnhancedSwagger = (app: Application): void => {
       </body>
     </html>
   `;
-
-  app.use('/api-docs', swaggerUi.serve);
-  app.get('/api-docs', (req, res) => {
-    res.send(customHtml);
-  });
-
-  // JSON endpoint for the swagger spec
-  app.get('/api-docs.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(specs);
-  });
-
-  console.log('📚 Enhanced Swagger documentation available at: http://localhost:8080/api-docs');
+    app.use('/api-docs', swagger_ui_express_1.default.serve);
+    app.get('/api-docs', (req, res) => {
+        res.send(customHtml);
+    });
+    // JSON endpoint for the swagger spec
+    app.get('/api-docs.json', (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.send(specs);
+    });
+    console.log('📚 Enhanced Swagger documentation available at: http://localhost:8080/api-docs');
 };
-
-export default specs;
+exports.setupEnhancedSwagger = setupEnhancedSwagger;
+exports.default = specs;

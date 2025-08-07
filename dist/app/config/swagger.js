@@ -1,196 +1,198 @@
-import swaggerJSDoc from 'swagger-jsdoc';
-import swaggerUi from 'swagger-ui-express';
-import { Application } from 'express';
-
-const options: swaggerJSDoc.Options = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'IFMDB',
-      version: '1.0.0',
-      // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
-      contact: {
-        name: 'BigSell Team',
-        email: 'support@bigsell.com',
-      },
-      license: {
-        name: 'ISC',
-      },
-    },
-    servers: [
-      {
-        url: 'http://localhost:8080',
-        description: 'Development server',
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: 'http',
-          scheme: 'bearer',
-          bearerFormat: 'JWT',
-        },
-      },
-      schemas: {
-        User: {
-          type: 'object',
-          properties: {
-            _id: {
-              type: 'string',
-              description: 'User ID',
-            },
-            name: {
-              type: 'string',
-              description: 'User full name',
-            },
-            email: {
-              type: 'string',
-              format: 'email',
-              description: 'User email address',
-            },
-            phone: {
-              type: 'string',
-              description: 'User phone number',
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive', 'pending'],
-              description: 'User account status',
-            },
-            createdAt: {
-              type: 'string',
-              format: 'date-time',
-            },
-            updatedAt: {
-              type: 'string',
-              format: 'date-time',
-            },
-          },
-        },
-        Category: {
-          type: 'object',
-          properties: {
-            _id: {
-              type: 'string',
-              description: 'Category ID',
-            },
-            name: {
-              type: 'string',
-              description: 'Category name',
-            },
-            description: {
-              type: 'string',
-              description: 'Category description',
-            },
-            image: {
-              type: 'string',
-              description: 'Category image URL',
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive'],
-              description: 'Category status',
-            },
-          },
-        },
-        Banner: {
-          type: 'object',
-          properties: {
-            _id: {
-              type: 'string',
-              description: 'Banner ID',
-            },
-            title: {
-              type: 'string',
-              description: 'Banner title',
-            },
-            image: {
-              type: 'string',
-              description: 'Banner image URL',
-            },
-            link: {
-              type: 'string',
-              description: 'Banner link URL',
-            },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive'],
-              description: 'Banner status',
-            },
-          },
-        },
-        Error: {
-          type: 'object',
-          properties: {
-            success: {
-              type: 'boolean',
-              example: false,
-            },
-            statusCode: {
-              type: 'integer',
-              example: 400,
-            },
-            message: {
-              type: 'string',
-              example: 'Error message',
-            },
-            errorSources: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  path: {
-                    type: 'string',
-                  },
-                  message: {
-                    type: 'string',
-                  },
-                },
-              },
-            },
-          },
-        },
-        Success: {
-          type: 'object',
-          properties: {
-            success: {
-              type: 'boolean',
-              example: true,
-            },
-            statusCode: {
-              type: 'integer',
-              example: 200,
-            },
-            message: {
-              type: 'string',
-              example: 'Operation successful',
-            },
-            data: {
-              type: 'object',
-              description: 'Response data',
-            },
-          },
-        },
-      },
-    },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
-  },
-  apis: [
-    './src/app/modules/*/*.routes.ts',
-    './src/app/modules/*/*.controller.ts',
-    './src/app/routes/index.ts',
-  ],
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-
-const specs = swaggerJSDoc(options);
-
-export const setupSwagger = (app: Application): void => {
-  // ElysiaJS-inspired modern Swagger UI with enhanced styling
-  const customCss = `
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.setupSwagger = void 0;
+const swagger_jsdoc_1 = __importDefault(require("swagger-jsdoc"));
+const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const options = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'IFMDB',
+            version: '1.0.0',
+            // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
+            contact: {
+                name: 'BigSell Team',
+                email: 'support@bigsell.com',
+            },
+            license: {
+                name: 'ISC',
+            },
+        },
+        servers: [
+            {
+                url: 'http://localhost:8080',
+                description: 'Development server',
+            },
+        ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                },
+            },
+            schemas: {
+                User: {
+                    type: 'object',
+                    properties: {
+                        _id: {
+                            type: 'string',
+                            description: 'User ID',
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'User full name',
+                        },
+                        email: {
+                            type: 'string',
+                            format: 'email',
+                            description: 'User email address',
+                        },
+                        phone: {
+                            type: 'string',
+                            description: 'User phone number',
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'inactive', 'pending'],
+                            description: 'User account status',
+                        },
+                        createdAt: {
+                            type: 'string',
+                            format: 'date-time',
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            format: 'date-time',
+                        },
+                    },
+                },
+                Category: {
+                    type: 'object',
+                    properties: {
+                        _id: {
+                            type: 'string',
+                            description: 'Category ID',
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'Category name',
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'Category description',
+                        },
+                        image: {
+                            type: 'string',
+                            description: 'Category image URL',
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'inactive'],
+                            description: 'Category status',
+                        },
+                    },
+                },
+                Banner: {
+                    type: 'object',
+                    properties: {
+                        _id: {
+                            type: 'string',
+                            description: 'Banner ID',
+                        },
+                        title: {
+                            type: 'string',
+                            description: 'Banner title',
+                        },
+                        image: {
+                            type: 'string',
+                            description: 'Banner image URL',
+                        },
+                        link: {
+                            type: 'string',
+                            description: 'Banner link URL',
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'inactive'],
+                            description: 'Banner status',
+                        },
+                    },
+                },
+                Error: {
+                    type: 'object',
+                    properties: {
+                        success: {
+                            type: 'boolean',
+                            example: false,
+                        },
+                        statusCode: {
+                            type: 'integer',
+                            example: 400,
+                        },
+                        message: {
+                            type: 'string',
+                            example: 'Error message',
+                        },
+                        errorSources: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    path: {
+                                        type: 'string',
+                                    },
+                                    message: {
+                                        type: 'string',
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                Success: {
+                    type: 'object',
+                    properties: {
+                        success: {
+                            type: 'boolean',
+                            example: true,
+                        },
+                        statusCode: {
+                            type: 'integer',
+                            example: 200,
+                        },
+                        message: {
+                            type: 'string',
+                            example: 'Operation successful',
+                        },
+                        data: {
+                            type: 'object',
+                            description: 'Response data',
+                        },
+                    },
+                },
+            },
+        },
+        security: [
+            {
+                bearerAuth: [],
+            },
+        ],
+    },
+    apis: [
+        './src/app/modules/*/*.routes.ts',
+        './src/app/modules/*/*.controller.ts',
+        './src/app/routes/index.ts',
+    ],
+};
+const specs = (0, swagger_jsdoc_1.default)(options);
+const setupSwagger = (app) => {
+    // ElysiaJS-inspired modern Swagger UI with enhanced styling
+    const customCss = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
     
     /* Reset and base styles */
@@ -545,33 +547,30 @@ export const setupSwagger = (app: Application): void => {
       text-decoration: underline;
     }
   `;
-
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
-    explorer: true,
-    customCss,
-    customSiteTitle: '🚀 IFMDB API Documentation',
-    customfavIcon: 'https://cdn-icons-png.flaticon.com/512/2721/2721297.png',
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      filter: true,
-      tryItOutEnabled: true,
-      docExpansion: 'none',
-      defaultModelsExpandDepth: 2,
-      defaultModelExpandDepth: 2,
-      displayOperationId: false,
-      showExtensions: true,
-      showCommonExtensions: true,
-    },
-  }));
-
-  // JSON endpoint for the swagger spec
-  app.get('/api-docs.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.send(specs);
-  });
-
-  console.log('📚 Swagger documentation available at: http://localhost:8080/api-docs');
+    app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(specs, {
+        explorer: true,
+        customCss,
+        customSiteTitle: '🚀 IFMDB API Documentation',
+        customfavIcon: 'https://cdn-icons-png.flaticon.com/512/2721/2721297.png',
+        swaggerOptions: {
+            persistAuthorization: true,
+            displayRequestDuration: true,
+            filter: true,
+            tryItOutEnabled: true,
+            docExpansion: 'none',
+            defaultModelsExpandDepth: 2,
+            defaultModelExpandDepth: 2,
+            displayOperationId: false,
+            showExtensions: true,
+            showCommonExtensions: true,
+        },
+    }));
+    // JSON endpoint for the swagger spec
+    app.get('/api-docs.json', (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.send(specs);
+    });
+    console.log('📚 Swagger documentation available at: http://localhost:8080/api-docs');
 };
-
-export default specs;
+exports.setupSwagger = setupSwagger;
+exports.default = specs;

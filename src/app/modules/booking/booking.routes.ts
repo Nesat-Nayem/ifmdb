@@ -1,14 +1,10 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.bookingRouter = void 0;
-const express_1 = __importDefault(require("express"));
-const booking_controller_1 = require("./booking.controller");
-const validateRequest_1 = __importDefault(require("../../middlewares/validateRequest"));
-const booking_validation_1 = require("./booking.validation");
-const router = express_1.default.Router();
+import express from 'express';
+import { BookingController } from './booking.controller';
+import validateRequest from '../../middlewares/validateRequest';
+import { BookingValidation } from './booking.validation';
+
+const router = express.Router();
+
 /**
  * @swagger
  * components:
@@ -59,7 +55,7 @@ const router = express_1.default.Router();
  *         isActive:
  *           type: boolean
  *           description: Whether cinema is active
- *
+ * 
  *     Showtime:
  *       type: object
  *       required:
@@ -118,7 +114,7 @@ const router = express_1.default.Router();
  *         isActive:
  *           type: boolean
  *           description: Whether showtime is active
- *
+ * 
  *     SelectedSeat:
  *       type: object
  *       required:
@@ -143,7 +139,7 @@ const router = express_1.default.Router();
  *         seatPrice:
  *           type: number
  *           description: Price for this seat
- *
+ * 
  *     CustomerDetails:
  *       type: object
  *       required:
@@ -161,7 +157,7 @@ const router = express_1.default.Router();
  *         phone:
  *           type: string
  *           description: Customer phone number
- *
+ * 
  *     Booking:
  *       type: object
  *       required:
@@ -233,7 +229,7 @@ const router = express_1.default.Router();
  *           type: string
  *           format: date-time
  *           description: Booking expiry time
- *
+ * 
  *     PaymentRequest:
  *       type: object
  *       required:
@@ -263,7 +259,7 @@ const router = express_1.default.Router();
  *         gatewayResponse:
  *           type: object
  *           description: Gateway response data
- *
+ * 
  *     ETicket:
  *       type: object
  *       properties:
@@ -294,6 +290,7 @@ const router = express_1.default.Router();
  *           format: date-time
  *           description: When ticket was generated
  */
+
 // CINEMA ROUTES
 /**
  * @swagger
@@ -313,7 +310,12 @@ const router = express_1.default.Router();
  *       400:
  *         description: Bad request
  */
-router.post('/cinemas', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.createCinemaValidation), booking_controller_1.BookingController.createCinema);
+router.post(
+  '/cinemas',
+  validateRequest(BookingValidation.createCinemaValidation),
+  BookingController.createCinema
+);
+
 /**
  * @swagger
  * /v1/api/booking/cinemas:
@@ -361,7 +363,12 @@ router.post('/cinemas', (0, validateRequest_1.default)(booking_validation_1.Book
  *       200:
  *         description: Cinemas retrieved successfully
  */
-router.get('/cinemas', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.getCinemasValidation), booking_controller_1.BookingController.getAllCinemas);
+router.get(
+  '/cinemas',
+  validateRequest(BookingValidation.getCinemasValidation),
+  BookingController.getAllCinemas
+);
+
 /**
  * @swagger
  * /v1/api/booking/cinemas/{id}:
@@ -381,7 +388,8 @@ router.get('/cinemas', (0, validateRequest_1.default)(booking_validation_1.Booki
  *       404:
  *         description: Cinema not found
  */
-router.get('/cinemas/:id', booking_controller_1.BookingController.getCinemaById);
+router.get('/cinemas/:id', BookingController.getCinemaById);
+
 /**
  * @swagger
  * /v1/api/booking/cinemas/{id}:
@@ -407,7 +415,12 @@ router.get('/cinemas/:id', booking_controller_1.BookingController.getCinemaById)
  *       404:
  *         description: Cinema not found
  */
-router.put('/cinemas/:id', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.updateCinemaValidation), booking_controller_1.BookingController.updateCinema);
+router.put(
+  '/cinemas/:id',
+  validateRequest(BookingValidation.updateCinemaValidation),
+  BookingController.updateCinema
+);
+
 /**
  * @swagger
  * /v1/api/booking/cinemas/{id}:
@@ -427,7 +440,8 @@ router.put('/cinemas/:id', (0, validateRequest_1.default)(booking_validation_1.B
  *       404:
  *         description: Cinema not found
  */
-router.delete('/cinemas/:id', booking_controller_1.BookingController.deleteCinema);
+router.delete('/cinemas/:id', BookingController.deleteCinema);
+
 // SHOWTIME ROUTES
 /**
  * @swagger
@@ -449,7 +463,12 @@ router.delete('/cinemas/:id', booking_controller_1.BookingController.deleteCinem
  *       404:
  *         description: Cinema hall not found
  */
-router.post('/showtimes', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.createShowtimeValidation), booking_controller_1.BookingController.createShowtime);
+router.post(
+  '/showtimes',
+  validateRequest(BookingValidation.createShowtimeValidation),
+  BookingController.createShowtime
+);
+
 /**
  * @swagger
  * /v1/api/booking/showtimes:
@@ -530,7 +549,12 @@ router.post('/showtimes', (0, validateRequest_1.default)(booking_validation_1.Bo
  *       200:
  *         description: Showtimes retrieved successfully
  */
-router.get('/showtimes', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.getShowtimesValidation), booking_controller_1.BookingController.getAllShowtimes);
+router.get(
+  '/showtimes',
+  validateRequest(BookingValidation.getShowtimesValidation),
+  BookingController.getAllShowtimes
+);
+
 /**
  * @swagger
  * /v1/api/booking/showtimes/{id}:
@@ -550,7 +574,8 @@ router.get('/showtimes', (0, validateRequest_1.default)(booking_validation_1.Boo
  *       404:
  *         description: Showtime not found
  */
-router.get('/showtimes/:id', booking_controller_1.BookingController.getShowtimeById);
+router.get('/showtimes/:id', BookingController.getShowtimeById);
+
 /**
  * @swagger
  * /v1/api/booking/showtimes/{id}/seats:
@@ -570,7 +595,8 @@ router.get('/showtimes/:id', booking_controller_1.BookingController.getShowtimeB
  *       404:
  *         description: Showtime not found
  */
-router.get('/showtimes/:id/seats', booking_controller_1.BookingController.getAvailableSeats);
+router.get('/showtimes/:id/seats', BookingController.getAvailableSeats);
+
 // BOOKING ROUTES
 /**
  * @swagger
@@ -592,7 +618,12 @@ router.get('/showtimes/:id/seats', booking_controller_1.BookingController.getAva
  *       404:
  *         description: Showtime not found
  */
-router.post('/bookings', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.createBookingValidation), booking_controller_1.BookingController.createBooking);
+router.post(
+  '/bookings',
+  validateRequest(BookingValidation.createBookingValidation),
+  BookingController.createBooking
+);
+
 /**
  * @swagger
  * /v1/api/booking/bookings:
@@ -664,7 +695,12 @@ router.post('/bookings', (0, validateRequest_1.default)(booking_validation_1.Boo
  *       200:
  *         description: Bookings retrieved successfully
  */
-router.get('/bookings', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.getBookingsValidation), booking_controller_1.BookingController.getAllBookings);
+router.get(
+  '/bookings',
+  validateRequest(BookingValidation.getBookingsValidation),
+  BookingController.getAllBookings
+);
+
 /**
  * @swagger
  * /v1/api/booking/bookings/{id}:
@@ -684,7 +720,8 @@ router.get('/bookings', (0, validateRequest_1.default)(booking_validation_1.Book
  *       404:
  *         description: Booking not found
  */
-router.get('/bookings/:id', booking_controller_1.BookingController.getBookingById);
+router.get('/bookings/:id', BookingController.getBookingById);
+
 /**
  * @swagger
  * /v1/api/booking/bookings/{id}/payment:
@@ -712,7 +749,12 @@ router.get('/bookings/:id', booking_controller_1.BookingController.getBookingByI
  *       404:
  *         description: Booking not found
  */
-router.post('/bookings/:id/payment', (0, validateRequest_1.default)(booking_validation_1.BookingValidation.processPaymentValidation), booking_controller_1.BookingController.processPayment);
+router.post(
+  '/bookings/:id/payment',
+  validateRequest(BookingValidation.processPaymentValidation),
+  BookingController.processPayment
+);
+
 /**
  * @swagger
  * /v1/api/booking/bookings/{id}/cancel:
@@ -734,7 +776,8 @@ router.post('/bookings/:id/payment', (0, validateRequest_1.default)(booking_vali
  *       404:
  *         description: Booking not found
  */
-router.put('/bookings/:id/cancel', booking_controller_1.BookingController.cancelBooking);
+router.put('/bookings/:id/cancel', BookingController.cancelBooking);
+
 /**
  * @swagger
  * /v1/api/booking/bookings/{id}/ticket:
@@ -765,5 +808,6 @@ router.put('/bookings/:id/cancel', booking_controller_1.BookingController.cancel
  *       404:
  *         description: E-ticket not found
  */
-router.get('/bookings/:id/ticket', booking_controller_1.BookingController.getETicket);
-exports.bookingRouter = router;
+router.get('/bookings/:id/ticket', BookingController.getETicket);
+
+export const bookingRouter = router;

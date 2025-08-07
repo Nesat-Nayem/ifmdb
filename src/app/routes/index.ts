@@ -10,6 +10,9 @@ import { TermsConditionRouter } from "../modules/terms-condition/terms-condition
 import { helpSupportRouter } from "../modules/help-support/help-support.routes";
 import { blogRouter } from "../modules/blog/blog.routes";
 import { uploadRouter } from "../modules/upload/upload.routes";
+import { eventRouter } from "../modules/events/events.routes";
+import { movieRouter } from "../modules/movies/movies.routes";
+import { bookingRouter } from "../modules/booking/booking.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -46,6 +49,41 @@ const moduleRoutes = [
   {
     path: "/privacy-policy",
     route: privacyPolicyRouter,
+  },
+
+  {
+    path: "/terms-conditions",
+    route: TermsConditionRouter,
+  },
+
+  {
+    path: "/help-support",
+    route: helpSupportRouter,
+  },
+
+  {
+    path: "/blogs",
+    route: blogRouter,
+  },
+
+  {
+    path: "/upload",
+    route: uploadRouter,
+  },
+
+  {
+    path: "/events",
+    route: eventRouter,
+  },
+
+  {
+    path: "/movies",
+    route: movieRouter,
+  },
+
+  {
+    path: "/booking",
+    route: bookingRouter,
   },
 
   {

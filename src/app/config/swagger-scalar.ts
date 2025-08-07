@@ -5,7 +5,7 @@ const options: swaggerJSDoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'BigSell E-commerce API',
+      title: 'IFMDB',
       version: '1.0.0',
       // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
       contact: {
@@ -43,7 +43,7 @@ export const setupScalarSwagger = (app: Application): void => {
     <!doctype html>
     <html>
       <head>
-        <title>🚀 BigSell API - Modern Documentation</title>
+        <title>🚀 IFMDB API - Modern Documentation</title>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2721/2721297.png" sizes="32x32" />

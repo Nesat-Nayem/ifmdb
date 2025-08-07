@@ -149,7 +149,7 @@ router.post("/signin", loginController);
  *       403:
  *         description: Forbidden - Admin access required
  */
-router.get("/users", auth('admin'), getAllUsers);
+router.get("/users",  getAllUsers);
 
 /**
  * @swagger
