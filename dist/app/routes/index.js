@@ -15,6 +15,8 @@ const upload_routes_1 = require("../modules/upload/upload.routes");
 const events_routes_1 = require("../modules/events/events.routes");
 const movies_routes_1 = require("../modules/movies/movies.routes");
 const booking_routes_1 = require("../modules/booking/booking.routes");
+const onboarding_routes_1 = require("../modules/onboarding/onboarding.routes");
+const inquiry_routes_1 = require("../modules/inquiry/inquiry.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -32,6 +34,14 @@ const moduleRoutes = [
     {
         path: "/banners",
         route: banner_routes_1.bannerRouter,
+    },
+    {
+        path: "/onboarding",
+        route: onboarding_routes_1.onboardingRouter,
+    },
+    {
+        path: "/inquiries",
+        route: inquiry_routes_1.inquiryRouter,
     },
     {
         path: "/save-cards",

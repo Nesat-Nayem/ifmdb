@@ -6,6 +6,7 @@ import { setupSwagger } from './app/config/swagger';
 const app:Application = express();
 import cors from 'cors';
 
+
 // parsers
 app.use(express.json());
 

@@ -16,14 +16,16 @@ const appError_1 = require("../../errors/appError");
 const aiService_1 = require("../../services/aiService");
 const createFAQ = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { question, answer, category, order, isActive } = req.body;
+        const { question, answer, category, order, isActive, status } = req.body;
         // Validate the input
         const validatedData = faq_validation_1.faqValidation.parse({
             question,
             answer,
             category,
             order: order ? parseInt(order) : undefined,
-            isActive: isActive === 'true' || isActive === true
+            isActive: status !== undefined
+                ? (status === 'true' || status === true)
+                : (isActive === 'true' || isActive === true)
         });
         // Create a new FAQ
         const faq = new faq_model_1.FAQ(validatedData);
@@ -97,7 +99,7 @@ exports.getFAQById = getFAQById;
 const updateFAQById = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const faqId = req.params.id;
-        const { question, answer, category, order, isActive } = req.body;
+        const { question, answer, category, order, isActive, status } = req.body;
         // Find the FAQ to update
         const faq = yield faq_model_1.FAQ.findOne({
             _id: faqId,
@@ -120,7 +122,10 @@ const updateFAQById = (req, res, next) => __awaiter(void 0, void 0, void 0, func
         if (order !== undefined) {
             updateData.order = parseInt(order);
         }
-        if (isActive !== undefined) {
+        if (status !== undefined) {
+            updateData.isActive = status === 'true' || status === true;
+        }
+        else if (isActive !== undefined) {
             updateData.isActive = isActive === 'true' || isActive === true;
         }
         // Validate the update data

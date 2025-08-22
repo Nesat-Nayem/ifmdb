@@ -14,8 +14,8 @@ const options = {
             version: '1.0.0',
             // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
             contact: {
-                name: 'BigSell Team',
-                email: 'support@bigsell.com',
+                name: 'IFMDB Team',
+                email: 'support@ifmdb.com',
             },
             license: {
                 name: 'ISC',
@@ -23,9 +23,13 @@ const options = {
         },
         servers: [
             {
-                url: 'https://ifmdb.atpuae.com',
+                url: 'http://localhost:8080',
                 description: 'Development server',
             },
+            {
+                url: 'https://ifmdb.atpuae.com',
+                description: 'Production server',
+            }
         ],
         components: {
             securitySchemes: {
@@ -103,23 +107,42 @@ const options = {
                         _id: {
                             type: 'string',
                             description: 'Banner ID',
+                            example: '66c8a2f9e9b1c5a7d1234567'
                         },
                         title: {
                             type: 'string',
                             description: 'Banner title',
+                            example: 'IFMDB Summer Film Festival'
                         },
                         image: {
                             type: 'string',
                             description: 'Banner image URL',
+                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/banners/summer-film-fest.jpg'
                         },
-                        link: {
-                            type: 'string',
-                            description: 'Banner link URL',
+                        isActive: {
+                            type: 'boolean',
+                            description: 'Whether the banner is visible',
+                            example: true
                         },
-                        status: {
+                        order: {
+                            type: 'integer',
+                            description: 'Display order (lower shows first)',
+                            example: 1
+                        },
+                        isDeleted: {
+                            type: 'boolean',
+                            description: 'Soft delete flag',
+                            example: false
+                        },
+                        createdAt: {
                             type: 'string',
-                            enum: ['active', 'inactive'],
-                            description: 'Banner status',
+                            description: 'Creation timestamp (IST formatted string in API output)',
+                            example: '8/22/2025, 9:30:12 AM'
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            description: 'Update timestamp (IST formatted string in API output)',
+                            example: '8/22/2025, 9:35:44 AM'
                         },
                     },
                 },
@@ -528,9 +551,19 @@ const setupSwagger = (app) => {
       background: #9ca3af;
     }
     
-    /* Remove unnecessary elements */
+    /* Show and style the authorization (security schemes) section */
     .swagger-ui .scheme-container {
-      display: none;
+      display: block !important;
+      margin: 1rem 0 !important;
+      padding: 1rem !important;
+      background: #f8fafc !important;
+      border: 1px solid #e5e7eb !important;
+      border-radius: 8px !important;
+    }
+    .swagger-ui .auth-wrapper {
+      display: flex !important;
+      align-items: center !important;
+      gap: 1rem !important;
     }
     
     /* Custom header styling */
