@@ -14,6 +14,7 @@ import { eventRouter } from "../modules/events/events.routes";
 import { movieRouter } from "../modules/movies/movies.routes";
 import { bookingRouter } from "../modules/booking/booking.routes";
 import { onboardingRouter } from "../modules/onboarding/onboarding.routes";
+import { inquiryRouter } from "../modules/inquiry/inquiry.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -40,6 +41,11 @@ const moduleRoutes = [
   {
     path: "/onboarding",
     route: onboardingRouter,
+  },
+
+  {
+    path: "/inquiries",
+    route: inquiryRouter,
   },
 
   {
