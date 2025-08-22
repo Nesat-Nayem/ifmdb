@@ -10,8 +10,8 @@ const options: swaggerJSDoc.Options = {
       version: '1.0.0',
       // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
       contact: {
-        name: 'BigSell Team',
-        email: 'support@bigsell.com',
+        name: 'IFMDB Team',
+        email: 'support@ifmdb.com',
       },
       license: {
         name: 'ISC',
