@@ -13,6 +13,7 @@ import { uploadRouter } from "../modules/upload/upload.routes";
 import { eventRouter } from "../modules/events/events.routes";
 import { movieRouter } from "../modules/movies/movies.routes";
 import { bookingRouter } from "../modules/booking/booking.routes";
+import { onboardingRouter } from "../modules/onboarding/onboarding.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -34,6 +35,11 @@ const moduleRoutes = [
   {
     path: "/banners",
     route: bannerRouter,
+  },
+
+  {
+    path: "/onboarding",
+    route: onboardingRouter,
   },
 
   {
