@@ -10,7 +10,7 @@ export const createFAQ = async (
   next: NextFunction
 ) => {
   try {
-    const { question, answer, category, order, isActive } = req.body;
+    const { question, answer, category, order, isActive, status } = req.body;
     
     // Validate the input
     const validatedData = faqValidation.parse({ 
@@ -18,7 +18,9 @@ export const createFAQ = async (
       answer,
       category,
       order: order ? parseInt(order as string) : undefined,
-      isActive: isActive === 'true' || isActive === true
+      isActive: status !== undefined
+        ? (status === 'true' || status === true)
+        : (isActive === 'true' || isActive === true)
     });
 
     // Create a new FAQ
@@ -110,7 +112,7 @@ export const updateFAQById = async (
 ) => {
   try {
     const faqId = req.params.id;
-    const { question, answer, category, order, isActive } = req.body;
+    const { question, answer, category, order, isActive, status } = req.body;
     
     // Find the FAQ to update
     const faq = await FAQ.findOne({ 
@@ -141,7 +143,9 @@ export const updateFAQById = async (
       updateData.order = parseInt(order as string);
     }
     
-    if (isActive !== undefined) {
+    if (status !== undefined) {
+      updateData.isActive = status === 'true' || status === true;
+    } else if (isActive !== undefined) {
       updateData.isActive = isActive === 'true' || isActive === true;
     }
 
