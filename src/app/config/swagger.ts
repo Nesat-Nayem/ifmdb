@@ -72,6 +72,41 @@ const options: swaggerJSDoc.Options = {
             },
           },
         },
+        Advertise: {
+          type: 'object',
+          required: ['image'],
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'Advertisement ID',
+              example: '66d88b4ea31a5e0f9c7654321'
+            },
+            image: {
+              type: 'string',
+              description: 'Advertisement image URL',
+              example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/ads/ad-1.jpg'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'inactive'],
+              description: 'Advertisement status',
+              example: 'active'
+            },
+            isDeleted: {
+              type: 'boolean',
+              description: 'Soft delete flag',
+              example: false
+            },
+            createdAt: {
+              type: 'string',
+              description: 'Creation timestamp (IST formatted string in API output)'
+            },
+            updatedAt: {
+              type: 'string',
+              description: 'Update timestamp (IST formatted string in API output)'
+            }
+          }
+        },
         Category: {
           type: 'object',
           required: ['title', 'image'],
