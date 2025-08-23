@@ -23,7 +23,7 @@ const options: swaggerJSDoc.Options = {
         description: 'Development server',
       },
       {
-        url: 'https://ifmdb.atpuae.com',
+        url: 'https://ifmdb.atpuae.com/v1/api',
         description: 'Production server',
       }
    
@@ -74,27 +74,28 @@ const options: swaggerJSDoc.Options = {
         },
         Category: {
           type: 'object',
+          required: ['title', 'image'],
           properties: {
             _id: {
               type: 'string',
               description: 'Category ID',
+              example: '66d88b4ea31a5e0f9c123456'
             },
-            name: {
+            title: {
               type: 'string',
-              description: 'Category name',
-            },
-            description: {
-              type: 'string',
-              description: 'Category description',
+              description: 'Category title',
+              example: 'Action'
             },
             image: {
               type: 'string',
               description: 'Category image URL',
+              example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/categories/action.jpg'
             },
             status: {
               type: 'string',
               enum: ['active', 'inactive'],
-              description: 'Category status',
+              description: 'Category status (optional; not enforced in backend model)',
+              example: 'active'
             },
           },
         },
