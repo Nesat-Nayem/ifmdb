@@ -16,6 +16,7 @@ import { bookingRouter } from "../modules/booking/booking.routes";
 import { onboardingRouter } from "../modules/onboarding/onboarding.routes";
 import { inquiryRouter } from "../modules/inquiry/inquiry.routes";
 import { advertiseRouter } from "../modules/advertise/advertise.routes";
+import { helpCenterRouter } from "../modules/help-center/help-center.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -45,6 +46,11 @@ const moduleRoutes = [
   },
 
   {
+    path: "/help-center",
+    route: helpCenterRouter,
+  },
+
+  {
     path: "/onboarding",
     route: onboardingRouter,
   },
@@ -70,7 +76,7 @@ const moduleRoutes = [
   },
 
   {
-    path: "/terms-conditions",
+    path: "/terms-condition",
     route: TermsConditionRouter,
   },
 
@@ -104,25 +110,7 @@ const moduleRoutes = [
     route: bookingRouter,
   },
 
-  {
-    path: "/terms-conditions",
-    route: TermsConditionRouter,
-  },
-
-  {
-    path: "/help-support",
-    route: helpSupportRouter,
-  },
-
-  {
-    path: "/blogs",
-    route: blogRouter,
-  },
-
-  {
-    path: "/uploads",
-    route: uploadRouter,
-  },
+  
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

@@ -72,6 +72,36 @@ const options: swaggerJSDoc.Options = {
             },
           },
         },
+        PrivacyPolicy: {
+          type: 'object',
+          required: ['content'],
+          properties: {
+            _id: { type: 'string', description: 'Privacy policy ID' },
+            content: { type: 'string', description: 'HTML or markdown content', example: '<p>Privacy Policy content goes here.</p>' },
+            createdAt: { type: 'string', description: 'Creation timestamp (IST formatted string in API output)' },
+            updatedAt: { type: 'string', description: 'Update timestamp (IST formatted string in API output)' },
+          },
+        },
+        TermsCondition: {
+          type: 'object',
+          required: ['content'],
+          properties: {
+            _id: { type: 'string', description: 'Terms & Conditions ID' },
+            content: { type: 'string', description: 'HTML or markdown content', example: '<p> Terms and Conditions content goes here.</p>' },
+            createdAt: { type: 'string', description: 'Creation timestamp (IST formatted string in API output)' },
+            updatedAt: { type: 'string', description: 'Update timestamp (IST formatted string in API output)' },
+          },
+        },
+        HelpCenter: {
+          type: 'object',
+          required: ['content'],
+          properties: {
+            _id: { type: 'string', description: 'Help Center ID' },
+            content: { type: 'string', description: 'HTML or markdown content', example: '<p>Help Center content goes here.</p>' },
+            createdAt: { type: 'string', description: 'Creation timestamp (IST formatted string in API output)' },
+            updatedAt: { type: 'string', description: 'Update timestamp (IST formatted string in API output)' },
+          },
+        },
         Advertise: {
           type: 'object',
           required: ['image'],
