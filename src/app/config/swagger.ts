@@ -23,7 +23,7 @@ const options: swaggerJSDoc.Options = {
         description: 'Development server',
       },
       {
-        url: 'https://ifmdb.atpuae.com/v1/api',
+        url: 'https://ifmdb.atpuae.com',
         description: 'Production server',
       }
    
