@@ -3,27 +3,27 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TermsConditionRouter = void 0;
+exports.helpCenterRouter = void 0;
 const express_1 = __importDefault(require("express"));
-const terms_condition_controller_1 = require("./terms-condition.controller");
 const authMiddleware_1 = require("../../middlewares/authMiddleware");
+const help_center_controller_1 = require("./help-center.controller");
 const router = express_1.default.Router();
 /**
  * @swagger
  * tags:
- *   - name: Terms & Conditions
- *     description: Manage terms and conditions document
+ *   - name: Help Center
+ *     description: Manage Help Center content
  */
 /**
  * @swagger
- * /v1/api/terms-condition:
+ * /v1/api/help-center:
  *   get:
- *     summary: Get terms and conditions
- *     description: Returns the current terms and conditions. Creates a default one if none exists.
- *     tags: [Terms & Conditions]
+ *     summary: Get Help Center content
+ *     description: Returns the current Help Center content. Creates a default one if none exists.
+ *     tags: [Help Center]
  *     responses:
  *       200:
- *         description: Terms and conditions retrieved successfully
+ *         description: Help Center retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -36,17 +36,16 @@ const router = express_1.default.Router();
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/TermsCondition'
+ *                   $ref: '#/components/schemas/HelpCenter'
  */
-// Get privacy policy (public)
-router.get('/', terms_condition_controller_1.getTermsCondition);
+router.get('/', help_center_controller_1.getHelpCenter);
 /**
  * @swagger
- * /v1/api/terms-condition:
+ * /v1/api/help-center:
  *   put:
- *     summary: Update terms and conditions
- *     description: Update the terms and conditions content. Admin only.
- *     tags: [Terms & Conditions]
+ *     summary: Update Help Center content
+ *     description: Update the Help Center content. Admin only.
+ *     tags: [Help Center]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -62,7 +61,7 @@ router.get('/', terms_condition_controller_1.getTermsCondition);
  *             required: [content]
  *     responses:
  *       200:
- *         description: Terms and conditions updated successfully
+ *         description: Help Center updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -75,8 +74,7 @@ router.get('/', terms_condition_controller_1.getTermsCondition);
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/TermsCondition'
+ *                   $ref: '#/components/schemas/HelpCenter'
  */
-// Update privacy policy (admin only)
-router.put('/', (0, authMiddleware_1.auth)('admin'), terms_condition_controller_1.updateTermsCondition);
-exports.TermsConditionRouter = router;
+router.put('/', (0, authMiddleware_1.auth)('admin'), help_center_controller_1.updateHelpCenter);
+exports.helpCenterRouter = router;

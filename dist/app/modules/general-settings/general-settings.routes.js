@@ -3,27 +3,26 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.TermsConditionRouter = void 0;
+exports.generalSettingsRouter = void 0;
 const express_1 = __importDefault(require("express"));
-const terms_condition_controller_1 = require("./terms-condition.controller");
 const authMiddleware_1 = require("../../middlewares/authMiddleware");
+const general_settings_controller_1 = require("./general-settings.controller");
 const router = express_1.default.Router();
 /**
  * @swagger
  * tags:
- *   - name: Terms & Conditions
- *     description: Manage terms and conditions document
+ *   - name: General Settings
+ *     description: Manage site-wide general settings
  */
 /**
  * @swagger
- * /v1/api/terms-condition:
+ * /v1/api/general-settings:
  *   get:
- *     summary: Get terms and conditions
- *     description: Returns the current terms and conditions. Creates a default one if none exists.
- *     tags: [Terms & Conditions]
+ *     summary: Get general settings
+ *     tags: [General Settings]
  *     responses:
  *       200:
- *         description: Terms and conditions retrieved successfully
+ *         description: General settings retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -36,33 +35,27 @@ const router = express_1.default.Router();
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/TermsCondition'
+ *                   $ref: '#/components/schemas/GeneralSettings'
  */
-// Get privacy policy (public)
-router.get('/', terms_condition_controller_1.getTermsCondition);
+router.get('/', general_settings_controller_1.getGeneralSettings);
 /**
  * @swagger
- * /v1/api/terms-condition:
+ * /v1/api/general-settings:
  *   put:
- *     summary: Update terms and conditions
- *     description: Update the terms and conditions content. Admin only.
- *     tags: [Terms & Conditions]
+ *     summary: Update general settings
+ *     description: Admin only. Provide any of the settings fields to update.
+ *     tags: [General Settings]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               content:
- *                 type: string
- *                 description: HTML or markdown content
- *             required: [content]
+ *             $ref: '#/components/schemas/GeneralSettingsUpdate'
  *     responses:
  *       200:
- *         description: Terms and conditions updated successfully
+ *         description: General settings updated successfully
  *         content:
  *           application/json:
  *             schema:
@@ -75,8 +68,7 @@ router.get('/', terms_condition_controller_1.getTermsCondition);
  *                 message:
  *                   type: string
  *                 data:
- *                   $ref: '#/components/schemas/TermsCondition'
+ *                   $ref: '#/components/schemas/GeneralSettings'
  */
-// Update privacy policy (admin only)
-router.put('/', (0, authMiddleware_1.auth)('admin'), terms_condition_controller_1.updateTermsCondition);
-exports.TermsConditionRouter = router;
+router.put('/', (0, authMiddleware_1.auth)('admin'), general_settings_controller_1.updateGeneralSettings);
+exports.generalSettingsRouter = router;

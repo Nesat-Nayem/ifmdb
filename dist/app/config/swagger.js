@@ -27,7 +27,7 @@ const options = {
                 description: 'Development server',
             },
             {
-                url: 'https://ifmdb.atpuae.com',
+                url: 'https://ifmdb.atpuae.com/v1/api',
                 description: 'Production server',
             }
         ],
@@ -75,29 +75,125 @@ const options = {
                         },
                     },
                 },
-                Category: {
+                PrivacyPolicy: {
                     type: 'object',
+                    required: ['content'],
+                    properties: {
+                        _id: { type: 'string', description: 'Privacy policy ID' },
+                        content: { type: 'string', description: 'HTML or markdown content', example: '<p>Privacy Policy content goes here.</p>' },
+                        createdAt: { type: 'string', description: 'Creation timestamp (IST formatted string in API output)' },
+                        updatedAt: { type: 'string', description: 'Update timestamp (IST formatted string in API output)' },
+                    },
+                },
+                TermsCondition: {
+                    type: 'object',
+                    required: ['content'],
+                    properties: {
+                        _id: { type: 'string', description: 'Terms & Conditions ID' },
+                        content: { type: 'string', description: 'HTML or markdown content', example: '<p> Terms and Conditions content goes here.</p>' },
+                        createdAt: { type: 'string', description: 'Creation timestamp (IST formatted string in API output)' },
+                        updatedAt: { type: 'string', description: 'Update timestamp (IST formatted string in API output)' },
+                    },
+                },
+                HelpCenter: {
+                    type: 'object',
+                    required: ['content'],
+                    properties: {
+                        _id: { type: 'string', description: 'Help Center ID' },
+                        content: { type: 'string', description: 'HTML or markdown content', example: '<p>Help Center content goes here.</p>' },
+                        createdAt: { type: 'string', description: 'Creation timestamp (IST formatted string in API output)' },
+                        updatedAt: { type: 'string', description: 'Update timestamp (IST formatted string in API output)' },
+                    },
+                },
+                GeneralSettings: {
+                    type: 'object',
+                    properties: {
+                        number: { type: 'string', example: '+971500000000' },
+                        email: { type: 'string', example: 'info@ifmdb.com' },
+                        facebook: { type: 'string', example: 'https://facebook.com/ifmdb' },
+                        instagram: { type: 'string', example: 'https://instagram.com/ifmdb' },
+                        linkedin: { type: 'string', example: 'https://linkedin.com/company/ifmdb' },
+                        twitter: { type: 'string', example: 'https://twitter.com/ifmdb' },
+                        youtube: { type: 'string', example: 'https://youtube.com/@ifmdb' },
+                        favicon: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/assets/favicon.ico' },
+                        logo: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/assets/logo.png' },
+                        createdAt: { type: 'string' },
+                        updatedAt: { type: 'string' },
+                    },
+                },
+                GeneralSettingsUpdate: {
+                    type: 'object',
+                    properties: {
+                        number: { type: 'string' },
+                        email: { type: 'string' },
+                        facebook: { type: 'string' },
+                        instagram: { type: 'string' },
+                        linkedin: { type: 'string' },
+                        twitter: { type: 'string' },
+                        youtube: { type: 'string' },
+                        favicon: { type: 'string' },
+                        logo: { type: 'string' },
+                    },
+                },
+                Advertise: {
+                    type: 'object',
+                    required: ['image'],
                     properties: {
                         _id: {
                             type: 'string',
-                            description: 'Category ID',
-                        },
-                        name: {
-                            type: 'string',
-                            description: 'Category name',
-                        },
-                        description: {
-                            type: 'string',
-                            description: 'Category description',
+                            description: 'Advertisement ID',
+                            example: '66d88b4ea31a5e0f9c7654321'
                         },
                         image: {
                             type: 'string',
-                            description: 'Category image URL',
+                            description: 'Advertisement image URL',
+                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/ads/ad-1.jpg'
                         },
                         status: {
                             type: 'string',
                             enum: ['active', 'inactive'],
-                            description: 'Category status',
+                            description: 'Advertisement status',
+                            example: 'active'
+                        },
+                        isDeleted: {
+                            type: 'boolean',
+                            description: 'Soft delete flag',
+                            example: false
+                        },
+                        createdAt: {
+                            type: 'string',
+                            description: 'Creation timestamp (IST formatted string in API output)'
+                        },
+                        updatedAt: {
+                            type: 'string',
+                            description: 'Update timestamp (IST formatted string in API output)'
+                        }
+                    }
+                },
+                Category: {
+                    type: 'object',
+                    required: ['title', 'image'],
+                    properties: {
+                        _id: {
+                            type: 'string',
+                            description: 'Category ID',
+                            example: '66d88b4ea31a5e0f9c123456'
+                        },
+                        title: {
+                            type: 'string',
+                            description: 'Category title',
+                            example: 'Action'
+                        },
+                        image: {
+                            type: 'string',
+                            description: 'Category image URL',
+                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/categories/action.jpg'
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'inactive'],
+                            description: 'Category status (optional; not enforced in backend model)',
+                            example: 'active'
                         },
                     },
                 },

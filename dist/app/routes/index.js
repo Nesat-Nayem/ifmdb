@@ -17,6 +17,9 @@ const movies_routes_1 = require("../modules/movies/movies.routes");
 const booking_routes_1 = require("../modules/booking/booking.routes");
 const onboarding_routes_1 = require("../modules/onboarding/onboarding.routes");
 const inquiry_routes_1 = require("../modules/inquiry/inquiry.routes");
+const advertise_routes_1 = require("../modules/advertise/advertise.routes");
+const help_center_routes_1 = require("../modules/help-center/help-center.routes");
+const general_settings_routes_1 = require("../modules/general-settings/general-settings.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -34,6 +37,18 @@ const moduleRoutes = [
     {
         path: "/banners",
         route: banner_routes_1.bannerRouter,
+    },
+    {
+        path: "/advertisements",
+        route: advertise_routes_1.advertiseRouter,
+    },
+    {
+        path: "/help-center",
+        route: help_center_routes_1.helpCenterRouter,
+    },
+    {
+        path: "/general-settings",
+        route: general_settings_routes_1.generalSettingsRouter,
     },
     {
         path: "/onboarding",
@@ -56,7 +71,7 @@ const moduleRoutes = [
         route: privacy_policy_routes_1.privacyPolicyRouter,
     },
     {
-        path: "/terms-conditions",
+        path: "/terms-condition",
         route: terms_condition_routes_1.TermsConditionRouter,
     },
     {
@@ -82,22 +97,6 @@ const moduleRoutes = [
     {
         path: "/booking",
         route: booking_routes_1.bookingRouter,
-    },
-    {
-        path: "/terms-conditions",
-        route: terms_condition_routes_1.TermsConditionRouter,
-    },
-    {
-        path: "/help-support",
-        route: help_support_routes_1.helpSupportRouter,
-    },
-    {
-        path: "/blogs",
-        route: blog_routes_1.blogRouter,
-    },
-    {
-        path: "/uploads",
-        route: upload_routes_1.uploadRouter,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
