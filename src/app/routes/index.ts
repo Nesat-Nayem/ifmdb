@@ -17,6 +17,7 @@ import { onboardingRouter } from "../modules/onboarding/onboarding.routes";
 import { inquiryRouter } from "../modules/inquiry/inquiry.routes";
 import { advertiseRouter } from "../modules/advertise/advertise.routes";
 import { helpCenterRouter } from "../modules/help-center/help-center.routes";
+import { generalSettingsRouter } from "../modules/general-settings/general-settings.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -48,6 +49,11 @@ const moduleRoutes = [
   {
     path: "/help-center",
     route: helpCenterRouter,
+  },
+
+  {
+    path: "/general-settings",
+    route: generalSettingsRouter,
   },
 
   {
