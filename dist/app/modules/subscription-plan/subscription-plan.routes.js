@@ -1,0 +1,155 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.subscriptionPlanRouter = void 0;
+const express_1 = __importDefault(require("express"));
+const authMiddleware_1 = require("../../middlewares/authMiddleware");
+const subscription_plan_controller_1 = require("./subscription-plan.controller");
+const router = express_1.default.Router();
+/**
+ * @swagger
+ * tags:
+ *   - name: SubscriptionPlans
+ *     description: Manage subscription plans
+ */
+/**
+ * @swagger
+ * /v1/api/subscription-plans:
+ *   post:
+ *     summary: Create a new subscription plan
+ *     tags: [SubscriptionPlans]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SubscriptionPlanCreate'
+ *     responses:
+ *       201:
+ *         description: Subscription plan created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/', (0, authMiddleware_1.auth)('admin'), subscription_plan_controller_1.createSubscriptionPlan);
+/**
+ * @swagger
+ * /v1/api/subscription-plans:
+ *   get:
+ *     summary: Get all subscription plans
+ *     tags: [SubscriptionPlans]
+ *     responses:
+ *       200:
+ *         description: Subscription plans retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ */
+router.get('/', subscription_plan_controller_1.getAllSubscriptionPlans);
+/**
+ * @swagger
+ * /v1/api/subscription-plans/{id}:
+ *   get:
+ *     summary: Get a subscription plan by ID
+ *     tags: [SubscriptionPlans]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Subscription plan ID
+ *     responses:
+ *       200:
+ *         description: Subscription plan retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       404:
+ *         description: Subscription plan not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.get('/:id', subscription_plan_controller_1.getSubscriptionPlanById);
+/**
+ * @swagger
+ * /v1/api/subscription-plans/{id}:
+ *   put:
+ *     summary: Update a subscription plan by ID
+ *     tags: [SubscriptionPlans]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Subscription plan ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SubscriptionPlanUpdate'
+ *     responses:
+ *       200:
+ *         description: Subscription plan updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       404:
+ *         description: Subscription plan not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.put('/:id', (0, authMiddleware_1.auth)('admin'), subscription_plan_controller_1.updateSubscriptionPlanById);
+/**
+ * @swagger
+ * /v1/api/subscription-plans/{id}:
+ *   delete:
+ *     summary: Delete a subscription plan by ID (soft delete)
+ *     tags: [SubscriptionPlans]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Subscription plan ID
+ *     responses:
+ *       200:
+ *         description: Subscription plan deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Success'
+ *       404:
+ *         description: Subscription plan not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/:id', (0, authMiddleware_1.auth)('admin'), subscription_plan_controller_1.deleteSubscriptionPlanById);
+exports.subscriptionPlanRouter = router;

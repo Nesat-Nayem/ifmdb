@@ -34,6 +34,10 @@ const router = express_1.default.Router();
  *               status:
  *                 type: string
  *                 enum: [active, inactive]
+ *               link:
+ *                 type: string
+ *                 description: Optional URL to open when the ad is clicked
+ *                 example: https://example.com/promo
  *               image:
  *                 type: string
  *                 format: binary
@@ -151,6 +155,10 @@ router.get('/:id', advertise_controller_1.getAdvertiseById);
  *               status:
  *                 type: string
  *                 enum: [active, inactive]
+ *               link:
+ *                 type: string
+ *                 description: Optional URL to open when the ad is clicked
+ *                 example: https://example.com/promo
  *               image:
  *                 type: string
  *                 format: binary

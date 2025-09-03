@@ -27,7 +27,7 @@ const options = {
                 description: 'Development server',
             },
             {
-                url: 'https://ifmdb.atpuae.com/v1/api',
+                url: 'https://ifmdb.atpuae.com',
                 description: 'Production server',
             }
         ],
@@ -73,6 +73,45 @@ const options = {
                             type: 'string',
                             format: 'date-time',
                         },
+                    },
+                },
+                SubscriptionPlan: {
+                    type: 'object',
+                    required: ['planName', 'planCost', 'planInclude'],
+                    properties: {
+                        _id: { type: 'string', description: 'Subscription plan ID', example: '66f2c0fd8b1a2c3456789012' },
+                        planName: { type: 'string', example: 'Premium' },
+                        planCost: { type: 'number', example: 29.99 },
+                        planInclude: { type: 'array', items: { type: 'string' }, example: ['Ad-free', 'HD Streaming', 'Priority Support'] },
+                        metaTitle: { type: 'string', example: 'Premium Plan - Best Value' },
+                        metaTag: { type: 'array', items: { type: 'string' }, example: ['premium', 'subscription'] },
+                        metaDescription: { type: 'string', example: 'Get access to premium features with our Premium plan.' },
+                        isDeleted: { type: 'boolean', example: false },
+                        createdAt: { type: 'string', description: 'IST formatted string in API output' },
+                        updatedAt: { type: 'string', description: 'IST formatted string in API output' },
+                    },
+                },
+                SubscriptionPlanCreate: {
+                    type: 'object',
+                    required: ['planName', 'planCost', 'planInclude'],
+                    properties: {
+                        planName: { type: 'string' },
+                        planCost: { type: 'number' },
+                        planInclude: { type: 'array', items: { type: 'string' } },
+                        metaTitle: { type: 'string' },
+                        metaTag: { type: 'array', items: { type: 'string' } },
+                        metaDescription: { type: 'string' },
+                    },
+                },
+                SubscriptionPlanUpdate: {
+                    type: 'object',
+                    properties: {
+                        planName: { type: 'string' },
+                        planCost: { type: 'number' },
+                        planInclude: { type: 'array', items: { type: 'string' } },
+                        metaTitle: { type: 'string' },
+                        metaTag: { type: 'array', items: { type: 'string' } },
+                        metaDescription: { type: 'string' },
                     },
                 },
                 PrivacyPolicy: {
@@ -148,6 +187,11 @@ const options = {
                             type: 'string',
                             description: 'Advertisement image URL',
                             example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/ads/ad-1.jpg'
+                        },
+                        link: {
+                            type: 'string',
+                            description: 'Optional URL to open when the ad is clicked',
+                            example: 'https://example.com/promo'
                         },
                         status: {
                             type: 'string',

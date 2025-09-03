@@ -21,7 +21,8 @@ const createAdvertise = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
         }
         const image = req.file.path; // cloudinary middleware should set this
         const status = req.body.status || 'active';
-        const validated = advertise_validation_1.advertiseCreateValidation.parse({ image, status });
+        const link = req.body.link;
+        const validated = advertise_validation_1.advertiseCreateValidation.parse({ image, status, link });
         const ad = yield advertise_model_1.Advertise.create(validated);
         res.status(201).json({
             success: true,
@@ -77,6 +78,8 @@ const updateAdvertiseById = (req, res, next) => __awaiter(void 0, void 0, void 0
             updateData.image = req.file.path;
         if (req.body.status)
             updateData.status = req.body.status;
+        if (req.body.link)
+            updateData.link = req.body.link;
         if (Object.keys(updateData).length === 0) {
             return res.json({
                 success: true,

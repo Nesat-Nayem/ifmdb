@@ -20,6 +20,7 @@ const inquiry_routes_1 = require("../modules/inquiry/inquiry.routes");
 const advertise_routes_1 = require("../modules/advertise/advertise.routes");
 const help_center_routes_1 = require("../modules/help-center/help-center.routes");
 const general_settings_routes_1 = require("../modules/general-settings/general-settings.routes");
+const subscription_plan_routes_1 = require("../modules/subscription-plan/subscription-plan.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -97,6 +98,10 @@ const moduleRoutes = [
     {
         path: "/booking",
         route: booking_routes_1.bookingRouter,
+    },
+    {
+        path: "/subscription-plans",
+        route: subscription_plan_routes_1.subscriptionPlanRouter,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

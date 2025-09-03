@@ -33,27 +33,16 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Advertise = void 0;
+exports.SubscriptionPlan = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
-const AdvertiseSchema = new mongoose_1.Schema({
-    image: {
-        type: String,
-        required: true,
-        trim: true,
-    },
-    link: {
-        type: String,
-        trim: true,
-    },
-    status: {
-        type: String,
-        enum: ['active', 'inactive'],
-        default: 'active',
-    },
-    isDeleted: {
-        type: Boolean,
-        default: false,
-    },
+const SubscriptionPlanSchema = new mongoose_1.Schema({
+    planName: { type: String, required: true, trim: true },
+    planCost: { type: Number, required: true, min: 0 },
+    planInclude: { type: [String], required: true, default: [] },
+    metaTitle: { type: String, trim: true },
+    metaTag: { type: [String], default: [] },
+    metaDescription: { type: String, trim: true },
+    isDeleted: { type: Boolean, default: false },
 }, {
     timestamps: true,
     toJSON: {
@@ -65,4 +54,4 @@ const AdvertiseSchema = new mongoose_1.Schema({
         },
     },
 });
-exports.Advertise = mongoose_1.default.model('Advertise', AdvertiseSchema);
+exports.SubscriptionPlan = mongoose_1.default.model('SubscriptionPlan', SubscriptionPlanSchema);
