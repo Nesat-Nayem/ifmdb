@@ -18,6 +18,7 @@ import { inquiryRouter } from "../modules/inquiry/inquiry.routes";
 import { advertiseRouter } from "../modules/advertise/advertise.routes";
 import { helpCenterRouter } from "../modules/help-center/help-center.routes";
 import { generalSettingsRouter } from "../modules/general-settings/general-settings.routes";
+import { subscriptionPlanRouter } from "../modules/subscription-plan/subscription-plan.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -116,7 +117,10 @@ const moduleRoutes = [
     route: bookingRouter,
   },
 
-  
+  {
+    path: "/subscription-plans",
+    route: subscriptionPlanRouter,
+  },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
