@@ -146,6 +146,11 @@ const options: swaggerJSDoc.Options = {
               description: 'Advertisement image URL',
               example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/ads/ad-1.jpg'
             },
+            link: {
+              type: 'string',
+              description: 'Optional URL to open when the ad is clicked',
+              example: 'https://example.com/promo'
+            },
             status: {
               type: 'string',
               enum: ['active', 'inactive'],

@@ -8,6 +8,10 @@ const AdvertiseSchema: Schema = new Schema(
       required: true,
       trim: true,
     },
+    link: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       enum: ['active', 'inactive'],

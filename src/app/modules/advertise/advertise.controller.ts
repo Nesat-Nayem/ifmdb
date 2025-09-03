@@ -12,8 +12,9 @@ export const createAdvertise = async (req: Request, res: Response, next: NextFun
 
     const image = req.file.path; // cloudinary middleware should set this
     const status = (req.body.status as 'active' | 'inactive') || 'active';
+    const link = req.body.link as string | undefined;
 
-    const validated = advertiseCreateValidation.parse({ image, status });
+    const validated = advertiseCreateValidation.parse({ image, status, link });
 
     const ad = await Advertise.create(validated);
 
@@ -63,10 +64,11 @@ export const updateAdvertiseById = async (req: Request, res: Response, next: Nex
     const ad = await Advertise.findOne({ _id: req.params.id, isDeleted: false });
     if (!ad) return next(new appError('Advertisement not found', 404));
 
-    const updateData: { image?: string; status?: 'active' | 'inactive' } = {};
+    const updateData: { image?: string; status?: 'active' | 'inactive'; link?: string } = {};
 
     if (req.file) updateData.image = req.file.path;
     if (req.body.status) updateData.status = req.body.status as 'active' | 'inactive';
+    if (req.body.link) updateData.link = req.body.link as string;
 
     if (Object.keys(updateData).length === 0) {
       return res.json({
