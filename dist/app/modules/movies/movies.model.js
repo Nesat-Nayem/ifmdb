@@ -62,6 +62,25 @@ const CastCrewSchema = new mongoose_1.Schema({
         default: false
     }
 });
+// Admin Panel specific simple schemas
+const CastSchema = new mongoose_1.Schema({
+    name: { type: String, required: true },
+    type: { type: String, default: '' },
+    image: { type: String, default: '' },
+});
+const CrewSchema = new mongoose_1.Schema({
+    name: { type: String, required: true },
+    designation: { type: String, default: '' },
+    image: { type: String, default: '' },
+});
+const CompanySchema = new mongoose_1.Schema({
+    productionHouse: { type: String, default: '' },
+    website: { type: String, default: '' },
+    address: { type: String, default: '' },
+    state: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    email: { type: String, default: '' },
+}, { _id: false });
 // Review Schema
 const ReviewSchema = new mongoose_1.Schema({
     userId: {
@@ -133,7 +152,7 @@ const movieSchema = new mongoose_1.Schema({
         }],
     originalLanguage: {
         type: String,
-        required: [true, 'Original language is required']
+        default: ''
     },
     rating: {
         type: String,
@@ -201,7 +220,6 @@ const movieSchema = new mongoose_1.Schema({
     },
     formats: [{
             type: String,
-            enum: ['2D', '3D', 'IMAX', '4DX', 'Dolby Cinema', 'ScreenX']
         }],
     status: {
         type: String,
@@ -218,7 +236,15 @@ const movieSchema = new mongoose_1.Schema({
         }],
     awards: [{
             type: String
-        }]
+        }],
+    // Admin panel specific fields
+    director: { type: String, default: '' },
+    producer: { type: String, default: '' },
+    productionCost: { type: Number, min: 0, default: 0 },
+    uaCertification: { type: String, default: '' },
+    company: { type: CompanySchema, default: undefined },
+    cast: [CastSchema],
+    crew: [CrewSchema],
 }, {
     timestamps: true
 });

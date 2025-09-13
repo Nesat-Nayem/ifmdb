@@ -29,6 +29,28 @@ const CastCrewSchema = new Schema({
   }
 });
 
+// Admin Panel specific simple schemas
+const CastSchema = new Schema({
+  name: { type: String, required: true },
+  type: { type: String, default: '' },
+  image: { type: String, default: '' },
+});
+
+const CrewSchema = new Schema({
+  name: { type: String, required: true },
+  designation: { type: String, default: '' },
+  image: { type: String, default: '' },
+});
+
+const CompanySchema = new Schema({
+  productionHouse: { type: String, default: '' },
+  website: { type: String, default: '' },
+  address: { type: String, default: '' },
+  state: { type: String, default: '' },
+  phone: { type: String, default: '' },
+  email: { type: String, default: '' },
+}, { _id: false });
+
 // Review Schema
 const ReviewSchema = new Schema({
   userId: {
@@ -77,7 +99,7 @@ export interface IMovie extends Document {
   duration: number; // in minutes
   genres: string[];
   languages: string[];
-  originalLanguage: string;
+  originalLanguage?: string;
   rating: string; // PG, PG-13, R, etc.
   imdbRating: number;
   rottenTomatoesRating: number;
@@ -94,11 +116,26 @@ export interface IMovie extends Document {
   reviews: typeof ReviewSchema[];
   averageRating: number;
   totalReviews: number;
-  formats: string[]; // 2D, 3D, IMAX, 4DX
+  formats: string[]; // e.g. 2D, 3D, IMAX, 4DX, Dolby Atmos, etc.
   status: 'upcoming' | 'released' | 'in_production';
   isActive: boolean;
   tags: string[];
   awards: string[];
+  // Admin panel additional fields
+  director?: string;
+  producer?: string;
+  productionCost?: number;
+  uaCertification?: string;
+  company?: {
+    productionHouse?: string;
+    website?: string;
+    address?: string;
+    state?: string;
+    phone?: string;
+    email?: string;
+  };
+  cast?: Array<{ name: string; type?: string; image?: string }>;
+  crew?: Array<{ name: string; designation?: string; image?: string }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -137,7 +174,7 @@ const movieSchema: Schema = new Schema(
     }],
     originalLanguage: {
       type: String,
-      required: [true, 'Original language is required']
+      default: ''
     },
     rating: {
       type: String,
@@ -205,7 +242,6 @@ const movieSchema: Schema = new Schema(
     },
     formats: [{
       type: String,
-      enum: ['2D', '3D', 'IMAX', '4DX', 'Dolby Cinema', 'ScreenX']
     }],
     status: {
       type: String,
@@ -222,7 +258,15 @@ const movieSchema: Schema = new Schema(
     }],
     awards: [{
       type: String
-    }]
+    }],
+    // Admin panel specific fields
+    director: { type: String, default: '' },
+    producer: { type: String, default: '' },
+    productionCost: { type: Number, min: 0, default: 0 },
+    uaCertification: { type: String, default: '' },
+    company: { type: CompanySchema, default: undefined },
+    cast: [CastSchema],
+    crew: [CrewSchema],
   },
   {
     timestamps: true

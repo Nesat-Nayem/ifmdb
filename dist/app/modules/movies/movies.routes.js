@@ -189,8 +189,7 @@ const router = express_1.default.Router();
  *           type: array
  *           items:
  *             type: string
- *             enum: [2D, 3D, IMAX, 4DX, Dolby Cinema, ScreenX]
- *           description: Available formats
+ *           description: Available formats (free-form strings, e.g., 2d, 3d, imax, dolby_atmos, imax_3d)
  *         status:
  *           type: string
  *           enum: [upcoming, released, in_production]
@@ -208,6 +207,30 @@ const router = express_1.default.Router();
  *           items:
  *             type: string
  *           description: Awards received
+ *         director:
+ *           type: string
+ *           description: Director name
+ *         producer:
+ *           type: string
+ *           description: Producer name
+ *         productionCost:
+ *           type: number
+ *           description: Production cost (numeric)
+ *         uaCertification:
+ *           type: string
+ *           description: UA certification
+ *         company:
+ *           $ref: '#/components/schemas/MovieCompany'
+ *         cast:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/AdminCast'
+ *           description: Simple cast list for admin UI
+ *         crew:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/AdminCrew'
+ *           description: Simple crew list for admin UI
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -569,4 +592,169 @@ router.put('/:id', (0, validateRequest_1.default)(movies_validation_1.MovieValid
  *         description: Movie not found
  */
 router.delete('/:id', movies_controller_1.MovieController.deleteMovie);
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     MovieCompany:
+ *       type: object
+ *       properties:
+ *         productionHouse:
+ *           type: string
+ *         website:
+ *           type: string
+ *         address:
+ *           type: string
+ *         state:
+ *           type: string
+ *         phone:
+ *           type: string
+ *         email:
+ *           type: string
+ *     AdminCast:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *         type:
+ *           type: string
+ *         image:
+ *           type: string
+ *     AdminCrew:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *         designation:
+ *           type: string
+ *         image:
+ *           type: string
+ *     MovieCategory:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: Movie category ID
+ *         title:
+ *           type: string
+ *         status:
+ *           type: string
+ *           enum: [active, inactive]
+ *         isDeleted:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+/**
+ * @swagger
+ * /v1/api/movies/categories:
+ *   post:
+ *     summary: Create a movie category
+ *     tags: [MovieCategories]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *     responses:
+ *       201:
+ *         description: Movie category created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MovieCategory'
+ */
+router.post('/categories', movies_controller_1.MovieController.createMovieCategory);
+/**
+ * @swagger
+ * /v1/api/movies/categories:
+ *   get:
+ *     summary: Get all movie categories
+ *     tags: [MovieCategories]
+ *     responses:
+ *       200:
+ *         description: Movie categories retrieved successfully
+ */
+router.get('/categories', movies_controller_1.MovieController.getAllMovieCategories);
+/**
+ * @swagger
+ * /v1/api/movies/categories/{id}:
+ *   get:
+ *     summary: Get a movie category by ID
+ *     tags: [MovieCategories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Movie category retrieved successfully
+ *       404:
+ *         description: Movie category not found
+ */
+router.get('/categories/:id', movies_controller_1.MovieController.getMovieCategoryById);
+/**
+ * @swagger
+ * /v1/api/movies/categories/{id}:
+ *   put:
+ *     summary: Update a movie category
+ *     tags: [MovieCategories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *     responses:
+ *       200:
+ *         description: Movie category updated successfully
+ *       404:
+ *         description: Movie category not found
+ */
+router.put('/categories/:id', movies_controller_1.MovieController.updateMovieCategory);
+/**
+ * @swagger
+ * /v1/api/movies/categories/{id}:
+ *   delete:
+ *     summary: Delete (soft) a movie category
+ *     tags: [MovieCategories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Movie category deleted successfully
+ *       404:
+ *         description: Movie category not found
+ */
+router.delete('/categories/:id', movies_controller_1.MovieController.deleteMovieCategory);
 exports.movieRouter = router;

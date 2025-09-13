@@ -11,6 +11,27 @@ const castCrewSchema = zod_1.z.object({
     bio: zod_1.z.string().optional(),
     isMainCast: zod_1.z.boolean().optional()
 });
+// Admin-panel simple cast schema
+const simpleCastSchema = zod_1.z.object({
+    name: zod_1.z.string().min(1, 'Name is required'),
+    type: zod_1.z.string().optional(),
+    image: zod_1.z.string().optional(),
+});
+// Admin-panel simple crew schema
+const simpleCrewSchema = zod_1.z.object({
+    name: zod_1.z.string().min(1, 'Name is required'),
+    designation: zod_1.z.string().optional(),
+    image: zod_1.z.string().optional(),
+});
+// Company schema
+const companySchema = zod_1.z.object({
+    productionHouse: zod_1.z.string().optional(),
+    website: zod_1.z.string().optional(),
+    address: zod_1.z.string().optional(),
+    state: zod_1.z.string().optional(),
+    phone: zod_1.z.string().optional(),
+    email: zod_1.z.string().optional(),
+});
 // Review validation schema
 const reviewSchema = zod_1.z.object({
     userId: zod_1.z.string().min(1, 'User ID is required'),
@@ -33,7 +54,7 @@ const createMovieValidation = zod_1.z.object({
         duration: zod_1.z.number().min(1, 'Duration must be at least 1 minute'),
         genres: zod_1.z.array(zod_1.z.string().min(1, 'Genre cannot be empty')).min(1, 'At least one genre is required'),
         languages: zod_1.z.array(zod_1.z.string().min(1, 'Language cannot be empty')).min(1, 'At least one language is required'),
-        originalLanguage: zod_1.z.string().min(1, 'Original language is required'),
+        originalLanguage: zod_1.z.string().optional(),
         rating: zod_1.z.enum(['G', 'PG', 'PG-13', 'R', 'NC-17', 'NR']).optional(),
         imdbRating: zod_1.z.number().min(0).max(10).optional(),
         rottenTomatoesRating: zod_1.z.number().min(0).max(100).optional(),
@@ -47,11 +68,20 @@ const createMovieValidation = zod_1.z.object({
         productionCompanies: zod_1.z.array(zod_1.z.string()).optional(),
         distributors: zod_1.z.array(zod_1.z.string()).optional(),
         castCrew: zod_1.z.array(castCrewSchema).optional(),
-        formats: zod_1.z.array(zod_1.z.enum(['2D', '3D', 'IMAX', '4DX', 'Dolby Cinema', 'ScreenX'])).optional(),
+        // Accept single string or array to align with admin UI
+        formats: zod_1.z.union([zod_1.z.string(), zod_1.z.array(zod_1.z.string())]).optional(),
         status: zod_1.z.enum(['upcoming', 'released', 'in_production']).optional(),
         isActive: zod_1.z.boolean().optional(),
         tags: zod_1.z.array(zod_1.z.string()).optional(),
-        awards: zod_1.z.array(zod_1.z.string()).optional()
+        awards: zod_1.z.array(zod_1.z.string()).optional(),
+        // Admin-panel additional fields
+        director: zod_1.z.string().optional(),
+        producer: zod_1.z.string().optional(),
+        productionCost: zod_1.z.number().min(0).optional(),
+        uaCertification: zod_1.z.string().optional(),
+        company: companySchema.optional(),
+        cast: zod_1.z.array(simpleCastSchema).optional(),
+        crew: zod_1.z.array(simpleCrewSchema).optional(),
     })
 });
 // Update movie validation
@@ -80,11 +110,19 @@ const updateMovieValidation = zod_1.z.object({
         productionCompanies: zod_1.z.array(zod_1.z.string()).optional(),
         distributors: zod_1.z.array(zod_1.z.string()).optional(),
         castCrew: zod_1.z.array(castCrewSchema).optional(),
-        formats: zod_1.z.array(zod_1.z.enum(['2D', '3D', 'IMAX', '4DX', 'Dolby Cinema', 'ScreenX'])).optional(),
+        formats: zod_1.z.union([zod_1.z.string(), zod_1.z.array(zod_1.z.string())]).optional(),
         status: zod_1.z.enum(['upcoming', 'released', 'in_production']).optional(),
         isActive: zod_1.z.boolean().optional(),
         tags: zod_1.z.array(zod_1.z.string()).optional(),
-        awards: zod_1.z.array(zod_1.z.string()).optional()
+        awards: zod_1.z.array(zod_1.z.string()).optional(),
+        // Admin-panel additional fields
+        director: zod_1.z.string().optional(),
+        producer: zod_1.z.string().optional(),
+        productionCost: zod_1.z.number().min(0).optional(),
+        uaCertification: zod_1.z.string().optional(),
+        company: companySchema.optional(),
+        cast: zod_1.z.array(simpleCastSchema).optional(),
+        crew: zod_1.z.array(simpleCrewSchema).optional(),
     })
 });
 // Add review validation
@@ -105,7 +143,7 @@ const getMoviesValidation = zod_1.z.object({
         releaseYear: zod_1.z.string().optional(),
         minRating: zod_1.z.string().optional(),
         maxRating: zod_1.z.string().optional(),
-        format: zod_1.z.enum(['2D', '3D', 'IMAX', '4DX', 'Dolby Cinema', 'ScreenX']).optional(),
+        format: zod_1.z.string().optional(),
         sortBy: zod_1.z.enum(['title', 'releaseDate', 'imdbRating', 'averageRating', 'createdAt']).optional(),
         sortOrder: zod_1.z.enum(['asc', 'desc']).optional()
     })
