@@ -430,225 +430,6 @@ router.get('/top-rated', movies_controller_1.MovieController.getTopRatedMovies);
 router.get('/genre/:genre', movies_controller_1.MovieController.getMoviesByGenre);
 /**
  * @swagger
- * /v1/api/movies/{id}:
- *   get:
- *     summary: Get movie by ID
- *     tags: [Movies]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Movie ID
- *     responses:
- *       200:
- *         description: Movie retrieved successfully
- *       404:
- *         description: Movie not found
- */
-router.get('/:id([0-9a-fA-F]{24})', movies_controller_1.MovieController.getMovieById);
-/**
- * @swagger
- * /v1/api/movies/{id}/cast-crew:
- *   get:
- *     summary: Get movie cast and crew
- *     tags: [Movies]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Movie ID
- *       - in: query
- *         name: role
- *         schema:
- *           type: string
- *           enum: [actor, actress, director, producer, writer, cinematographer, music_director, editor, other]
- *         description: Filter by role
- *     responses:
- *       200:
- *         description: Cast and crew retrieved successfully
- *       404:
- *         description: Movie not found
- */
-router.get('/:id([0-9a-fA-F]{24})/cast-crew', movies_controller_1.MovieController.getMovieCastCrew);
-/**
- * @swagger
- * /v1/api/movies/{id}/reviews:
- *   get:
- *     summary: Get movie reviews
- *     tags: [Movies]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Movie ID
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *       - in: query
- *         name: sortBy
- *         schema:
- *           type: string
- *           enum: [rating, createdAt, helpfulCount]
- *           default: createdAt
- *       - in: query
- *         name: sortOrder
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *           default: desc
- *     responses:
- *       200:
- *         description: Movie reviews retrieved successfully
- *       404:
- *         description: Movie not found
- */
-router.get('/:id([0-9a-fA-F]{24})/reviews', movies_controller_1.MovieController.getMovieReviews);
-/**
- * @swagger
- * /v1/api/movies/{id}/reviews:
- *   post:
- *     summary: Add a review to a movie
- *     tags: [Movies]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Movie ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/MovieReview'
- *     responses:
- *       201:
- *         description: Review added successfully
- *       400:
- *         description: User has already reviewed this movie
- *       404:
- *         description: Movie not found
- */
-router.post('/:id([0-9a-fA-F]{24})/reviews', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.addReviewValidation), movies_controller_1.MovieController.addReview);
-/**
- * @swagger
- * /v1/api/movies/{id}:
- *   put:
- *     summary: Update movie
- *     tags: [Movies]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Movie ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Movie'
- *     responses:
- *       200:
- *         description: Movie updated successfully
- *       404:
- *         description: Movie not found
- */
-router.put('/:id([0-9a-fA-F]{24})', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.updateMovieValidation), movies_controller_1.MovieController.updateMovie);
-/**
- * @swagger
- * /v1/api/movies/{id}:
- *   delete:
- *     summary: Delete movie (soft delete)
- *     tags: [Movies]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Movie ID
- *     responses:
- *       200:
- *         description: Movie deleted successfully
- *       404:
- *         description: Movie not found
- */
-router.delete('/:id([0-9a-fA-F]{24})', movies_controller_1.MovieController.deleteMovie);
-/**
- * @swagger
- * components:
- *   schemas:
- *     MovieCompany:
- *       type: object
- *       properties:
- *         productionHouse:
- *           type: string
- *         website:
- *           type: string
- *         address:
- *           type: string
- *         state:
- *           type: string
- *         phone:
- *           type: string
- *         email:
- *           type: string
- *     AdminCast:
- *       type: object
- *       properties:
- *         name:
- *           type: string
- *         type:
- *           type: string
- *         image:
- *           type: string
- *     AdminCrew:
- *       type: object
- *       properties:
- *         name:
- *           type: string
- *         designation:
- *           type: string
- *         image:
- *           type: string
- *     MovieCategory:
- *       type: object
- *       properties:
- *         _id:
- *           type: string
- *           description: Movie category ID
- *         title:
- *           type: string
- *         status:
- *           type: string
- *           enum: [active, inactive]
- *         isDeleted:
- *           type: boolean
- *         createdAt:
- *           type: string
- *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
- */
-/**
- * @swagger
  * /v1/api/movies/categories:
  *   post:
  *     summary: Create a movie category
@@ -755,4 +536,251 @@ router.put('/categories/:id', movies_controller_1.MovieController.updateMovieCat
  *         description: Movie category not found
  */
 router.delete('/categories/:id', movies_controller_1.MovieController.deleteMovieCategory);
+/**
+ * @swagger
+ * /v1/api/movies/{id}:
+ *   get:
+ *     summary: Get movie by ID
+ *     tags: [Movies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Movie ID
+ *     responses:
+ *       200:
+ *         description: Movie retrieved successfully
+ *       404:
+ *         description: Movie not found
+ */
+router.get('/:id', movies_controller_1.MovieController.getMovieById);
+/**
+ * @swagger
+ * /v1/api/movies/{id}/cast-crew:
+ *   get:
+ *     summary: Get movie cast and crew
+ *     tags: [Movies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Movie ID
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [actor, actress, director, producer, writer, cinematographer, music_director, editor, other]
+ *         description: Filter by role
+ *     responses:
+ *       200:
+ *         description: Cast and crew retrieved successfully
+ *       404:
+ *         description: Movie not found
+ */
+router.get('/:id/cast-crew', movies_controller_1.MovieController.getMovieCastCrew);
+/**
+ * @swagger
+ * /v1/api/movies/{id}/reviews:
+ *   get:
+ *     summary: Get movie reviews
+ *     tags: [Movies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Movie ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [rating, createdAt, helpfulCount]
+ *           default: createdAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *     responses:
+ *       200:
+ *         description: Movie reviews retrieved successfully
+ *       404:
+ *         description: Movie not found
+ */
+router.get('/:id/reviews', movies_controller_1.MovieController.getMovieReviews);
+/**
+ * @swagger
+ * /v1/api/movies/{id}/reviews:
+ *   post:
+ *     summary: Add a review to a movie
+ *     tags: [Movies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Movie ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MovieReview'
+ *     responses:
+ *       201:
+ *         description: Review added successfully
+ *       400:
+ *         description: User has already reviewed this movie
+ *       404:
+ *         description: Movie not found
+ */
+router.post('/:id/reviews', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.addReviewValidation), movies_controller_1.MovieController.addReview);
+/**
+ * @swagger
+ * /v1/api/movies/{id}:
+ *   put:
+ *     summary: Update movie
+ *     tags: [Movies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Movie ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Movie'
+ *     responses:
+ *       200:
+ *         description: Movie updated successfully
+ *       404:
+ *         description: Movie not found
+ */
+router.put('/:id', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.updateMovieValidation), movies_controller_1.MovieController.updateMovie);
+/**
+ * @swagger
+ * /v1/api/movies/{id}:
+ *   delete:
+ *     summary: Delete movie (soft delete)
+ *     tags: [Movies]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Movie ID
+ *     responses:
+ *       200:
+ *         description: Movie deleted successfully
+ *       404:
+ *         description: Movie not found
+ */
+router.delete('/:id', movies_controller_1.MovieController.deleteMovie);
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     MovieCompany:
+ *       type: object
+ *       properties:
+ *         productionHouse:
+ *           type: string
+ *         website:
+ *           type: string
+ *         address:
+ *           type: string
+ *         state:
+ *           type: string
+ *         phone:
+ *           type: string
+ *         email:
+ *           type: string
+ *     AdminCast:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *         type:
+ *           type: string
+ *         image:
+ *           type: string
+ *     AdminCrew:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *         designation:
+ *           type: string
+ *         image:
+ *           type: string
+ *     MovieCategory:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: Movie category ID
+ *         title:
+ *           type: string
+ *         status:
+ *           type: string
+ *           enum: [active, inactive]
+ *         isDeleted:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+/**
+ * @swagger
+ * /v1/api/movies/categories:
+ *   post:
+ *     summary: Create a movie category
+ *     tags: [MovieCategories]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *     responses:
+ *       201:
+ *         description: Movie category created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MovieCategory'
+ */
+// (moved categories routes above to avoid conflict with generic :id routes)
 exports.movieRouter = router;
