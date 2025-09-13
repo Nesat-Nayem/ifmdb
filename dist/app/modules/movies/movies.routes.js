@@ -83,7 +83,6 @@ const router = express_1.default.Router();
  *         - duration
  *         - genres
  *         - languages
- *         - originalLanguage
  *         - posterUrl
  *         - country
  *       properties:
@@ -338,8 +337,7 @@ router.post('/', (0, validateRequest_1.default)(movies_validation_1.MovieValidat
  *         name: format
  *         schema:
  *           type: string
- *           enum: [2D, 3D, IMAX, 4DX, Dolby Cinema, ScreenX]
- *         description: Filter by format
+ *         description: Filter by format (free-form string)
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -449,7 +447,7 @@ router.get('/genre/:genre', movies_controller_1.MovieController.getMoviesByGenre
  *       404:
  *         description: Movie not found
  */
-router.get('/:id', movies_controller_1.MovieController.getMovieById);
+router.get('/:id([0-9a-fA-F]{24})', movies_controller_1.MovieController.getMovieById);
 /**
  * @swagger
  * /v1/api/movies/{id}/cast-crew:
@@ -475,7 +473,7 @@ router.get('/:id', movies_controller_1.MovieController.getMovieById);
  *       404:
  *         description: Movie not found
  */
-router.get('/:id/cast-crew', movies_controller_1.MovieController.getMovieCastCrew);
+router.get('/:id([0-9a-fA-F]{24})/cast-crew', movies_controller_1.MovieController.getMovieCastCrew);
 /**
  * @swagger
  * /v1/api/movies/{id}/reviews:
@@ -517,7 +515,7 @@ router.get('/:id/cast-crew', movies_controller_1.MovieController.getMovieCastCre
  *       404:
  *         description: Movie not found
  */
-router.get('/:id/reviews', movies_controller_1.MovieController.getMovieReviews);
+router.get('/:id([0-9a-fA-F]{24})/reviews', movies_controller_1.MovieController.getMovieReviews);
 /**
  * @swagger
  * /v1/api/movies/{id}/reviews:
@@ -545,7 +543,7 @@ router.get('/:id/reviews', movies_controller_1.MovieController.getMovieReviews);
  *       404:
  *         description: Movie not found
  */
-router.post('/:id/reviews', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.addReviewValidation), movies_controller_1.MovieController.addReview);
+router.post('/:id([0-9a-fA-F]{24})/reviews', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.addReviewValidation), movies_controller_1.MovieController.addReview);
 /**
  * @swagger
  * /v1/api/movies/{id}:
@@ -571,7 +569,7 @@ router.post('/:id/reviews', (0, validateRequest_1.default)(movies_validation_1.M
  *       404:
  *         description: Movie not found
  */
-router.put('/:id', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.updateMovieValidation), movies_controller_1.MovieController.updateMovie);
+router.put('/:id([0-9a-fA-F]{24})', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.updateMovieValidation), movies_controller_1.MovieController.updateMovie);
 /**
  * @swagger
  * /v1/api/movies/{id}:
@@ -591,7 +589,7 @@ router.put('/:id', (0, validateRequest_1.default)(movies_validation_1.MovieValid
  *       404:
  *         description: Movie not found
  */
-router.delete('/:id', movies_controller_1.MovieController.deleteMovie);
+router.delete('/:id([0-9a-fA-F]{24})', movies_controller_1.MovieController.deleteMovie);
 /**
  * @swagger
  * components:

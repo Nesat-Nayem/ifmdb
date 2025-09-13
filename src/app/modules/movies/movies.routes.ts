@@ -79,7 +79,6 @@ const router = express.Router();
  *         - duration
  *         - genres
  *         - languages
- *         - originalLanguage
  *         - posterUrl
  *         - country
  *       properties:
@@ -340,8 +339,7 @@ router.post(
  *         name: format
  *         schema:
  *           type: string
- *           enum: [2D, 3D, IMAX, 4DX, Dolby Cinema, ScreenX]
- *         description: Filter by format
+ *         description: Filter by format (free-form string)
  *       - in: query
  *         name: sortBy
  *         schema:
@@ -439,6 +437,119 @@ router.get('/top-rated', MovieController.getTopRatedMovies);
  *         description: Movies by genre retrieved successfully
  */
 router.get('/genre/:genre', MovieController.getMoviesByGenre);
+
+/**
+ * @swagger
+ * /v1/api/movies/categories:
+ *   post:
+ *     summary: Create a movie category
+ *     tags: [MovieCategories]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title]
+ *             properties:
+ *               title:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *     responses:
+ *       201:
+ *         description: Movie category created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/MovieCategory'
+ */
+router.post('/categories', MovieController.createMovieCategory);
+
+/**
+ * @swagger
+ * /v1/api/movies/categories:
+ *   get:
+ *     summary: Get all movie categories
+ *     tags: [MovieCategories]
+ *     responses:
+ *       200:
+ *         description: Movie categories retrieved successfully
+ */
+router.get('/categories', MovieController.getAllMovieCategories);
+
+/**
+ * @swagger
+ * /v1/api/movies/categories/{id}:
+ *   get:
+ *     summary: Get a movie category by ID
+ *     tags: [MovieCategories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Movie category retrieved successfully
+ *       404:
+ *         description: Movie category not found
+ */
+router.get('/categories/:id', MovieController.getMovieCategoryById);
+
+/**
+ * @swagger
+ * /v1/api/movies/categories/{id}:
+ *   put:
+ *     summary: Update a movie category
+ *     tags: [MovieCategories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *     responses:
+ *       200:
+ *         description: Movie category updated successfully
+ *       404:
+ *         description: Movie category not found
+ */
+router.put('/categories/:id', MovieController.updateMovieCategory);
+
+/**
+ * @swagger
+ * /v1/api/movies/categories/{id}:
+ *   delete:
+ *     summary: Delete (soft) a movie category
+ *     tags: [MovieCategories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Movie category deleted successfully
+ *       404:
+ *         description: Movie category not found
+ */
+router.delete('/categories/:id', MovieController.deleteMovieCategory);
 
 /**
  * @swagger
@@ -701,90 +812,6 @@ router.delete('/:id', MovieController.deleteMovie);
  *             schema:
  *               $ref: '#/components/schemas/MovieCategory'
  */
-router.post('/categories', MovieController.createMovieCategory);
-
-/**
- * @swagger
- * /v1/api/movies/categories:
- *   get:
- *     summary: Get all movie categories
- *     tags: [MovieCategories]
- *     responses:
- *       200:
- *         description: Movie categories retrieved successfully
- */
-router.get('/categories', MovieController.getAllMovieCategories);
-
-/**
- * @swagger
- * /v1/api/movies/categories/{id}:
- *   get:
- *     summary: Get a movie category by ID
- *     tags: [MovieCategories]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Movie category retrieved successfully
- *       404:
- *         description: Movie category not found
- */
-router.get('/categories/:id', MovieController.getMovieCategoryById);
-
-/**
- * @swagger
- * /v1/api/movies/categories/{id}:
- *   put:
- *     summary: Update a movie category
- *     tags: [MovieCategories]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               status:
- *                 type: string
- *                 enum: [active, inactive]
- *     responses:
- *       200:
- *         description: Movie category updated successfully
- *       404:
- *         description: Movie category not found
- */
-router.put('/categories/:id', MovieController.updateMovieCategory);
-
-/**
- * @swagger
- * /v1/api/movies/categories/{id}:
- *   delete:
- *     summary: Delete (soft) a movie category
- *     tags: [MovieCategories]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Movie category deleted successfully
- *       404:
- *         description: Movie category not found
- */
-router.delete('/categories/:id', MovieController.deleteMovieCategory);
+// (moved categories routes above to avoid conflict with generic :id routes)
 
 export const movieRouter = router;
