@@ -19,6 +19,7 @@ import { advertiseRouter } from "../modules/advertise/advertise.routes";
 import { helpCenterRouter } from "../modules/help-center/help-center.routes";
 import { generalSettingsRouter } from "../modules/general-settings/general-settings.routes";
 import { subscriptionPlanRouter } from "../modules/subscription-plan/subscription-plan.routes";
+import { vendorRouter } from "../modules/vendor/vendor.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -120,6 +121,10 @@ const moduleRoutes = [
   {
     path: "/subscription-plans",
     route: subscriptionPlanRouter,
+  },
+  {
+    path: "/vendors",
+    route: vendorRouter,
   },
 ];
 
