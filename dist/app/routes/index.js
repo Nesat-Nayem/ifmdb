@@ -21,6 +21,7 @@ const advertise_routes_1 = require("../modules/advertise/advertise.routes");
 const help_center_routes_1 = require("../modules/help-center/help-center.routes");
 const general_settings_routes_1 = require("../modules/general-settings/general-settings.routes");
 const subscription_plan_routes_1 = require("../modules/subscription-plan/subscription-plan.routes");
+const vendor_routes_1 = require("../modules/vendor/vendor.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -102,6 +103,10 @@ const moduleRoutes = [
     {
         path: "/subscription-plans",
         route: subscription_plan_routes_1.subscriptionPlanRouter,
+    },
+    {
+        path: "/vendors",
+        route: vendor_routes_1.vendorRouter,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
