@@ -2,6 +2,8 @@ import express from 'express';
 import { EventController } from './events.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { EventValidation } from './events.validation';
+import { EventBookingController } from './event-booking.controller';
+import { EventBookingValidation } from './event-booking.validation';
 
 const router = express.Router();
 
@@ -168,6 +170,149 @@ const router = express.Router();
  *           type: string
  *           format: date-time
  *         updatedAt:
+ *           type: string
+ *           format: date-time
+ * 
+ *     EventBooking:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: Event booking ID
+ *         eventId:
+ *           type: string
+ *           description: Event ID reference
+ *         userId:
+ *           type: string
+ *           description: User ID reference
+ *         bookingReference:
+ *           type: string
+ *           description: Unique booking reference
+ *         quantity:
+ *           type: integer
+ *           minimum: 1
+ *           description: Number of tickets
+ *         unitPrice:
+ *           type: number
+ *           description: Ticket unit price at time of booking
+ *         totalAmount:
+ *           type: number
+ *         bookingFee:
+ *           type: number
+ *         taxAmount:
+ *           type: number
+ *         discountAmount:
+ *           type: number
+ *         finalAmount:
+ *           type: number
+ *         paymentStatus:
+ *           type: string
+ *           enum: [pending, completed, failed, refunded]
+ *         bookingStatus:
+ *           type: string
+ *           enum: [confirmed, cancelled, expired]
+ *         paymentMethod:
+ *           type: string
+ *           enum: [card, wallet, upi, netbanking, cash]
+ *         transactionId:
+ *           type: string
+ *         customerDetails:
+ *           type: object
+ *           properties:
+ *             name:
+ *               type: string
+ *             email:
+ *               type: string
+ *               format: email
+ *             phone:
+ *               type: string
+ *         bookedAt:
+ *           type: string
+ *           format: date-time
+ *         expiresAt:
+ *           type: string
+ *           format: date-time
+ * 
+ *     EventBookingCreateRequest:
+ *       type: object
+ *       required:
+ *         - userId
+ *         - quantity
+ *         - customerDetails
+ *       properties:
+ *         userId:
+ *           type: string
+ *         quantity:
+ *           type: integer
+ *           minimum: 1
+ *         bookingFee:
+ *           type: number
+ *         taxAmount:
+ *           type: number
+ *         discountAmount:
+ *           type: number
+ *         paymentMethod:
+ *           type: string
+ *           enum: [card, wallet, upi, netbanking, cash]
+ *         customerDetails:
+ *           type: object
+ *           required: [name, email, phone]
+ *           properties:
+ *             name:
+ *               type: string
+ *             email:
+ *               type: string
+ *               format: email
+ *             phone:
+ *               type: string
+ * 
+ *     EventPaymentRequest:
+ *       type: object
+ *       required:
+ *         - paymentGateway
+ *         - paymentMethod
+ *         - amount
+ *         - gatewayTransactionId
+ *       properties:
+ *         paymentGateway:
+ *           type: string
+ *           enum: [stripe, razorpay, paypal, paytm]
+ *         paymentMethod:
+ *           type: string
+ *         amount:
+ *           type: number
+ *           minimum: 0
+ *         currency:
+ *           type: string
+ *           default: USD
+ *         gatewayTransactionId:
+ *           type: string
+ *         gatewayResponse:
+ *           type: object
+ * 
+ *     EventETicket:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: E-ticket ID
+ *         bookingId:
+ *           type: string
+ *           description: Associated event booking ID
+ *         ticketNumber:
+ *           type: string
+ *         qrCodeData:
+ *           type: string
+ *         qrCodeImageUrl:
+ *           type: string
+ *         quantity:
+ *           type: integer
+ *         isUsed:
+ *           type: boolean
+ *         usedAt:
+ *           type: string
+ *           format: date-time
+ *         generatedAt:
  *           type: string
  *           format: date-time
  */
@@ -405,6 +550,73 @@ router.get('/location/:city', EventController.getEventsByLocation);
 
 /**
  * @swagger
+ * /v1/api/events/bookings:
+ *   get:
+ *     summary: Get all event bookings (filtering and pagination)
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: eventId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: paymentStatus
+ *         schema:
+ *           type: string
+ *           enum: [pending, completed, failed, refunded]
+ *       - in: query
+ *         name: bookingStatus
+ *         schema:
+ *           type: string
+ *           enum: [confirmed, cancelled, expired]
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [bookedAt, finalAmount, createdAt]
+ *           default: bookedAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *     responses:
+ *       200:
+ *         description: Event bookings retrieved successfully
+ */
+router.get(
+  '/bookings',
+  validateRequest(EventBookingValidation.getEventBookingsValidation),
+  EventBookingController.getAllEventBookings
+);
+
+/**
+ * @swagger
  * /v1/api/events/{id}:
  *   get:
  *     summary: Get event by ID
@@ -486,5 +698,225 @@ router.put(
  *         description: Event not found
  */
 router.delete('/:id', EventController.deleteEvent);
+
+/**
+ * @swagger
+ * /v1/api/events/{id}/book:
+ *   post:
+ *     summary: Create an event ticket booking (no seat selection)
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EventBookingCreateRequest'
+ *     responses:
+ *       201:
+ *         description: Event booking created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/EventBooking'
+ *       400:
+ *         description: Not enough available tickets
+ *       404:
+ *         description: Event not available for booking
+ */
+router.post(
+  '/:id/book',
+  validateRequest(EventBookingValidation.createEventBookingValidation),
+  EventBookingController.createEventBooking
+);
+
+/**
+ * @swagger
+ * /v1/api/events/bookings:
+ *   get:
+ *     summary: Get all event bookings (filtering and pagination)
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: eventId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: paymentStatus
+ *         schema:
+ *           type: string
+ *           enum: [pending, completed, failed, refunded]
+ *       - in: query
+ *         name: bookingStatus
+ *         schema:
+ *           type: string
+ *           enum: [confirmed, cancelled, expired]
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [bookedAt, finalAmount, createdAt]
+ *           default: bookedAt
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *     responses:
+ *       200:
+ *         description: Event bookings retrieved successfully
+ */
+router.get(
+  '/bookings',
+  validateRequest(EventBookingValidation.getEventBookingsValidation),
+  EventBookingController.getAllEventBookings
+);
+
+/**
+ * @swagger
+ * /v1/api/events/bookings/{id}:
+ *   get:
+ *     summary: Get event booking by ID
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event booking ID
+ *     responses:
+ *       200:
+ *         description: Event booking retrieved successfully
+ *       404:
+ *         description: Event booking not found
+ */
+router.get('/bookings/:id', EventBookingController.getEventBookingById);
+
+/**
+ * @swagger
+ * /v1/api/events/bookings/{id}/payment:
+ *   post:
+ *     summary: Process payment for an event booking
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event booking ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EventPaymentRequest'
+ *     responses:
+ *       200:
+ *         description: Payment processed and e-ticket generated
+ *       400:
+ *         description: Payment already completed
+ *       404:
+ *         description: Event booking not found
+ */
+router.post(
+  '/bookings/:id/payment',
+  validateRequest(EventBookingValidation.processEventPaymentValidation),
+  EventBookingController.processEventPayment
+);
+
+/**
+ * @swagger
+ * /v1/api/events/bookings/{id}/cancel:
+ *   put:
+ *     summary: Cancel an event booking
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event booking ID
+ *     responses:
+ *       200:
+ *         description: Event booking cancelled successfully
+ *       400:
+ *         description: Booking already cancelled
+ *       404:
+ *         description: Event booking not found
+ */
+router.put('/bookings/:id/cancel', EventBookingController.cancelEventBooking);
+
+/**
+ * @swagger
+ * /v1/api/events/bookings/{id}/ticket:
+ *   get:
+ *     summary: Get e-ticket for an event booking
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event booking ID
+ *     responses:
+ *       200:
+ *         description: E-ticket retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/EventETicket'
+ *       404:
+ *         description: E-ticket not found
+ */
+router.get('/bookings/:id/ticket', EventBookingController.getEventETicket);
 
 export const eventRouter = router;
