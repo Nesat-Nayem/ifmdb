@@ -13,6 +13,7 @@ const help_support_routes_1 = require("../modules/help-support/help-support.rout
 const blog_routes_1 = require("../modules/blog/blog.routes");
 const upload_routes_1 = require("../modules/upload/upload.routes");
 const events_routes_1 = require("../modules/events/events.routes");
+const event_category_routes_1 = require("../modules/event-category/event-category.routes");
 const movies_routes_1 = require("../modules/movies/movies.routes");
 const booking_routes_1 = require("../modules/booking/booking.routes");
 const onboarding_routes_1 = require("../modules/onboarding/onboarding.routes");
@@ -91,6 +92,10 @@ const moduleRoutes = [
     {
         path: "/events",
         route: events_routes_1.eventRouter,
+    },
+    {
+        path: "/event-categories",
+        route: event_category_routes_1.eventCategoryRouter,
     },
     {
         path: "/movies",

@@ -34,6 +34,29 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importStar(require("mongoose"));
+// Seat Type Schema for dynamic pricing
+const SeatTypeSchema = new mongoose_1.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    price: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+    totalSeats: {
+        type: Number,
+        required: true,
+        min: 0
+    },
+    availableSeats: {
+        type: Number,
+        required: true,
+        min: 0
+    }
+});
 // Event Performer Schema
 const EventPerformerSchema = new mongoose_1.Schema({
     name: {
@@ -123,6 +146,14 @@ const eventSchema = new mongoose_1.Schema({
         type: String,
         required: [true, 'Event category is required']
     },
+    categoryId: {
+        type: mongoose_1.default.Schema.Types.ObjectId,
+        ref: 'EventCategory'
+    },
+    language: {
+        type: String,
+        default: 'English'
+    },
     startDate: {
         type: Date,
         required: [true, 'Start date is required']
@@ -157,6 +188,19 @@ const eventSchema = new mongoose_1.Schema({
         required: [true, 'Available seats is required'],
         min: [0, 'Available seats cannot be negative']
     },
+    seatTypes: {
+        type: [SeatTypeSchema],
+        default: []
+    },
+    maxTicketsPerPerson: {
+        type: Number,
+        default: 10,
+        min: [1, 'Max tickets per person must be at least 1']
+    },
+    totalTicketsSold: {
+        type: Number,
+        default: 0
+    },
     posterImage: {
         type: String,
         required: [true, 'Poster image is required']
@@ -186,9 +230,12 @@ const eventSchema = new mongoose_1.Schema({
 eventSchema.index({ title: 'text', description: 'text' });
 eventSchema.index({ eventType: 1 });
 eventSchema.index({ category: 1 });
+eventSchema.index({ categoryId: 1 });
+eventSchema.index({ language: 1 });
 eventSchema.index({ startDate: 1 });
 eventSchema.index({ 'location.city': 1 });
 eventSchema.index({ status: 1 });
 eventSchema.index({ isActive: 1 });
+eventSchema.index({ totalTicketsSold: -1 });
 const Event = mongoose_1.default.model('Event', eventSchema);
 exports.default = Event;

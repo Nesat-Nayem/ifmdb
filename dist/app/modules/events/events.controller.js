@@ -30,7 +30,7 @@ const createEvent = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
 }));
 // Get all events with filtering, searching, and pagination
 const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { page = 1, limit = 10, search, eventType, category, city, status, startDate, endDate, minPrice, maxPrice, sortBy = 'startDate', sortOrder = 'asc' } = req.query;
+    const { page = 1, limit = 10, search, eventType, category, categoryId, language, city, status, startDate, endDate, minPrice, maxPrice, sortBy = 'startDate', sortOrder = 'asc' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -47,6 +47,10 @@ const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
         filter.eventType = eventType;
     if (category)
         filter.category = category;
+    if (categoryId)
+        filter.categoryId = categoryId;
+    if (language)
+        filter.language = { $regex: language, $options: 'i' };
     if (city)
         filter['location.city'] = { $regex: city, $options: 'i' };
     if (status)
@@ -249,6 +253,116 @@ const getEventsByLocation = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         }
     });
 }));
+// Get best events this week (sorted by ticket sales)
+const getBestEventsThisWeek = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    // Get start and end of current week
+    const now = new Date();
+    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+    startOfWeek.setHours(0, 0, 0, 0);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+    const events = yield events_model_1.default.find({
+        isActive: true,
+        status: { $in: ['upcoming', 'ongoing'] },
+        startDate: { $gte: new Date(), $lte: endOfWeek }
+    })
+        .sort({ totalTicketsSold: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('categoryId', 'name image')
+        .lean();
+    const total = yield events_model_1.default.countDocuments({
+        isActive: true,
+        status: { $in: ['upcoming', 'ongoing'] },
+        startDate: { $gte: new Date(), $lte: endOfWeek }
+    });
+    (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Best events this week retrieved successfully',
+        data: events,
+        meta: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum)
+        }
+    });
+}));
+// Get events by category ID
+const getEventsByCategory = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { categoryId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    const events = yield events_model_1.default.find({
+        categoryId,
+        isActive: true,
+        status: { $in: ['upcoming', 'ongoing'] }
+    })
+        .sort({ startDate: 1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('categoryId', 'name image')
+        .lean();
+    const total = yield events_model_1.default.countDocuments({
+        categoryId,
+        isActive: true,
+        status: { $in: ['upcoming', 'ongoing'] }
+    });
+    (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Events by category retrieved successfully',
+        data: events,
+        meta: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum)
+        }
+    });
+}));
+// Get events by language
+const getEventsByLanguage = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { language } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+    const events = yield events_model_1.default.find({
+        language: { $regex: language, $options: 'i' },
+        isActive: true,
+        status: { $in: ['upcoming', 'ongoing'] }
+    })
+        .sort({ startDate: 1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('categoryId', 'name image')
+        .lean();
+    const total = yield events_model_1.default.countDocuments({
+        language: { $regex: language, $options: 'i' },
+        isActive: true,
+        status: { $in: ['upcoming', 'ongoing'] }
+    });
+    (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: `Events in ${language} retrieved successfully`,
+        data: events,
+        meta: {
+            page: pageNum,
+            limit: limitNum,
+            total,
+            totalPages: Math.ceil(total / limitNum)
+        }
+    });
+}));
 exports.EventController = {
     createEvent,
     getAllEvents,
@@ -257,5 +371,8 @@ exports.EventController = {
     deleteEvent,
     getEventsByType,
     getUpcomingEvents,
-    getEventsByLocation
+    getEventsByLocation,
+    getBestEventsThisWeek,
+    getEventsByCategory,
+    getEventsByLanguage
 };

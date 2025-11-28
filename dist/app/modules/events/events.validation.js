@@ -12,6 +12,13 @@ const locationSchema = zod_1.z.object({
     latitude: zod_1.z.number().optional(),
     longitude: zod_1.z.number().optional()
 });
+// Seat type validation schema
+const seatTypeSchema = zod_1.z.object({
+    name: zod_1.z.string().min(1, 'Seat type name is required'),
+    price: zod_1.z.number().min(0, 'Price cannot be negative'),
+    totalSeats: zod_1.z.number().min(0, 'Total seats cannot be negative'),
+    availableSeats: zod_1.z.number().min(0, 'Available seats cannot be negative')
+});
 // Performer validation schema
 const performerSchema = zod_1.z.object({
     name: zod_1.z.string().min(1, 'Performer name is required'),
@@ -33,6 +40,8 @@ const createEventValidation = zod_1.z.object({
         description: zod_1.z.string().min(1, 'Event description is required'),
         eventType: zod_1.z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']),
         category: zod_1.z.string().min(1, 'Event category is required'),
+        categoryId: zod_1.z.string().optional(),
+        language: zod_1.z.string().optional().default('English'),
         startDate: zod_1.z.string().refine((date) => !isNaN(Date.parse(date)), {
             message: 'Invalid start date format'
         }),
@@ -45,6 +54,8 @@ const createEventValidation = zod_1.z.object({
         ticketPrice: zod_1.z.number().min(0, 'Ticket price cannot be negative'),
         totalSeats: zod_1.z.number().min(1, 'Total seats must be at least 1'),
         availableSeats: zod_1.z.number().min(0, 'Available seats cannot be negative'),
+        seatTypes: zod_1.z.array(seatTypeSchema).optional(),
+        maxTicketsPerPerson: zod_1.z.number().min(1).optional().default(10),
         posterImage: zod_1.z.string().min(1, 'Poster image is required'),
         galleryImages: zod_1.z.array(zod_1.z.string()).optional(),
         performers: zod_1.z.array(performerSchema).optional(),
@@ -61,6 +72,8 @@ const updateEventValidation = zod_1.z.object({
         description: zod_1.z.string().min(1, 'Event description is required').optional(),
         eventType: zod_1.z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']).optional(),
         category: zod_1.z.string().min(1, 'Event category is required').optional(),
+        categoryId: zod_1.z.string().optional(),
+        language: zod_1.z.string().optional(),
         startDate: zod_1.z.string().refine((date) => !isNaN(Date.parse(date)), {
             message: 'Invalid start date format'
         }).optional(),
@@ -73,6 +86,8 @@ const updateEventValidation = zod_1.z.object({
         ticketPrice: zod_1.z.number().min(0, 'Ticket price cannot be negative').optional(),
         totalSeats: zod_1.z.number().min(1, 'Total seats must be at least 1').optional(),
         availableSeats: zod_1.z.number().min(0, 'Available seats cannot be negative').optional(),
+        seatTypes: zod_1.z.array(seatTypeSchema).optional(),
+        maxTicketsPerPerson: zod_1.z.number().min(1).optional(),
         posterImage: zod_1.z.string().min(1, 'Poster image is required').optional(),
         galleryImages: zod_1.z.array(zod_1.z.string()).optional(),
         performers: zod_1.z.array(performerSchema).optional(),
@@ -90,13 +105,15 @@ const getEventsValidation = zod_1.z.object({
         search: zod_1.z.string().optional(),
         eventType: zod_1.z.string().optional(),
         category: zod_1.z.string().optional(),
+        categoryId: zod_1.z.string().optional(),
+        language: zod_1.z.string().optional(),
         city: zod_1.z.string().optional(),
         status: zod_1.z.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
         startDate: zod_1.z.string().optional(),
         endDate: zod_1.z.string().optional(),
         minPrice: zod_1.z.string().optional(),
         maxPrice: zod_1.z.string().optional(),
-        sortBy: zod_1.z.enum(['title', 'startDate', 'ticketPrice', 'createdAt']).optional(),
+        sortBy: zod_1.z.enum(['title', 'startDate', 'ticketPrice', 'createdAt', 'totalTicketsSold']).optional(),
         sortOrder: zod_1.z.enum(['asc', 'desc']).optional()
     })
 });
