@@ -11,6 +11,14 @@ const locationSchema = z.object({
   longitude: z.number().optional()
 });
 
+// Seat type validation schema
+const seatTypeSchema = z.object({
+  name: z.string().min(1, 'Seat type name is required'),
+  price: z.number().min(0, 'Price cannot be negative'),
+  totalSeats: z.number().min(0, 'Total seats cannot be negative'),
+  availableSeats: z.number().min(0, 'Available seats cannot be negative')
+});
+
 // Performer validation schema
 const performerSchema = z.object({
   name: z.string().min(1, 'Performer name is required'),
@@ -34,6 +42,8 @@ const createEventValidation = z.object({
     description: z.string().min(1, 'Event description is required'),
     eventType: z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']),
     category: z.string().min(1, 'Event category is required'),
+    categoryId: z.string().optional(),
+    language: z.string().optional().default('English'),
     startDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
       message: 'Invalid start date format'
     }),
@@ -46,6 +56,8 @@ const createEventValidation = z.object({
     ticketPrice: z.number().min(0, 'Ticket price cannot be negative'),
     totalSeats: z.number().min(1, 'Total seats must be at least 1'),
     availableSeats: z.number().min(0, 'Available seats cannot be negative'),
+    seatTypes: z.array(seatTypeSchema).optional(),
+    maxTicketsPerPerson: z.number().min(1).optional().default(10),
     posterImage: z.string().min(1, 'Poster image is required'),
     galleryImages: z.array(z.string()).optional(),
     performers: z.array(performerSchema).optional(),
@@ -63,6 +75,8 @@ const updateEventValidation = z.object({
     description: z.string().min(1, 'Event description is required').optional(),
     eventType: z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']).optional(),
     category: z.string().min(1, 'Event category is required').optional(),
+    categoryId: z.string().optional(),
+    language: z.string().optional(),
     startDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
       message: 'Invalid start date format'
     }).optional(),
@@ -75,6 +89,8 @@ const updateEventValidation = z.object({
     ticketPrice: z.number().min(0, 'Ticket price cannot be negative').optional(),
     totalSeats: z.number().min(1, 'Total seats must be at least 1').optional(),
     availableSeats: z.number().min(0, 'Available seats cannot be negative').optional(),
+    seatTypes: z.array(seatTypeSchema).optional(),
+    maxTicketsPerPerson: z.number().min(1).optional(),
     posterImage: z.string().min(1, 'Poster image is required').optional(),
     galleryImages: z.array(z.string()).optional(),
     performers: z.array(performerSchema).optional(),
@@ -93,13 +109,15 @@ const getEventsValidation = z.object({
     search: z.string().optional(),
     eventType: z.string().optional(),
     category: z.string().optional(),
+    categoryId: z.string().optional(),
+    language: z.string().optional(),
     city: z.string().optional(),
     status: z.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     minPrice: z.string().optional(),
     maxPrice: z.string().optional(),
-    sortBy: z.enum(['title', 'startDate', 'ticketPrice', 'createdAt']).optional(),
+    sortBy: z.enum(['title', 'startDate', 'ticketPrice', 'createdAt', 'totalTicketsSold']).optional(),
     sortOrder: z.enum(['asc', 'desc']).optional()
   })
 });

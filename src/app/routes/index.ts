@@ -11,6 +11,7 @@ import { helpSupportRouter } from "../modules/help-support/help-support.routes";
 import { blogRouter } from "../modules/blog/blog.routes";
 import { uploadRouter } from "../modules/upload/upload.routes";
 import { eventRouter } from "../modules/events/events.routes";
+import { eventCategoryRouter } from "../modules/event-category/event-category.routes";
 import { movieRouter } from "../modules/movies/movies.routes";
 import { bookingRouter } from "../modules/booking/booking.routes";
 import { onboardingRouter } from "../modules/onboarding/onboarding.routes";
@@ -106,6 +107,11 @@ const moduleRoutes = [
   {
     path: "/events",
     route: eventRouter,
+  },
+
+  {
+    path: "/event-categories",
+    route: eventCategoryRouter,
   },
 
   {

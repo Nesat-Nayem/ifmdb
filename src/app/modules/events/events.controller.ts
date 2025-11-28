@@ -26,6 +26,8 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
     search,
     eventType,
     category,
+    categoryId,
+    language,
     city,
     status,
     startDate,
@@ -53,6 +55,8 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
 
   if (eventType) filter.eventType = eventType;
   if (category) filter.category = category;
+  if (categoryId) filter.categoryId = categoryId;
+  if (language) filter.language = { $regex: language, $options: 'i' };
   if (city) filter['location.city'] = { $regex: city, $options: 'i' };
   if (status) filter.status = status;
 
@@ -292,6 +296,132 @@ const getEventsByLocation = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Get best events this week (sorted by ticket sales)
+const getBestEventsThisWeek = catchAsync(async (req: Request, res: Response) => {
+  const { page = 1, limit = 10 } = req.query;
+
+  const pageNum = parseInt(page as string);
+  const limitNum = parseInt(limit as string);
+  const skip = (pageNum - 1) * limitNum;
+
+  // Get start and end of current week
+  const now = new Date();
+  const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+  const events = await Event.find({
+    isActive: true,
+    status: { $in: ['upcoming', 'ongoing'] },
+    startDate: { $gte: new Date(), $lte: endOfWeek }
+  })
+    .sort({ totalTicketsSold: -1 })
+    .skip(skip)
+    .limit(limitNum)
+    .populate('categoryId', 'name image')
+    .lean();
+
+  const total = await Event.countDocuments({
+    isActive: true,
+    status: { $in: ['upcoming', 'ongoing'] },
+    startDate: { $gte: new Date(), $lte: endOfWeek }
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Best events this week retrieved successfully',
+    data: events,
+    meta: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum)
+    }
+  });
+});
+
+// Get events by category ID
+const getEventsByCategory = catchAsync(async (req: Request, res: Response) => {
+  const { categoryId } = req.params;
+  const { page = 1, limit = 10 } = req.query;
+
+  const pageNum = parseInt(page as string);
+  const limitNum = parseInt(limit as string);
+  const skip = (pageNum - 1) * limitNum;
+
+  const events = await Event.find({
+    categoryId,
+    isActive: true,
+    status: { $in: ['upcoming', 'ongoing'] }
+  })
+    .sort({ startDate: 1 })
+    .skip(skip)
+    .limit(limitNum)
+    .populate('categoryId', 'name image')
+    .lean();
+
+  const total = await Event.countDocuments({
+    categoryId,
+    isActive: true,
+    status: { $in: ['upcoming', 'ongoing'] }
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Events by category retrieved successfully',
+    data: events,
+    meta: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum)
+    }
+  });
+});
+
+// Get events by language
+const getEventsByLanguage = catchAsync(async (req: Request, res: Response) => {
+  const { language } = req.params;
+  const { page = 1, limit = 10 } = req.query;
+
+  const pageNum = parseInt(page as string);
+  const limitNum = parseInt(limit as string);
+  const skip = (pageNum - 1) * limitNum;
+
+  const events = await Event.find({
+    language: { $regex: language, $options: 'i' },
+    isActive: true,
+    status: { $in: ['upcoming', 'ongoing'] }
+  })
+    .sort({ startDate: 1 })
+    .skip(skip)
+    .limit(limitNum)
+    .populate('categoryId', 'name image')
+    .lean();
+
+  const total = await Event.countDocuments({
+    language: { $regex: language, $options: 'i' },
+    isActive: true,
+    status: { $in: ['upcoming', 'ongoing'] }
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: `Events in ${language} retrieved successfully`,
+    data: events,
+    meta: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.ceil(total / limitNum)
+    }
+  });
+});
+
 export const EventController = {
   createEvent,
   getAllEvents,
@@ -300,5 +430,8 @@ export const EventController = {
   deleteEvent,
   getEventsByType,
   getUpcomingEvents,
-  getEventsByLocation
+  getEventsByLocation,
+  getBestEventsThisWeek,
+  getEventsByCategory,
+  getEventsByLanguage
 };

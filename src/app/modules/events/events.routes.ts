@@ -550,6 +550,85 @@ router.get('/location/:city', EventController.getEventsByLocation);
 
 /**
  * @swagger
+ * /v1/api/events/best-this-week:
+ *   get:
+ *     summary: Get best events this week (sorted by ticket sales)
+ *     tags: [Events]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Best events this week retrieved successfully
+ */
+router.get('/best-this-week', EventController.getBestEventsThisWeek);
+
+/**
+ * @swagger
+ * /v1/api/events/category/{categoryId}:
+ *   get:
+ *     summary: Get events by category ID
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: categoryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Events by category retrieved successfully
+ */
+router.get('/category/:categoryId', EventController.getEventsByCategory);
+
+/**
+ * @swagger
+ * /v1/api/events/language/{language}:
+ *   get:
+ *     summary: Get events by language
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: language
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Events by language retrieved successfully
+ */
+router.get('/language/:language', EventController.getEventsByLanguage);
+
+/**
+ * @swagger
  * /v1/api/events/bookings:
  *   get:
  *     summary: Get all event bookings (filtering and pagination)

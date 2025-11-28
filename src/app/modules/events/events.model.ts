@@ -1,5 +1,29 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+// Seat Type Schema for dynamic pricing
+const SeatTypeSchema = new Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  totalSeats: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  availableSeats: {
+    type: Number,
+    required: true,
+    min: 0
+  }
+});
+
 // Event Performer Schema
 const EventPerformerSchema = new Schema({
   name: {
@@ -73,12 +97,22 @@ const LocationSchema = new Schema({
   }
 });
 
+// Seat Type Interface
+export interface ISeatType {
+  name: string;
+  price: number;
+  totalSeats: number;
+  availableSeats: number;
+}
+
 // Event Interface
 export interface IEvent extends Document {
   title: string;
   description: string;
   eventType: string;
   category: string;
+  categoryId?: mongoose.Types.ObjectId;
+  language: string;
   startDate: Date;
   endDate?: Date;
   startTime: string;
@@ -87,11 +121,14 @@ export interface IEvent extends Document {
   ticketPrice: number;
   totalSeats: number;
   availableSeats: number;
+  seatTypes: ISeatType[];
+  maxTicketsPerPerson: number;
   posterImage: string;
   galleryImages: string[];
   performers: typeof EventPerformerSchema[];
   organizers: typeof EventOrganizerSchema[];
   tags: string[];
+  totalTicketsSold: number;
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   isActive: boolean;
   createdAt: Date;
@@ -117,6 +154,14 @@ const eventSchema: Schema = new Schema(
     category: {
       type: String,
       required: [true, 'Event category is required']
+    },
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'EventCategory'
+    },
+    language: {
+      type: String,
+      default: 'English'
     },
     startDate: {
       type: Date,
@@ -152,6 +197,19 @@ const eventSchema: Schema = new Schema(
       required: [true, 'Available seats is required'],
       min: [0, 'Available seats cannot be negative']
     },
+    seatTypes: {
+      type: [SeatTypeSchema],
+      default: []
+    },
+    maxTicketsPerPerson: {
+      type: Number,
+      default: 10,
+      min: [1, 'Max tickets per person must be at least 1']
+    },
+    totalTicketsSold: {
+      type: Number,
+      default: 0
+    },
     posterImage: {
       type: String,
       required: [true, 'Poster image is required']
@@ -184,10 +242,13 @@ const eventSchema: Schema = new Schema(
 eventSchema.index({ title: 'text', description: 'text' });
 eventSchema.index({ eventType: 1 });
 eventSchema.index({ category: 1 });
+eventSchema.index({ categoryId: 1 });
+eventSchema.index({ language: 1 });
 eventSchema.index({ startDate: 1 });
 eventSchema.index({ 'location.city': 1 });
 eventSchema.index({ status: 1 });
 eventSchema.index({ isActive: 1 });
+eventSchema.index({ totalTicketsSold: -1 });
 
 const Event = mongoose.model<IEvent>('Event', eventSchema);
 

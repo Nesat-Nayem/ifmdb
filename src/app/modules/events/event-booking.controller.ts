@@ -21,10 +21,19 @@ const generateTicketNumber = (): string => {
   return `ETK${timestamp}${randomStr}`.toUpperCase();
 };
 
-// Create event ticket booking (no seat selection)
+// Create event ticket booking with seat type selection
 const createEventBooking = catchAsync(async (req: Request, res: Response) => {
   const { id: eventId } = req.params;
-  const { userId, quantity, bookingFee = 0, taxAmount = 0, discountAmount = 0, paymentMethod = 'card', customerDetails } = req.body;
+  const { 
+    userId, 
+    quantity, 
+    seatType = 'Normal',
+    bookingFee = 0, 
+    taxAmount = 0, 
+    discountAmount = 0, 
+    paymentMethod = 'card', 
+    customerDetails 
+  } = req.body;
 
   const event = await Event.findById(eventId);
   if (!event || !event.isActive || !['upcoming', 'ongoing'].includes(event.status)) {
@@ -36,23 +45,86 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  // Attempt atomic decrement of available seats
-  const updatedEvent = await Event.findOneAndUpdate(
-    { _id: eventId, availableSeats: { $gte: quantity } },
-    { $inc: { availableSeats: -quantity } },
-    { new: true }
-  );
-
-  if (!updatedEvent) {
+  // Check max tickets per person
+  if (quantity > event.maxTicketsPerPerson) {
     return sendResponse(res, {
       statusCode: httpStatus.BAD_REQUEST,
       success: false,
-      message: 'Not enough available tickets',
+      message: `Maximum ${event.maxTicketsPerPerson} tickets allowed per person`,
       data: null,
     });
   }
 
-  const unitPrice = event.ticketPrice;
+  let unitPrice = event.ticketPrice;
+  let updateQuery: any = { $inc: { availableSeats: -quantity, totalTicketsSold: quantity } };
+
+  // If event has seat types, find the matching seat type
+  if (event.seatTypes && event.seatTypes.length > 0) {
+    const selectedSeatType = event.seatTypes.find(st => st.name.toLowerCase() === seatType.toLowerCase());
+    
+    if (!selectedSeatType) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: `Seat type "${seatType}" not found for this event`,
+        data: null,
+      });
+    }
+
+    if (selectedSeatType.availableSeats < quantity) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: `Not enough ${seatType} seats available`,
+        data: null,
+      });
+    }
+
+    unitPrice = selectedSeatType.price;
+    
+    // Update the specific seat type's available seats
+    const updatedEvent = await Event.findOneAndUpdate(
+      { 
+        _id: eventId, 
+        'seatTypes.name': seatType,
+        'seatTypes.availableSeats': { $gte: quantity }
+      },
+      { 
+        $inc: { 
+          'seatTypes.$.availableSeats': -quantity,
+          availableSeats: -quantity,
+          totalTicketsSold: quantity
+        } 
+      },
+      { new: true }
+    );
+
+    if (!updatedEvent) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: 'Not enough available tickets',
+        data: null,
+      });
+    }
+  } else {
+    // Attempt atomic decrement of available seats (for events without seat types)
+    const updatedEvent = await Event.findOneAndUpdate(
+      { _id: eventId, availableSeats: { $gte: quantity } },
+      updateQuery,
+      { new: true }
+    );
+
+    if (!updatedEvent) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: 'Not enough available tickets',
+        data: null,
+      });
+    }
+  }
+
   const totalAmount = unitPrice * quantity;
   const finalAmount = totalAmount + bookingFee + taxAmount - discountAmount;
 
@@ -61,6 +133,7 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     userId: new mongoose.Types.ObjectId(userId),
     bookingReference: generateBookingReference(),
     quantity,
+    seatType,
     unitPrice,
     totalAmount,
     bookingFee,

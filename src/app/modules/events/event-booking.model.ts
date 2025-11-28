@@ -22,6 +22,11 @@ const EventBookingSchema = new Schema({
     required: true,
     min: 1,
   },
+  seatType: {
+    type: String,
+    required: true,
+    default: 'Normal'
+  },
   unitPrice: {
     type: Number,
     required: true,
@@ -187,6 +192,7 @@ export interface IEventBooking extends Document {
   userId: mongoose.Types.ObjectId;
   bookingReference: string;
   quantity: number;
+  seatType: string;
   unitPrice: number;
   totalAmount: number;
   bookingFee: number;

@@ -21,6 +21,10 @@ const storage = new CloudinaryStorage({
     folder: (req: Request, file: Express.Multer.File) => {
       if (req.originalUrl.includes('/products')) {
         return 'restaurant-products';
+      } else if (req.originalUrl.includes('/event-categories')) {
+        return 'event-categories';
+      } else if (req.originalUrl.includes('/events')) {
+        return 'events';
       } else if (req.originalUrl.includes('/categories')) {
         return 'restaurant-categories';
       } else if (req.originalUrl.includes('/banners')) {
