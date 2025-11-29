@@ -27,7 +27,7 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
     eventType,
     category,
     categoryId,
-    language,
+    eventLanguage,
     city,
     status,
     startDate,
@@ -56,7 +56,7 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
   if (eventType) filter.eventType = eventType;
   if (category) filter.category = category;
   if (categoryId) filter.categoryId = categoryId;
-  if (language) filter.language = { $regex: language, $options: 'i' };
+  if (eventLanguage) filter.eventLanguage = { $regex: eventLanguage, $options: 'i' };
   if (city) filter['location.city'] = { $regex: city, $options: 'i' };
   if (status) filter.status = status;
 
@@ -384,7 +384,7 @@ const getEventsByCategory = catchAsync(async (req: Request, res: Response) => {
 
 // Get events by language
 const getEventsByLanguage = catchAsync(async (req: Request, res: Response) => {
-  const { language } = req.params;
+  const { eventLanguage } = req.params;
   const { page = 1, limit = 10 } = req.query;
 
   const pageNum = parseInt(page as string);
@@ -392,7 +392,7 @@ const getEventsByLanguage = catchAsync(async (req: Request, res: Response) => {
   const skip = (pageNum - 1) * limitNum;
 
   const events = await Event.find({
-    language: { $regex: language, $options: 'i' },
+    eventLanguage: { $regex: eventLanguage, $options: 'i' },
     isActive: true,
     status: { $in: ['upcoming', 'ongoing'] }
   })
@@ -403,7 +403,7 @@ const getEventsByLanguage = catchAsync(async (req: Request, res: Response) => {
     .lean();
 
   const total = await Event.countDocuments({
-    language: { $regex: language, $options: 'i' },
+    eventLanguage: { $regex: eventLanguage, $options: 'i' },
     isActive: true,
     status: { $in: ['upcoming', 'ongoing'] }
   });
@@ -411,7 +411,7 @@ const getEventsByLanguage = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: `Events in ${language} retrieved successfully`,
+    message: `Events in ${eventLanguage} retrieved successfully`,
     data: events,
     meta: {
       page: pageNum,

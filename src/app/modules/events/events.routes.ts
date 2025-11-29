@@ -601,13 +601,13 @@ router.get('/category/:categoryId', EventController.getEventsByCategory);
 
 /**
  * @swagger
- * /v1/api/events/language/{language}:
+ * /v1/api/events/language/{eventLanguage}:
  *   get:
  *     summary: Get events by language
  *     tags: [Events]
  *     parameters:
  *       - in: path
- *         name: language
+ *         name: eventLanguage
  *         required: true
  *         schema:
  *           type: string
@@ -625,7 +625,7 @@ router.get('/category/:categoryId', EventController.getEventsByCategory);
  *       200:
  *         description: Events by language retrieved successfully
  */
-router.get('/language/:language', EventController.getEventsByLanguage);
+router.get('/language/:eventLanguage', EventController.getEventsByLanguage);
 
 /**
  * @swagger

@@ -112,7 +112,7 @@ export interface IEvent extends Document {
   eventType: string;
   category: string;
   categoryId?: mongoose.Types.ObjectId;
-  language: string;
+  eventLanguage: string;
   startDate: Date;
   endDate?: Date;
   startTime: string;
@@ -159,7 +159,7 @@ const eventSchema: Schema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'EventCategory'
     },
-    language: {
+    eventLanguage: {
       type: String,
       default: 'English'
     },
@@ -243,7 +243,7 @@ eventSchema.index({ title: 'text', description: 'text' });
 eventSchema.index({ eventType: 1 });
 eventSchema.index({ category: 1 });
 eventSchema.index({ categoryId: 1 });
-eventSchema.index({ language: 1 });
+eventSchema.index({ eventLanguage: 1 });
 eventSchema.index({ startDate: 1 });
 eventSchema.index({ 'location.city': 1 });
 eventSchema.index({ status: 1 });
