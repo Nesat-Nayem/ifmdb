@@ -82,6 +82,11 @@ export const verifyOtpValidation = z.object({
   phone: z.string().refine(validateIndianMobile, {
     message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
   }),
-  otp: z.string().length(4, "OTP must be 4 digits")
+  otp: z.string().length(6, "OTP must be 6 digits")
+});
+
+// Google Auth validation
+export const googleAuthValidation = z.object({
+  idToken: z.string().min(1, "Firebase ID token is required")
 });
 

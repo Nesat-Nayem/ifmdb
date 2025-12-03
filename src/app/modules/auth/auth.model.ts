@@ -46,6 +46,8 @@ export interface IUser extends Document {
   role: 'admin' | 'vendor'|'user';
   otp?: string;
   otpExpires?: Date;
+  googleId?: string;
+  authProvider: 'local' | 'google' | 'phone';
   packageFeatures?: string[];
   menuBookmarks?: typeof MenuBookmarkSchema[];
   comparePassword(password: string): Promise<boolean>;
@@ -58,13 +60,15 @@ const userSchema: Schema = new Schema(
   {
     name: { type: String }, 
     password: { type: String }, 
-    phone: { type: String, required: true },
-    email: { type: String }, 
+    phone: { type: String, sparse: true },
+    email: { type: String, sparse: true }, 
     img: { type: String },
     role: { type: String, enum: ['admin','vendor', 'user'], default: 'user' },
     status: { type: String, enum: ['pending', 'active'], default: 'active' },
     otp: { type: String },
     otpExpires: { type: Date },
+    googleId: { type: String, sparse: true },
+    authProvider: { type: String, enum: ['local', 'google', 'phone'], default: 'local' },
 
     packageFeatures: {
         type: [String],
@@ -99,7 +103,9 @@ userSchema.methods.compareOtp = function (otp: string): boolean {
 };
 
 
-// Add index for phone
-userSchema.index({ phone: 1 }, { unique: true });
+// Add indexes
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
+userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 
 export const User = mongoose.model<IUser>('User', userSchema);

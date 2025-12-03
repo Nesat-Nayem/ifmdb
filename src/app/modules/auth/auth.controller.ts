@@ -1,8 +1,9 @@
 import { Request, Response } from "express";
 import { User } from "./auth.model";
 import { RequestHandler } from 'express';
-import { activateUserValidation, authValidation, emailCheckValidation, loginValidation, phoneCheckValidation, requestOtpValidation, resetPasswordValidation, updateUserValidation, verifyOtpValidation } from "./auth.validation";
+import { activateUserValidation, authValidation, emailCheckValidation, googleAuthValidation, loginValidation, phoneCheckValidation, requestOtpValidation, resetPasswordValidation, updateUserValidation, verifyOtpValidation } from "./auth.validation";
 import { generateToken } from "../../config/generateToken";
+import admin from "firebase-admin";
 // import { AdminStaff } from "../admin-staff/admin-staff.model";
 
 export const singUpController: RequestHandler = async (req, res, next): Promise<void> => {
@@ -38,7 +39,7 @@ export const singUpController: RequestHandler = async (req, res, next): Promise<
     }
 
 
-    const user = new User({ name, password, img, phone, email, role });
+    const user = new User({ name, password, img, phone, email, role, authProvider: 'local' });
     await user.save();
 
     const { password: _, ...userObject } = user.toObject();
@@ -62,9 +63,9 @@ export const singUpController: RequestHandler = async (req, res, next): Promise<
 
 // Add these functions to your existing controller file
 
-// Utility function to generate OTP
+// Utility function to generate 6-digit OTP
 const generateOTP = (): string => {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 // Request OTP handler
@@ -79,8 +80,11 @@ export const requestOtp: RequestHandler = async (req, res, next): Promise<void> 
       user = new User({
         phone,
         role: 'user',
-        status: 'active'
+        status: 'active',
+        authProvider: 'phone'
       });
+    } else if (!user.authProvider) {
+      user.authProvider = 'phone';
     }
 
     // Generate OTP and set expiration
@@ -472,6 +476,89 @@ export const checkEmailExists: RequestHandler = async (req, res, next): Promise<
         exists: true,
         email: user.email
       }
+    });
+    return;
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: error.message
+    });
+    return;
+  }
+};
+
+// Google Authentication - verify Firebase token and create/login user
+export const googleAuth: RequestHandler = async (req, res, next): Promise<void> => {
+  try {
+    const { idToken } = googleAuthValidation.parse(req.body);
+
+    // Verify Firebase ID token
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+    } catch (firebaseError: any) {
+      res.status(401).json({
+        success: false,
+        statusCode: 401,
+        message: "Invalid or expired Firebase token"
+      });
+      return;
+    }
+
+    const { uid, email, name, picture } = decodedToken;
+
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: "Email not provided by Google"
+      });
+      return;
+    }
+
+    // Check if user already exists with this googleId or email
+    let user = await User.findOne({ 
+      $or: [
+        { googleId: uid },
+        { email: email }
+      ]
+    });
+
+    if (user) {
+      // User exists - update Google info if needed
+      if (!user.googleId) {
+        user.googleId = uid;
+        user.authProvider = 'google';
+        if (!user.img && picture) user.img = picture;
+        await user.save();
+      }
+    } else {
+      // Create new user
+      user = new User({
+        name: name || email.split('@')[0],
+        email: email,
+        googleId: uid,
+        img: picture || '',
+        authProvider: 'google',
+        role: 'user',
+        status: 'active'
+      });
+      await user.save();
+    }
+
+    // Generate JWT token
+    const token = generateToken(user);
+
+    // Remove password from response
+    const { password: _, ...userObject } = user.toObject();
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: "Google authentication successful",
+      token,
+      data: userObject
     });
     return;
   } catch (error: any) {
