@@ -11,9 +11,13 @@ import {
   updateUser, 
   requestOtp,
   verifyOtp,
-  googleAuth
+  googleAuth,
+  updateProfile,
+  changePassword,
+  getProfile
 } from "./auth.controller";
 import { auth } from "../../middlewares/authMiddleware";
+import { upload } from "../../config/cloudinary";
 
 const router = express.Router();
 
@@ -568,5 +572,184 @@ router.post("/verify-otp", verifyOtp);
  *         description: Bad request - Email not provided
  */
 router.post("/google", googleAuth);
+
+/**
+ * @swagger
+ * /v1/api/auth/profile/{id}:
+ *   get:
+ *     summary: Get user profile
+ *     description: Retrieve current user profile data
+ *     tags: [Profile Management]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: Profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Profile retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     img:
+ *                       type: string
+ *                     authProvider:
+ *                       type: string
+ *                       enum: [local, google, phone]
+ *                     role:
+ *                       type: string
+ *       404:
+ *         description: User not found
+ */
+router.get("/profile/:id", getProfile);
+
+/**
+ * @swagger
+ * /v1/api/auth/profile/{id}:
+ *   put:
+ *     summary: Update user profile
+ *     description: |
+ *       Update user profile with restrictions based on auth provider:
+ *       - **Phone login users**: Cannot change phone number
+ *       - **Google login users**: Cannot change email
+ *       - **Email/password users**: Cannot change email
+ *       - All users can update: name, profile image
+ *     tags: [Profile Management]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: User's full name
+ *               phone:
+ *                 type: string
+ *                 description: Phone number (cannot update for phone login users)
+ *               email:
+ *                 type: string
+ *                 description: Email (cannot update for google/local users)
+ *               img:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile image file
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Profile updated successfully"
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Validation error or duplicate email/phone
+ *       404:
+ *         description: User not found
+ */
+router.put("/profile/:id", upload.single('img'), updateProfile);
+
+/**
+ * @swagger
+ * /v1/api/auth/change-password/{id}:
+ *   post:
+ *     summary: Change user password
+ *     description: |
+ *       Change password for email/password login users only.
+ *       Google and Phone login users cannot change password.
+ *     tags: [Profile Management]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Current password
+ *                 example: "oldPassword123"
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: New password (minimum 6 characters)
+ *                 example: "newPassword456"
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Password changed successfully"
+ *       401:
+ *         description: Current password is incorrect
+ *       403:
+ *         description: Cannot change password for this auth provider
+ *       404:
+ *         description: User not found
+ */
+router.post("/change-password/:id", changePassword);
 
 export const authRouter = router;

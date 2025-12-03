@@ -570,3 +570,211 @@ export const googleAuth: RequestHandler = async (req, res, next): Promise<void> 
     return;
   }
 };
+
+// Update Profile - respects auth provider restrictions
+export const updateProfile: RequestHandler = async (req, res, next): Promise<void> => {
+  try {
+    const userId = req.params.id;
+    const { name, phone, email } = req.body;
+    
+    // Get current user
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: "User not found"
+      });
+      return;
+    }
+
+    // Prepare update object based on auth provider
+    const updateData: any = {};
+
+    // Handle name - all users can update
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+
+    // Handle phone - cannot change for phone auth provider (phone is their primary login)
+    if (phone !== undefined) {
+      // Phone users cannot change their phone (it's their login method)
+      if (user.authProvider === 'phone') {
+        // Skip phone update for phone login users
+      } else {
+        // Google and local users CAN add/update their phone
+        if (phone && phone.length > 0) {
+          const existingPhone = await User.findOne({ phone, _id: { $ne: userId } });
+          if (existingPhone) {
+            res.status(400).json({
+              success: false,
+              statusCode: 400,
+              message: "Phone number already exists"
+            });
+            return;
+          }
+        }
+        updateData.phone = phone || undefined;
+      }
+    }
+
+    // Handle email - cannot change for google and local auth provider (email is their primary login)
+    if (email !== undefined) {
+      // Google and local users cannot change their email (it's their login method)
+      if (user.authProvider === 'google' || user.authProvider === 'local') {
+        // Skip email update for these providers
+      } else {
+        // Phone users CAN add/update their email
+        if (email && email.length > 0) {
+          const existingEmail = await User.findOne({ email, _id: { $ne: userId } });
+          if (existingEmail) {
+            res.status(400).json({
+              success: false,
+              statusCode: 400,
+              message: "Email already exists"
+            });
+            return;
+          }
+        }
+        updateData.email = email || undefined;
+      }
+    }
+
+    // Handle image upload (from multer)
+    if (req.file) {
+      updateData.img = (req.file as any).path;
+    }
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { $set: updateData },
+      { new: true, select: '-password -otp -otpExpires' }
+    );
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: "Profile updated successfully",
+      data: updatedUser
+    });
+    return;
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: error.message
+    });
+    return;
+  }
+};
+
+// Change Password - only for local (email/password) users
+export const changePassword: RequestHandler = async (req, res, next): Promise<void> => {
+  try {
+    const userId = req.params.id;
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: "Current password and new password are required"
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: "New password must be at least 6 characters"
+      });
+      return;
+    }
+
+    // Get user with password
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: "User not found"
+      });
+      return;
+    }
+
+    // Check auth provider - only local users can change password
+    if (user.authProvider !== 'local') {
+      res.status(403).json({
+        success: false,
+        statusCode: 403,
+        message: `Cannot change password for ${user.authProvider} login. Please use ${user.authProvider === 'google' ? 'Google' : 'Phone OTP'} to login.`
+      });
+      return;
+    }
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      res.status(401).json({
+        success: false,
+        statusCode: 401,
+        message: "Current password is incorrect"
+      });
+      return;
+    }
+
+    // Update password (will be hashed by pre-save hook)
+    user.password = newPassword;
+    await user.save();
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: "Password changed successfully"
+    });
+    return;
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      statusCode: 400,
+      message: error.message
+    });
+    return;
+  }
+};
+
+// Get current user profile
+export const getProfile: RequestHandler = async (req, res, next): Promise<void> => {
+  try {
+    const userId = req.params.id;
+    
+    const user = await User.findById(userId, { password: 0, otp: 0, otpExpires: 0 });
+    
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: "User not found"
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: "Profile retrieved successfully",
+      data: user
+    });
+    return;
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      statusCode: 500,
+      message: error.message
+    });
+    return;
+  }
+};

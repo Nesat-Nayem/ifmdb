@@ -31,6 +31,8 @@ const storage = new CloudinaryStorage({
         return 'restaurant-banners';
       } else if (req.originalUrl.includes('/blogs')) {
         return 'restaurant-blogs';
+      } else if (req.originalUrl.includes('/auth/profile') || req.originalUrl.includes('/auth/update')) {
+        return 'user-profiles';
       }
       return 'restaurant-uploads';
     },
