@@ -4,6 +4,7 @@ import validateRequest from '../../middlewares/validateRequest';
 import { EventValidation } from './events.validation';
 import { EventBookingController } from './event-booking.controller';
 import { EventBookingValidation } from './event-booking.validation';
+import { CashfreePaymentController } from './cashfree-payment.controller';
 
 const router = express.Router();
 
@@ -1161,5 +1162,161 @@ router.post('/tickets/validate/:scannerId', EventBookingController.validateTicke
  *         description: Ticket not found
  */
 router.get('/tickets/status/:scannerId', EventBookingController.checkTicketStatus);
+
+// =============================================
+// CASHFREE PAYMENT ROUTES
+// =============================================
+
+/**
+ * @swagger
+ * /v1/api/events/{id}/payment/create-order:
+ *   post:
+ *     summary: Create Cashfree payment order
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - quantity
+ *               - customerDetails
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: User ID
+ *               quantity:
+ *                 type: number
+ *                 description: Number of tickets
+ *               seatType:
+ *                 type: string
+ *                 description: Seat type (Normal, VIP, VVIP)
+ *                 default: Normal
+ *               customerDetails:
+ *                 type: object
+ *                 required:
+ *                   - name
+ *                   - email
+ *                   - phone
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *               returnUrl:
+ *                 type: string
+ *                 description: URL to redirect after payment
+ *     responses:
+ *       201:
+ *         description: Payment order created successfully
+ *       400:
+ *         description: Invalid request or insufficient seats
+ *       404:
+ *         description: Event not found
+ */
+router.post('/:id/payment/create-order', CashfreePaymentController.createCashfreeOrder);
+
+/**
+ * @swagger
+ * /v1/api/events/payment/verify/{orderId}:
+ *   get:
+ *     summary: Verify Cashfree payment status
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cashfree Order ID
+ *     responses:
+ *       200:
+ *         description: Payment verification result
+ *       404:
+ *         description: Booking not found
+ */
+router.get('/payment/verify/:orderId', CashfreePaymentController.verifyCashfreePayment);
+
+/**
+ * @swagger
+ * /v1/api/events/payment/status/{orderId}:
+ *   get:
+ *     summary: Get payment status by order ID
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cashfree Order ID
+ *     responses:
+ *       200:
+ *         description: Payment status retrieved
+ *       404:
+ *         description: Booking not found
+ */
+router.get('/payment/status/:orderId', CashfreePaymentController.getPaymentStatus);
+
+/**
+ * @swagger
+ * /v1/api/events/payment/webhook:
+ *   post:
+ *     summary: Cashfree webhook handler
+ *     tags: [Events - Cashfree Payment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Webhook received
+ */
+router.post('/payment/webhook', CashfreePaymentController.handleCashfreeWebhook);
+
+/**
+ * @swagger
+ * /v1/api/events/payment/refund/{bookingId}:
+ *   post:
+ *     summary: Initiate refund for a booking
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Booking ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Refund reason
+ *     responses:
+ *       200:
+ *         description: Refund initiated successfully
+ *       400:
+ *         description: Cannot refund
+ *       404:
+ *         description: Booking not found
+ */
+router.post('/payment/refund/:bookingId', CashfreePaymentController.initiateRefund);
 
 export const eventRouter = router;

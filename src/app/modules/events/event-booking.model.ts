@@ -66,7 +66,7 @@ const EventBookingSchema = new Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['card', 'wallet', 'upi', 'netbanking', 'cash'],
+    enum: ['card', 'wallet', 'upi', 'netbanking', 'cash', 'cashfree'],
     default: 'card',
   },
   transactionId: {
@@ -151,7 +151,7 @@ const EventPaymentTransactionSchema = new Schema({
   },
   paymentGateway: {
     type: String,
-    enum: ['stripe', 'razorpay', 'paypal', 'paytm'],
+    enum: ['stripe', 'razorpay', 'paypal', 'paytm', 'cashfree'],
     required: true,
   },
   gatewayTransactionId: {
