@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyOtpValidation = exports.requestOtpValidation = exports.updateUserValidation = exports.emailCheckValidation = exports.phoneCheckValidation = exports.activateUserValidation = exports.resetPasswordValidation = exports.loginValidation = exports.authValidation = void 0;
+exports.googleAuthValidation = exports.verifyOtpValidation = exports.requestOtpValidation = exports.updateUserValidation = exports.emailCheckValidation = exports.phoneCheckValidation = exports.activateUserValidation = exports.resetPasswordValidation = exports.loginValidation = exports.authValidation = void 0;
 const zod_1 = require("zod");
 // Regex for Indian mobile numbers
 // Must start with 6, 7, 8, or 9 and be followed by 9 digits
@@ -68,5 +68,9 @@ exports.verifyOtpValidation = zod_1.z.object({
     phone: zod_1.z.string().refine(validateIndianMobile, {
         message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
     }),
-    otp: zod_1.z.string().length(4, "OTP must be 4 digits")
+    otp: zod_1.z.string().length(6, "OTP must be 6 digits")
+});
+// Google Auth validation
+exports.googleAuthValidation = zod_1.z.object({
+    idToken: zod_1.z.string().min(1, "Firebase ID token is required")
 });

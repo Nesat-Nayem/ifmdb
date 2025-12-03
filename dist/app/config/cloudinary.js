@@ -39,6 +39,9 @@ const storage = new multer_storage_cloudinary_1.CloudinaryStorage({
             else if (req.originalUrl.includes('/blogs')) {
                 return 'restaurant-blogs';
             }
+            else if (req.originalUrl.includes('/auth/profile') || req.originalUrl.includes('/auth/update')) {
+                return 'user-profiles';
+            }
             return 'restaurant-uploads';
         },
         allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif'],

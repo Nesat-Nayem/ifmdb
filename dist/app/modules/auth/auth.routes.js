@@ -7,6 +7,7 @@ exports.authRouter = void 0;
 const express_1 = __importDefault(require("express"));
 const auth_controller_1 = require("./auth.controller");
 const authMiddleware_1 = require("../../middlewares/authMiddleware");
+const cloudinary_1 = require("../../config/cloudinary");
 const router = express_1.default.Router();
 /**
  * @swagger
@@ -317,8 +318,12 @@ router.patch("/user/:id", (0, authMiddleware_1.auth)(), auth_controller_1.update
  * @swagger
  * /v1/api/auth/request-otp:
  *   post:
- *     summary: Request OTP for verification
- *     tags: [OTP]
+ *     summary: Request OTP for phone number login
+ *     description: |
+ *       Send a 6-digit OTP to the provided phone number.
+ *       If user doesn't exist, a new user account will be created automatically.
+ *       OTP is valid for 5 minutes. Later WhatsApp API will be integrated to send OTP.
+ *     tags: [Phone Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -330,20 +335,53 @@ router.patch("/user/:id", (0, authMiddleware_1.auth)(), auth_controller_1.update
  *             properties:
  *               phone:
  *                 type: string
- *                 description: Phone number to send OTP
+ *                 example: "9876543210"
+ *                 description: 10-digit Indian mobile number (without country code)
  *     responses:
  *       200:
  *         description: OTP sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "OTP sent successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     otp:
+ *                       type: string
+ *                       example: "123456"
+ *                       description: 6-digit OTP (shown only in development)
+ *                     phone:
+ *                       type: string
+ *                       example: "9876543210"
  *       400:
- *         description: Bad request
+ *         description: Invalid phone number format
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post("/request-otp", auth_controller_1.requestOtp);
 /**
  * @swagger
  * /v1/api/auth/verify-otp:
  *   post:
- *     summary: Verify OTP
- *     tags: [OTP]
+ *     summary: Verify OTP and login with phone number
+ *     description: |
+ *       Verify the 6-digit OTP sent to phone number.
+ *       On successful verification, returns JWT auth token and user data.
+ *       OTP expires after 5 minutes.
+ *     tags: [Phone Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -356,14 +394,335 @@ router.post("/request-otp", auth_controller_1.requestOtp);
  *             properties:
  *               phone:
  *                 type: string
+ *                 example: "9876543210"
+ *                 description: 10-digit Indian mobile number
  *               otp:
  *                 type: string
- *                 description: 6-digit OTP code
+ *                 example: "123456"
+ *                 description: 6-digit OTP received
  *     responses:
  *       200:
- *         description: OTP verified successfully
- *       400:
- *         description: Invalid OTP
+ *         description: OTP verified successfully, user logged in
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "OTP verified successfully"
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 data:
+ *                   type: object
+ *                   description: User object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: "507f1f77bcf86cd799439011"
+ *                     phone:
+ *                       type: string
+ *                       example: "9876543210"
+ *                     role:
+ *                       type: string
+ *                       example: "user"
+ *                     authProvider:
+ *                       type: string
+ *                       example: "phone"
+ *                     status:
+ *                       type: string
+ *                       example: "active"
+ *       401:
+ *         description: Invalid or expired OTP
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 401
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid or expired OTP"
+ *       404:
+ *         description: User not found
  */
 router.post("/verify-otp", auth_controller_1.verifyOtp);
+/**
+ * @swagger
+ * /v1/api/auth/google:
+ *   post:
+ *     summary: Login/Register with Google (Firebase)
+ *     description: |
+ *       Authenticate user using Firebase Google Sign-In.
+ *       Frontend should use Firebase SDK to get the ID token after Google popup sign-in.
+ *       If user doesn't exist, a new account will be created automatically.
+ *       Works with both web (Next.js) and mobile (Flutter) apps.
+ *     tags: [Google Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: Firebase ID token obtained from Google Sign-In
+ *                 example: "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+ *     responses:
+ *       200:
+ *         description: Google authentication successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Google authentication successful"
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: "507f1f77bcf86cd799439011"
+ *                     name:
+ *                       type: string
+ *                       example: "John Doe"
+ *                     email:
+ *                       type: string
+ *                       example: "john@gmail.com"
+ *                     img:
+ *                       type: string
+ *                       example: "https://lh3.googleusercontent.com/..."
+ *                     googleId:
+ *                       type: string
+ *                       example: "108234567890123456789"
+ *                     authProvider:
+ *                       type: string
+ *                       example: "google"
+ *                     role:
+ *                       type: string
+ *                       example: "user"
+ *       401:
+ *         description: Invalid or expired Firebase token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 401
+ *                 message:
+ *                   type: string
+ *                   example: "Invalid or expired Firebase token"
+ *       400:
+ *         description: Bad request - Email not provided
+ */
+router.post("/google", auth_controller_1.googleAuth);
+/**
+ * @swagger
+ * /v1/api/auth/profile/{id}:
+ *   get:
+ *     summary: Get user profile
+ *     description: Retrieve current user profile data
+ *     tags: [Profile Management]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: Profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Profile retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     phone:
+ *                       type: string
+ *                     img:
+ *                       type: string
+ *                     authProvider:
+ *                       type: string
+ *                       enum: [local, google, phone]
+ *                     role:
+ *                       type: string
+ *       404:
+ *         description: User not found
+ */
+router.get("/profile/:id", auth_controller_1.getProfile);
+/**
+ * @swagger
+ * /v1/api/auth/profile/{id}:
+ *   put:
+ *     summary: Update user profile
+ *     description: |
+ *       Update user profile with restrictions based on auth provider:
+ *       - **Phone login users**: Cannot change phone number
+ *       - **Google login users**: Cannot change email
+ *       - **Email/password users**: Cannot change email
+ *       - All users can update: name, profile image
+ *     tags: [Profile Management]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: User's full name
+ *               phone:
+ *                 type: string
+ *                 description: Phone number (cannot update for phone login users)
+ *               email:
+ *                 type: string
+ *                 description: Email (cannot update for google/local users)
+ *               img:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile image file
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Profile updated successfully"
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: Validation error or duplicate email/phone
+ *       404:
+ *         description: User not found
+ */
+router.put("/profile/:id", cloudinary_1.upload.single('img'), auth_controller_1.updateProfile);
+/**
+ * @swagger
+ * /v1/api/auth/change-password/{id}:
+ *   post:
+ *     summary: Change user password
+ *     description: |
+ *       Change password for email/password login users only.
+ *       Google and Phone login users cannot change password.
+ *     tags: [Profile Management]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Current password
+ *                 example: "oldPassword123"
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 description: New password (minimum 6 characters)
+ *                 example: "newPassword456"
+ *     responses:
+ *       200:
+ *         description: Password changed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Password changed successfully"
+ *       401:
+ *         description: Current password is incorrect
+ *       403:
+ *         description: Cannot change password for this auth provider
+ *       404:
+ *         description: User not found
+ */
+router.post("/change-password/:id", auth_controller_1.changePassword);
 exports.authRouter = router;

@@ -101,7 +101,7 @@ const EventBookingSchema = new mongoose_1.Schema({
     },
     paymentMethod: {
         type: String,
-        enum: ['card', 'wallet', 'upi', 'netbanking', 'cash'],
+        enum: ['card', 'wallet', 'upi', 'netbanking', 'cash', 'cashfree'],
         default: 'card',
     },
     transactionId: {
@@ -135,6 +135,11 @@ const EventETicketSchema = new mongoose_1.Schema({
         required: true,
         unique: true,
     },
+    ticketScannerId: {
+        type: String,
+        required: true,
+        unique: true,
+    },
     qrCodeData: {
         type: String,
         required: true,
@@ -155,6 +160,14 @@ const EventETicketSchema = new mongoose_1.Schema({
     usedAt: {
         type: Date,
     },
+    scannedBy: {
+        type: mongoose_1.default.Schema.Types.ObjectId,
+        ref: 'User',
+    },
+    scanLocation: {
+        type: String,
+        default: '',
+    },
     generatedAt: {
         type: Date,
         default: Date.now,
@@ -171,7 +184,7 @@ const EventPaymentTransactionSchema = new mongoose_1.Schema({
     },
     paymentGateway: {
         type: String,
-        enum: ['stripe', 'razorpay', 'paypal', 'paytm'],
+        enum: ['stripe', 'razorpay', 'paypal', 'paytm', 'cashfree'],
         required: true,
     },
     gatewayTransactionId: {
@@ -213,6 +226,7 @@ EventBookingSchema.index({ paymentStatus: 1 });
 EventBookingSchema.index({ bookingStatus: 1 });
 EventETicketSchema.index({ bookingId: 1 });
 EventETicketSchema.index({ ticketNumber: 1 }, { unique: true });
+EventETicketSchema.index({ ticketScannerId: 1 }, { unique: true });
 EventPaymentTransactionSchema.index({ bookingId: 1 });
 EventPaymentTransactionSchema.index({ gatewayTransactionId: 1 });
 exports.EventBooking = mongoose_1.default.model('EventBooking', EventBookingSchema);

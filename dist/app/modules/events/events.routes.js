@@ -10,6 +10,7 @@ const validateRequest_1 = __importDefault(require("../../middlewares/validateReq
 const events_validation_1 = require("./events.validation");
 const event_booking_controller_1 = require("./event-booking.controller");
 const event_booking_validation_1 = require("./event-booking.validation");
+const cashfree_payment_controller_1 = require("./cashfree-payment.controller");
 const router = express_1.default.Router();
 /**
  * @swagger
@@ -246,29 +247,47 @@ const router = express_1.default.Router();
  *       properties:
  *         userId:
  *           type: string
+ *           description: User ID of the person making the booking
  *         quantity:
  *           type: integer
  *           minimum: 1
+ *           description: Number of tickets to book
+ *         seatType:
+ *           type: string
+ *           default: Normal
+ *           description: Type of seat (e.g., Normal, VIP, Premium, VVIP). Must match one of the event's seat types
  *         bookingFee:
  *           type: number
+ *           default: 0
+ *           description: Additional booking fee
  *         taxAmount:
  *           type: number
+ *           default: 0
+ *           description: Tax amount
  *         discountAmount:
  *           type: number
+ *           default: 0
+ *           description: Discount amount to subtract
  *         paymentMethod:
  *           type: string
  *           enum: [card, wallet, upi, netbanking, cash]
+ *           default: card
+ *           description: Payment method to use
  *         customerDetails:
  *           type: object
  *           required: [name, email, phone]
+ *           description: Customer contact details
  *           properties:
  *             name:
  *               type: string
+ *               description: Customer name
  *             email:
  *               type: string
  *               format: email
+ *               description: Customer email
  *             phone:
  *               type: string
+ *               description: Customer phone number
  *
  *     EventPaymentRequest:
  *       type: object
@@ -305,20 +324,36 @@ const router = express_1.default.Router();
  *           description: Associated event booking ID
  *         ticketNumber:
  *           type: string
+ *           description: Unique ticket number (e.g., ETK123ABC)
+ *         ticketScannerId:
+ *           type: string
+ *           description: Unique scanner ID for QR code validation (e.g., SCAN123ABC456XY)
  *         qrCodeData:
  *           type: string
+ *           description: JSON data encoded in the QR code
  *         qrCodeImageUrl:
  *           type: string
+ *           description: Base64 encoded QR code image
  *         quantity:
  *           type: integer
+ *           description: Number of tickets
  *         isUsed:
  *           type: boolean
+ *           description: Whether the ticket has been scanned/used
  *         usedAt:
  *           type: string
  *           format: date-time
+ *           description: When the ticket was scanned
+ *         scannedBy:
+ *           type: string
+ *           description: User ID of who scanned the ticket
+ *         scanLocation:
+ *           type: string
+ *           description: Location where ticket was scanned
  *         generatedAt:
  *           type: string
  *           format: date-time
+ *           description: When the ticket was generated
  */
 /**
  * @swagger
@@ -589,13 +624,13 @@ router.get('/best-this-week', events_controller_1.EventController.getBestEventsT
 router.get('/category/:categoryId', events_controller_1.EventController.getEventsByCategory);
 /**
  * @swagger
- * /v1/api/events/language/{language}:
+ * /v1/api/events/language/{eventLanguage}:
  *   get:
  *     summary: Get events by language
  *     tags: [Events]
  *     parameters:
  *       - in: path
- *         name: language
+ *         name: eventLanguage
  *         required: true
  *         schema:
  *           type: string
@@ -613,7 +648,7 @@ router.get('/category/:categoryId', events_controller_1.EventController.getEvent
  *       200:
  *         description: Events by language retrieved successfully
  */
-router.get('/language/:language', events_controller_1.EventController.getEventsByLanguage);
+router.get('/language/:eventLanguage', events_controller_1.EventController.getEventsByLanguage);
 /**
  * @swagger
  * /v1/api/events/bookings:
@@ -955,4 +990,281 @@ router.put('/bookings/:id/cancel', event_booking_controller_1.EventBookingContro
  *         description: E-ticket not found
  */
 router.get('/bookings/:id/ticket', event_booking_controller_1.EventBookingController.getEventETicket);
+/**
+ * @swagger
+ * /v1/api/events/bookings/{id}:
+ *   delete:
+ *     summary: Delete an event booking
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event booking ID
+ *     responses:
+ *       200:
+ *         description: Event booking deleted successfully
+ *       404:
+ *         description: Event booking not found
+ */
+router.delete('/bookings/:id', event_booking_controller_1.EventBookingController.deleteEventBooking);
+/**
+ * @swagger
+ * /v1/api/events/tickets/validate/{scannerId}:
+ *   post:
+ *     summary: Validate and scan ticket by scanner ID (marks ticket as used)
+ *     tags: [Events - Ticket Scanner]
+ *     parameters:
+ *       - in: path
+ *         name: scannerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Ticket Scanner ID (from QR code)
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               scannedBy:
+ *                 type: string
+ *                 description: User ID of the scanner operator
+ *               scanLocation:
+ *                 type: string
+ *                 description: Location where ticket was scanned (e.g., Gate A, Main Entrance)
+ *     responses:
+ *       200:
+ *         description: Ticket validated successfully - Entry allowed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticketScannerId:
+ *                       type: string
+ *                     ticketNumber:
+ *                       type: string
+ *                     quantity:
+ *                       type: number
+ *                     isUsed:
+ *                       type: boolean
+ *                     usedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     booking:
+ *                       type: object
+ *       400:
+ *         description: Ticket already used or booking cancelled
+ *       404:
+ *         description: Invalid ticket - Ticket not found
+ */
+router.post('/tickets/validate/:scannerId', event_booking_controller_1.EventBookingController.validateTicketByScannerId);
+/**
+ * @swagger
+ * /v1/api/events/tickets/status/{scannerId}:
+ *   get:
+ *     summary: Check ticket status by scanner ID (without marking as used)
+ *     tags: [Events - Ticket Scanner]
+ *     parameters:
+ *       - in: path
+ *         name: scannerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Ticket Scanner ID (from QR code)
+ *     responses:
+ *       200:
+ *         description: Ticket status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticketScannerId:
+ *                       type: string
+ *                     ticketNumber:
+ *                       type: string
+ *                     quantity:
+ *                       type: number
+ *                     isUsed:
+ *                       type: boolean
+ *                     usedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     generatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     booking:
+ *                       type: object
+ *       404:
+ *         description: Ticket not found
+ */
+router.get('/tickets/status/:scannerId', event_booking_controller_1.EventBookingController.checkTicketStatus);
+// =============================================
+// CASHFREE PAYMENT ROUTES
+// =============================================
+/**
+ * @swagger
+ * /v1/api/events/{id}/payment/create-order:
+ *   post:
+ *     summary: Create Cashfree payment order
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - quantity
+ *               - customerDetails
+ *             properties:
+ *               userId:
+ *                 type: string
+ *                 description: User ID
+ *               quantity:
+ *                 type: number
+ *                 description: Number of tickets
+ *               seatType:
+ *                 type: string
+ *                 description: Seat type (Normal, VIP, VVIP)
+ *                 default: Normal
+ *               customerDetails:
+ *                 type: object
+ *                 required:
+ *                   - name
+ *                   - email
+ *                   - phone
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *               returnUrl:
+ *                 type: string
+ *                 description: URL to redirect after payment
+ *     responses:
+ *       201:
+ *         description: Payment order created successfully
+ *       400:
+ *         description: Invalid request or insufficient seats
+ *       404:
+ *         description: Event not found
+ */
+router.post('/:id/payment/create-order', cashfree_payment_controller_1.CashfreePaymentController.createCashfreeOrder);
+/**
+ * @swagger
+ * /v1/api/events/payment/verify/{orderId}:
+ *   get:
+ *     summary: Verify Cashfree payment status
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cashfree Order ID
+ *     responses:
+ *       200:
+ *         description: Payment verification result
+ *       404:
+ *         description: Booking not found
+ */
+router.get('/payment/verify/:orderId', cashfree_payment_controller_1.CashfreePaymentController.verifyCashfreePayment);
+/**
+ * @swagger
+ * /v1/api/events/payment/status/{orderId}:
+ *   get:
+ *     summary: Get payment status by order ID
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cashfree Order ID
+ *     responses:
+ *       200:
+ *         description: Payment status retrieved
+ *       404:
+ *         description: Booking not found
+ */
+router.get('/payment/status/:orderId', cashfree_payment_controller_1.CashfreePaymentController.getPaymentStatus);
+/**
+ * @swagger
+ * /v1/api/events/payment/webhook:
+ *   post:
+ *     summary: Cashfree webhook handler
+ *     tags: [Events - Cashfree Payment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Webhook received
+ */
+router.post('/payment/webhook', cashfree_payment_controller_1.CashfreePaymentController.handleCashfreeWebhook);
+/**
+ * @swagger
+ * /v1/api/events/payment/refund/{bookingId}:
+ *   post:
+ *     summary: Initiate refund for a booking
+ *     tags: [Events - Cashfree Payment]
+ *     parameters:
+ *       - in: path
+ *         name: bookingId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Booking ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Refund reason
+ *     responses:
+ *       200:
+ *         description: Refund initiated successfully
+ *       400:
+ *         description: Cannot refund
+ *       404:
+ *         description: Booking not found
+ */
+router.post('/payment/refund/:bookingId', cashfree_payment_controller_1.CashfreePaymentController.initiateRefund);
 exports.eventRouter = router;

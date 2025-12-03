@@ -30,7 +30,7 @@ const createEvent = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
 }));
 // Get all events with filtering, searching, and pagination
 const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { page = 1, limit = 10, search, eventType, category, categoryId, language, city, status, startDate, endDate, minPrice, maxPrice, sortBy = 'startDate', sortOrder = 'asc' } = req.query;
+    const { page = 1, limit = 10, search, eventType, category, categoryId, eventLanguage, city, status, startDate, endDate, minPrice, maxPrice, sortBy = 'startDate', sortOrder = 'asc' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -49,8 +49,8 @@ const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
         filter.category = category;
     if (categoryId)
         filter.categoryId = categoryId;
-    if (language)
-        filter.language = { $regex: language, $options: 'i' };
+    if (eventLanguage)
+        filter.eventLanguage = { $regex: eventLanguage, $options: 'i' };
     if (city)
         filter['location.city'] = { $regex: city, $options: 'i' };
     if (status)
@@ -330,13 +330,13 @@ const getEventsByCategory = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
 }));
 // Get events by language
 const getEventsByLanguage = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { language } = req.params;
+    const { eventLanguage } = req.params;
     const { page = 1, limit = 10 } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
     const events = yield events_model_1.default.find({
-        language: { $regex: language, $options: 'i' },
+        eventLanguage: { $regex: eventLanguage, $options: 'i' },
         isActive: true,
         status: { $in: ['upcoming', 'ongoing'] }
     })
@@ -346,14 +346,14 @@ const getEventsByLanguage = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         .populate('categoryId', 'name image')
         .lean();
     const total = yield events_model_1.default.countDocuments({
-        language: { $regex: language, $options: 'i' },
+        eventLanguage: { $regex: eventLanguage, $options: 'i' },
         isActive: true,
         status: { $in: ['upcoming', 'ongoing'] }
     });
     (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: `Events in ${language} retrieved successfully`,
+        message: `Events in ${eventLanguage} retrieved successfully`,
         data: events,
         meta: {
             page: pageNum,
