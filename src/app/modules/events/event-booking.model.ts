@@ -101,6 +101,11 @@ const EventETicketSchema = new Schema({
     required: true,
     unique: true,
   },
+  ticketScannerId: {
+    type: String,
+    required: true,
+    unique: true,
+  },
   qrCodeData: {
     type: String,
     required: true,
@@ -120,6 +125,14 @@ const EventETicketSchema = new Schema({
   },
   usedAt: {
     type: Date,
+  },
+  scannedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  scanLocation: {
+    type: String,
+    default: '',
   },
   generatedAt: {
     type: Date,
@@ -182,6 +195,7 @@ EventBookingSchema.index({ bookingStatus: 1 });
 
 EventETicketSchema.index({ bookingId: 1 });
 EventETicketSchema.index({ ticketNumber: 1 }, { unique: true });
+EventETicketSchema.index({ ticketScannerId: 1 }, { unique: true });
 
 EventPaymentTransactionSchema.index({ bookingId: 1 });
 EventPaymentTransactionSchema.index({ gatewayTransactionId: 1 });
@@ -217,11 +231,14 @@ export interface IEventBooking extends Document {
 export interface IEventETicket extends Document {
   bookingId: mongoose.Types.ObjectId;
   ticketNumber: string;
+  ticketScannerId: string;
   qrCodeData: string;
   qrCodeImageUrl: string;
   quantity: number;
   isUsed: boolean;
   usedAt?: Date;
+  scannedBy?: mongoose.Types.ObjectId;
+  scanLocation?: string;
   generatedAt: Date;
   createdAt: Date;
   updatedAt: Date;

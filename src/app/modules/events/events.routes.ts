@@ -242,29 +242,47 @@ const router = express.Router();
  *       properties:
  *         userId:
  *           type: string
+ *           description: User ID of the person making the booking
  *         quantity:
  *           type: integer
  *           minimum: 1
+ *           description: Number of tickets to book
+ *         seatType:
+ *           type: string
+ *           default: Normal
+ *           description: Type of seat (e.g., Normal, VIP, Premium, VVIP). Must match one of the event's seat types
  *         bookingFee:
  *           type: number
+ *           default: 0
+ *           description: Additional booking fee
  *         taxAmount:
  *           type: number
+ *           default: 0
+ *           description: Tax amount
  *         discountAmount:
  *           type: number
+ *           default: 0
+ *           description: Discount amount to subtract
  *         paymentMethod:
  *           type: string
  *           enum: [card, wallet, upi, netbanking, cash]
+ *           default: card
+ *           description: Payment method to use
  *         customerDetails:
  *           type: object
  *           required: [name, email, phone]
+ *           description: Customer contact details
  *           properties:
  *             name:
  *               type: string
+ *               description: Customer name
  *             email:
  *               type: string
  *               format: email
+ *               description: Customer email
  *             phone:
  *               type: string
+ *               description: Customer phone number
  * 
  *     EventPaymentRequest:
  *       type: object
@@ -301,20 +319,36 @@ const router = express.Router();
  *           description: Associated event booking ID
  *         ticketNumber:
  *           type: string
+ *           description: Unique ticket number (e.g., ETK123ABC)
+ *         ticketScannerId:
+ *           type: string
+ *           description: Unique scanner ID for QR code validation (e.g., SCAN123ABC456XY)
  *         qrCodeData:
  *           type: string
+ *           description: JSON data encoded in the QR code
  *         qrCodeImageUrl:
  *           type: string
+ *           description: Base64 encoded QR code image
  *         quantity:
  *           type: integer
+ *           description: Number of tickets
  *         isUsed:
  *           type: boolean
+ *           description: Whether the ticket has been scanned/used
  *         usedAt:
  *           type: string
  *           format: date-time
+ *           description: When the ticket was scanned
+ *         scannedBy:
+ *           type: string
+ *           description: User ID of who scanned the ticket
+ *         scanLocation:
+ *           type: string
+ *           description: Location where ticket was scanned
  *         generatedAt:
  *           type: string
  *           format: date-time
+ *           description: When the ticket was generated
  */
 
 /**
@@ -997,5 +1031,135 @@ router.put('/bookings/:id/cancel', EventBookingController.cancelEventBooking);
  *         description: E-ticket not found
  */
 router.get('/bookings/:id/ticket', EventBookingController.getEventETicket);
+
+/**
+ * @swagger
+ * /v1/api/events/bookings/{id}:
+ *   delete:
+ *     summary: Delete an event booking
+ *     tags: [Events - Ticketing]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event booking ID
+ *     responses:
+ *       200:
+ *         description: Event booking deleted successfully
+ *       404:
+ *         description: Event booking not found
+ */
+router.delete('/bookings/:id', EventBookingController.deleteEventBooking);
+
+/**
+ * @swagger
+ * /v1/api/events/tickets/validate/{scannerId}:
+ *   post:
+ *     summary: Validate and scan ticket by scanner ID (marks ticket as used)
+ *     tags: [Events - Ticket Scanner]
+ *     parameters:
+ *       - in: path
+ *         name: scannerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Ticket Scanner ID (from QR code)
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               scannedBy:
+ *                 type: string
+ *                 description: User ID of the scanner operator
+ *               scanLocation:
+ *                 type: string
+ *                 description: Location where ticket was scanned (e.g., Gate A, Main Entrance)
+ *     responses:
+ *       200:
+ *         description: Ticket validated successfully - Entry allowed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticketScannerId:
+ *                       type: string
+ *                     ticketNumber:
+ *                       type: string
+ *                     quantity:
+ *                       type: number
+ *                     isUsed:
+ *                       type: boolean
+ *                     usedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     booking:
+ *                       type: object
+ *       400:
+ *         description: Ticket already used or booking cancelled
+ *       404:
+ *         description: Invalid ticket - Ticket not found
+ */
+router.post('/tickets/validate/:scannerId', EventBookingController.validateTicketByScannerId);
+
+/**
+ * @swagger
+ * /v1/api/events/tickets/status/{scannerId}:
+ *   get:
+ *     summary: Check ticket status by scanner ID (without marking as used)
+ *     tags: [Events - Ticket Scanner]
+ *     parameters:
+ *       - in: path
+ *         name: scannerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Ticket Scanner ID (from QR code)
+ *     responses:
+ *       200:
+ *         description: Ticket status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticketScannerId:
+ *                       type: string
+ *                     ticketNumber:
+ *                       type: string
+ *                     quantity:
+ *                       type: number
+ *                     isUsed:
+ *                       type: boolean
+ *                     usedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     generatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     booking:
+ *                       type: object
+ *       404:
+ *         description: Ticket not found
+ */
+router.get('/tickets/status/:scannerId', EventBookingController.checkTicketStatus);
 
 export const eventRouter = router;

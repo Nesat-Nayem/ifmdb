@@ -21,6 +21,14 @@ const generateTicketNumber = (): string => {
   return `ETK${timestamp}${randomStr}`.toUpperCase();
 };
 
+// Generate unique ticket scanner ID (for QR code scanning)
+const generateTicketScannerId = (): string => {
+  const timestamp = Date.now().toString(36);
+  const randomStr = Math.random().toString(36).substring(2, 10);
+  const checksum = Math.random().toString(36).substring(2, 4);
+  return `SCAN${timestamp}${randomStr}${checksum}`.toUpperCase();
+};
+
 // Create event ticket booking with seat type selection
 const createEventBooking = catchAsync(async (req: Request, res: Response) => {
   const { id: eventId } = req.params;
@@ -276,13 +284,17 @@ const processEventPayment = catchAsync(async (req: Request, res: Response) => {
     { new: true }
   );
 
-  // Generate e-ticket
+  // Generate e-ticket with scanner ID
   const ticketNumber = generateTicketNumber();
+  const ticketScannerId = generateTicketScannerId();
+  
   const qrData = JSON.stringify({
+    ticketScannerId,
     bookingId: id,
     ticketNumber,
     eventId: booking.eventId,
     quantity: booking.quantity,
+    seatType: booking.seatType,
     generatedAt: new Date(),
   });
 
@@ -291,6 +303,7 @@ const processEventPayment = catchAsync(async (req: Request, res: Response) => {
   const eTicket = await EventETicket.create({
     bookingId: id,
     ticketNumber,
+    ticketScannerId,
     qrCodeData: qrData,
     qrCodeImageUrl,
     quantity: booking.quantity,
@@ -377,6 +390,186 @@ const getEventETicket = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Validate/Scan ticket by scanner ID
+const validateTicketByScannerId = catchAsync(async (req: Request, res: Response) => {
+  const { scannerId } = req.params;
+  const { scannedBy, scanLocation } = req.body;
+
+  const eTicket = await EventETicket.findOne({ ticketScannerId: scannerId })
+    .populate({
+      path: 'bookingId',
+      populate: [
+        { path: 'userId', select: 'name email phone' },
+        { path: 'eventId', select: 'title posterImage startDate startTime endTime location status' },
+      ],
+    });
+
+  if (!eTicket) {
+    return sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Invalid ticket - Ticket not found',
+      data: null,
+    });
+  }
+
+  // Check if ticket is already used
+  if (eTicket.isUsed) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Ticket already used',
+      data: {
+        ticketScannerId: eTicket.ticketScannerId,
+        ticketNumber: eTicket.ticketNumber,
+        usedAt: eTicket.usedAt,
+        isUsed: true,
+      },
+    });
+  }
+
+  // Get booking details
+  const booking = eTicket.bookingId as any;
+  
+  // Check if booking is valid
+  if (booking.bookingStatus === 'cancelled') {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Ticket booking has been cancelled',
+      data: null,
+    });
+  }
+
+  if (booking.paymentStatus !== 'completed') {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Payment not completed for this ticket',
+      data: null,
+    });
+  }
+
+  // Check if event is valid
+  const event = booking.eventId;
+  if (!event || !['upcoming', 'ongoing'].includes(event.status)) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Event is not active or has ended',
+      data: null,
+    });
+  }
+
+  // Mark ticket as used
+  const updatedTicket = await EventETicket.findByIdAndUpdate(
+    eTicket._id,
+    {
+      isUsed: true,
+      usedAt: new Date(),
+      scannedBy: scannedBy || null,
+      scanLocation: scanLocation || '',
+    },
+    { new: true }
+  ).populate({
+    path: 'bookingId',
+    populate: [
+      { path: 'userId', select: 'name email phone' },
+      { path: 'eventId', select: 'title posterImage startDate startTime endTime location' },
+    ],
+  });
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Ticket validated successfully - Entry allowed',
+    data: {
+      ticketScannerId: updatedTicket?.ticketScannerId,
+      ticketNumber: updatedTicket?.ticketNumber,
+      quantity: updatedTicket?.quantity,
+      isUsed: true,
+      usedAt: updatedTicket?.usedAt,
+      booking: updatedTicket?.bookingId,
+    },
+  });
+});
+
+// Check ticket status without marking as used
+const checkTicketStatus = catchAsync(async (req: Request, res: Response) => {
+  const { scannerId } = req.params;
+
+  const eTicket = await EventETicket.findOne({ ticketScannerId: scannerId })
+    .populate({
+      path: 'bookingId',
+      populate: [
+        { path: 'userId', select: 'name email phone' },
+        { path: 'eventId', select: 'title posterImage startDate startTime endTime location status' },
+      ],
+    });
+
+  if (!eTicket) {
+    return sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Ticket not found',
+      data: null,
+    });
+  }
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Ticket status retrieved successfully',
+    data: {
+      ticketScannerId: eTicket.ticketScannerId,
+      ticketNumber: eTicket.ticketNumber,
+      quantity: eTicket.quantity,
+      isUsed: eTicket.isUsed,
+      usedAt: eTicket.usedAt,
+      generatedAt: eTicket.generatedAt,
+      booking: eTicket.bookingId,
+    },
+  });
+});
+
+// Delete event booking
+const deleteEventBooking = catchAsync(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const booking = await EventBooking.findById(id);
+  if (!booking) {
+    return sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Event booking not found',
+      data: null,
+    });
+  }
+
+  // Delete associated e-tickets
+  await EventETicket.deleteMany({ bookingId: id });
+  
+  // Delete associated transactions
+  await EventPaymentTransaction.deleteMany({ bookingId: id });
+
+  // Release seats back if booking was confirmed
+  if (booking.bookingStatus === 'confirmed') {
+    await Event.findByIdAndUpdate(booking.eventId, { 
+      $inc: { availableSeats: booking.quantity, totalTicketsSold: -booking.quantity } 
+    });
+  }
+
+  // Delete the booking
+  await EventBooking.findByIdAndDelete(id);
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Event booking deleted successfully',
+    data: null,
+  });
+});
+
 export const EventBookingController = {
   createEventBooking,
   getAllEventBookings,
@@ -384,4 +577,7 @@ export const EventBookingController = {
   processEventPayment,
   cancelEventBooking,
   getEventETicket,
+  validateTicketByScannerId,
+  checkTicketStatus,
+  deleteEventBooking,
 };
