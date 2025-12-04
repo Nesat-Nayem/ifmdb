@@ -37,6 +37,8 @@ const MenuBookmarkSchema = new Schema({
   }
 }, { _id: false });
 
+export type VendorServiceType = 'film_trade' | 'events' | 'movie_watch';
+
 export interface IUser extends Document {
   name: string;
   img: string;
@@ -49,6 +51,8 @@ export interface IUser extends Document {
   googleId?: string;
   authProvider: 'local' | 'google' | 'phone';
   packageFeatures?: string[];
+  vendorServices?: VendorServiceType[];
+  vendorApplicationId?: mongoose.Types.ObjectId;
   menuBookmarks?: typeof MenuBookmarkSchema[];
   comparePassword(password: string): Promise<boolean>;
   compareOtp(otp: string): boolean;
@@ -73,6 +77,17 @@ const userSchema: Schema = new Schema(
     packageFeatures: {
         type: [String],
         default: []
+    },
+
+    vendorServices: {
+      type: [String],
+      enum: ['film_trade', 'events', 'movie_watch'],
+      default: []
+    },
+
+    vendorApplicationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'VendorApplication'
     },
 
     menuBookmarks: {
