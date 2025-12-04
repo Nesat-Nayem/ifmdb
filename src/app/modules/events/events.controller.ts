@@ -3,10 +3,17 @@ import httpStatus from 'http-status';
 import Event from './events.model';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
+import { userInterface } from '../../middlewares/authMiddleware';
 
 // Create a new event
 const createEvent = catchAsync(async (req: Request, res: Response) => {
-  const eventData = req.body;
+  const user = (req as userInterface).user;
+  const eventData = { ...req.body };
+  
+  // If user is a vendor, add vendorId to the event
+  if (user && user.role === 'vendor') {
+    eventData.vendorId = user._id;
+  }
   
   const newEvent = await Event.create(eventData);
   
@@ -20,6 +27,7 @@ const createEvent = catchAsync(async (req: Request, res: Response) => {
 
 // Get all events with filtering, searching, and pagination
 const getAllEvents = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const {
     page = 1,
     limit = 10,
@@ -44,6 +52,11 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
 
   // Build filter query
   const filter: any = { isActive: true };
+
+  // If user is a vendor, only show their own events
+  if (user && user.role === 'vendor') {
+    filter.vendorId = user._id;
+  }
 
   if (search) {
     filter.$or = [

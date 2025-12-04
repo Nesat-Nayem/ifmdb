@@ -231,7 +231,13 @@ const eventSchema: Schema = new Schema(
     isActive: {
       type: Boolean,
       default: true
-    }
+    },
+    // Vendor ownership
+    vendorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
   },
   {
     timestamps: true
@@ -249,6 +255,7 @@ eventSchema.index({ 'location.city': 1 });
 eventSchema.index({ status: 1 });
 eventSchema.index({ isActive: 1 });
 eventSchema.index({ totalTicketsSold: -1 });
+eventSchema.index({ vendorId: 1 });
 
 const Event = mongoose.model<IEvent>('Event', eventSchema);
 

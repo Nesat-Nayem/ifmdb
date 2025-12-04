@@ -4,9 +4,11 @@ import Movie from './movies.model';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import { MovieCategory } from './movieCategory.model';
+import { userInterface } from '../../middlewares/authMiddleware';
 
 // Create a new movie
 const createMovie = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const movieData = req.body as any;
   // Normalize admin UI payload
   const normalized: any = { ...movieData };
@@ -67,6 +69,11 @@ const createMovie = catchAsync(async (req: Request, res: Response) => {
     delete normalized.email;
   }
 
+  // If user is a vendor, add vendorId to the movie
+  if (user && user.role === 'vendor') {
+    normalized.vendorId = user._id;
+  }
+
   const newMovie = await Movie.create(normalized);
   
   sendResponse(res, {
@@ -79,6 +86,7 @@ const createMovie = catchAsync(async (req: Request, res: Response) => {
 
 // Get all movies with filtering, searching, and pagination
 const getAllMovies = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const {
     page = 1,
     limit = 10,
@@ -102,6 +110,11 @@ const getAllMovies = catchAsync(async (req: Request, res: Response) => {
 
   // Build filter query
   const filter: any = { isActive: true };
+
+  // If user is a vendor, only show their own movies
+  if (user && user.role === 'vendor') {
+    filter.vendorId = user._id;
+  }
 
   if (search) {
     filter.$or = [
