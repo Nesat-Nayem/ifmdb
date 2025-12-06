@@ -23,7 +23,7 @@ const options: swaggerJSDoc.Options = {
         description: 'Development server',
       },
       {
-        url: 'https://ifmdb.atpuae.com',
+        url: 'https://api.moviemart.org',
         description: 'Production server',
       }
    
@@ -745,7 +745,7 @@ export const setupSwagger = (app: Application): void => {
     res.send(specs);
   });
 
-  console.log('📚 Swagger documentation available at: https://ifmdb.atpuae.com/api-docs');
+  console.log('📚 Swagger documentation available at: https://api.moviemart.org/api-docs');
 };
 
 export default specs;

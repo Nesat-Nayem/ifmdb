@@ -27,7 +27,7 @@ const options = {
                 description: 'Development server',
             },
             {
-                url: 'https://ifmdb.atpuae.com',
+                url: 'https://api.moviemart.org',
                 description: 'Production server',
             }
         ],
@@ -743,7 +743,7 @@ const setupSwagger = (app) => {
         res.setHeader('Content-Type', 'application/json');
         res.send(specs);
     });
-    console.log('📚 Swagger documentation available at: https://ifmdb.atpuae.com/api-docs');
+    console.log('📚 Swagger documentation available at: https://api.moviemart.org/api-docs');
 };
 exports.setupSwagger = setupSwagger;
 exports.default = specs;

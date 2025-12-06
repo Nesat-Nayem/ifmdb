@@ -22,7 +22,7 @@ const options = {
         },
         servers: [
             {
-                url: 'https://ifmdb.atpuae.com',
+                url: 'https://api.moviemart.org',
                 description: 'Development server',
             },
         ],
@@ -83,7 +83,7 @@ const setupScalarSwagger = (app) => {
         res.setHeader('Content-Type', 'application/json');
         res.send(specs);
     });
-    console.log('📚 Scalar API documentation available at: https://ifmdb.atpuae.com/api-docs');
+    console.log('📚 Scalar API documentation available at: https://api.moviemart.org/api-docs');
 };
 exports.setupScalarSwagger = setupScalarSwagger;
 exports.default = specs;
