@@ -35,6 +35,8 @@ const storage = new CloudinaryStorage({
         return 'user-profiles';
       } else if (req.originalUrl.includes('/vendors')) {
         return 'vendor-kyc';
+      } else if (req.originalUrl.includes('/general-settings')) {
+        return 'general-settings';
       }
       return 'restaurant-uploads';
     },

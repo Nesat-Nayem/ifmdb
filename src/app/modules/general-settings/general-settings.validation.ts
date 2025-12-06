@@ -1,13 +1,19 @@
 import { z } from 'zod';
 
+// Helper for optional URL that also allows empty string
+const optionalUrl = z.string().optional().refine(
+  (val) => !val || val === '' || /^https?:\/\/.+/.test(val),
+  { message: 'Invalid URL' }
+);
+
 export const generalSettingsValidation = z.object({
   number: z.string().optional(),
-  email: z.string().email('Invalid email').optional(),
-  facebook: z.string().url('Invalid URL').optional(),
-  instagram: z.string().url('Invalid URL').optional(),
-  linkedin: z.string().url('Invalid URL').optional(),
-  twitter: z.string().url('Invalid URL').optional(),
-  youtube: z.string().url('Invalid URL').optional(),
-  favicon: z.string().url('Invalid URL').optional(),
-  logo: z.string().url('Invalid URL').optional(),
+  email: z.union([z.string().email('Invalid email'), z.literal('')]).optional(),
+  facebook: optionalUrl,
+  instagram: optionalUrl,
+  linkedin: optionalUrl,
+  twitter: optionalUrl,
+  youtube: optionalUrl,
+  // Note: favicon and logo are handled separately via file upload
+  // They are not validated here as they come from Cloudinary after upload
 });

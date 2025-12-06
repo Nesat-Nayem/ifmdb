@@ -1,6 +1,7 @@
 import express from 'express';
 import { auth } from '../../middlewares/authMiddleware';
 import { getGeneralSettings, updateGeneralSettings } from './general-settings.controller';
+import { upload } from '../../config/cloudinary';
 
 const router = express.Router();
 
@@ -68,6 +69,14 @@ router.get('/', getGeneralSettings);
  *                 data:
  *                   $ref: '#/components/schemas/GeneralSettings'
  */
-router.put('/', auth('admin'), updateGeneralSettings);
+router.put(
+  '/',
+  auth('admin'),
+  upload.fields([
+    { name: 'logo', maxCount: 1 },
+    { name: 'favicon', maxCount: 1 },
+  ]),
+  updateGeneralSettings
+);
 
 export const generalSettingsRouter = router;
