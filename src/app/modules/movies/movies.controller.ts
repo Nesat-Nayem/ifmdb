@@ -4,7 +4,7 @@ import Movie from './movies.model';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import { MovieCategory } from './movieCategory.model';
-import { userInterface } from '../../middlewares/authMiddleware';
+import { userInterface } from '../../middlewares/userInterface';
 
 // Create a new movie
 const createMovie = catchAsync(async (req: Request, res: Response) => {

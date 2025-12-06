@@ -95,6 +95,15 @@ const userSchema = new mongoose_1.Schema({
         type: [String],
         default: []
     },
+    vendorServices: {
+        type: [String],
+        enum: ['film_trade', 'events', 'movie_watch'],
+        default: []
+    },
+    vendorApplicationId: {
+        type: mongoose_1.default.Schema.Types.ObjectId,
+        ref: 'VendorApplication'
+    },
     menuBookmarks: {
         type: [MenuBookmarkSchema],
         default: []

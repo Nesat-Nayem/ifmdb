@@ -3,7 +3,7 @@ import httpStatus from 'http-status';
 import Event from './events.model';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
-import { userInterface } from '../../middlewares/authMiddleware';
+import { userInterface } from '../../middlewares/userInterface';
 
 // Create a new event
 const createEvent = catchAsync(async (req: Request, res: Response) => {

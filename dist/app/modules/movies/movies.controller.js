@@ -20,6 +20,7 @@ const sendResponse_1 = require("../../utils/sendResponse");
 const movieCategory_model_1 = require("./movieCategory.model");
 // Create a new movie
 const createMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const movieData = req.body;
     // Normalize admin UI payload
     const normalized = Object.assign({}, movieData);
@@ -78,6 +79,10 @@ const createMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
         delete normalized.phone;
         delete normalized.email;
     }
+    // If user is a vendor, add vendorId to the movie
+    if (user && user.role === 'vendor') {
+        normalized.vendorId = user._id;
+    }
     const newMovie = yield movies_model_1.default.create(normalized);
     (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.CREATED,
@@ -88,12 +93,17 @@ const createMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
 }));
 // Get all movies with filtering, searching, and pagination
 const getAllMovies = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { page = 1, limit = 10, search, genre, language, country, status, rating, releaseYear, minRating, maxRating, format, sortBy = 'releaseDate', sortOrder = 'desc' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
     // Build filter query
     const filter = { isActive: true };
+    // If user is a vendor, only show their own movies
+    if (user && user.role === 'vendor') {
+        filter.vendorId = user._id;
+    }
     if (search) {
         filter.$or = [
             { title: { $regex: search, $options: 'i' } },

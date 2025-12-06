@@ -245,6 +245,12 @@ const movieSchema = new mongoose_1.Schema({
     company: { type: CompanySchema, default: undefined },
     cast: [CastSchema],
     crew: [CrewSchema],
+    // Vendor ownership
+    vendorId: {
+        type: mongoose_1.default.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+    },
 }, {
     timestamps: true
 });
@@ -257,6 +263,7 @@ movieSchema.index({ status: 1 });
 movieSchema.index({ isActive: 1 });
 movieSchema.index({ averageRating: -1 });
 movieSchema.index({ imdbRating: -1 });
+movieSchema.index({ vendorId: 1 });
 // Pre-save middleware to calculate average rating
 movieSchema.pre('save', function (next) {
     if (this.reviews && this.reviews.length > 0) {

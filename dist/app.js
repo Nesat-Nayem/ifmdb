@@ -22,10 +22,10 @@ catch (error) {
 app.use(express_1.default.json());
 // CORS configuration for production
 app.use((0, cors_1.default)({
-    origin: '*', // Allow all origins for now
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-    credentials: false
+    credentials: true
 }));
 // swagger configuration
 (0, swagger_1.setupSwagger)(app);

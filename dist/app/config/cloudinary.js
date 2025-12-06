@@ -42,6 +42,9 @@ const storage = new multer_storage_cloudinary_1.CloudinaryStorage({
             else if (req.originalUrl.includes('/auth/profile') || req.originalUrl.includes('/auth/update')) {
                 return 'user-profiles';
             }
+            else if (req.originalUrl.includes('/vendors')) {
+                return 'vendor-kyc';
+            }
             return 'restaurant-uploads';
         },
         allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif'],

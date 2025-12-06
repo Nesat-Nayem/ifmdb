@@ -19,7 +19,12 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 // Create a new event
 const createEvent = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const eventData = req.body;
+    const user = req.user;
+    const eventData = Object.assign({}, req.body);
+    // If user is a vendor, add vendorId to the event
+    if (user && user.role === 'vendor') {
+        eventData.vendorId = user._id;
+    }
     const newEvent = yield events_model_1.default.create(eventData);
     (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.CREATED,
@@ -30,12 +35,17 @@ const createEvent = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
 }));
 // Get all events with filtering, searching, and pagination
 const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { page = 1, limit = 10, search, eventType, category, categoryId, eventLanguage, city, status, startDate, endDate, minPrice, maxPrice, sortBy = 'startDate', sortOrder = 'asc' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
     // Build filter query
     const filter = { isActive: true };
+    // If user is a vendor, only show their own events
+    if (user && user.role === 'vendor') {
+        filter.vendorId = user._id;
+    }
     if (search) {
         filter.$or = [
             { title: { $regex: search, $options: 'i' } },

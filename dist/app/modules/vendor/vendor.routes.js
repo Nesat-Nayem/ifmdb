@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const cloudinary_1 = require("../../config/cloudinary");
 const vendor_controller_1 = require("./vendor.controller");
+const vendor_payment_controller_1 = require("./vendor-payment.controller");
 const router = express_1.default.Router();
 /**
  * @swagger
@@ -75,10 +76,8 @@ const router = express_1.default.Router();
  * /v1/api/vendors/applications:
  *   post:
  *     summary: Submit a vendor registration application
- *     description: Authenticated users can submit application with KYC images. Use multipart/form-data.
+ *     description: Anyone can submit a vendor application with KYC images. Use multipart/form-data. No authentication required.
  *     tags: [Vendors]
- *     security:
- *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -128,10 +127,10 @@ const router = express_1.default.Router();
  *                 data:
  *                   $ref: '#/components/schemas/VendorApplication'
  */
-router.post('/applications', (0, authMiddleware_1.auth)(), cloudinary_1.upload.fields([
-    { name: 'aadharFront', maxCount: 1 },
-    { name: 'aadharBack', maxCount: 1 },
-    { name: 'panImage', maxCount: 1 },
+router.post('/applications', cloudinary_1.upload.fields([
+    { name: 'aadharFrontUrl', maxCount: 1 },
+    { name: 'aadharBackUrl', maxCount: 1 },
+    { name: 'panImageUrl', maxCount: 1 },
 ]), vendor_controller_1.createVendorApplication);
 /**
  * @swagger
@@ -210,4 +209,154 @@ router.get('/applications/:id', (0, authMiddleware_1.auth)(), vendor_controller_
  *         description: Decision applied
  */
 router.patch('/applications/:id/decision', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.decideVendorApplication);
+router.delete('/applications/:id', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.deleteVendorApplication);
+// ============ VENDOR PACKAGES ROUTES ============
+/**
+ * @swagger
+ * /v1/api/vendors/packages:
+ *   get:
+ *     summary: List all vendor packages
+ *     tags: [Vendors]
+ *     parameters:
+ *       - in: query
+ *         name: activeOnly
+ *         schema:
+ *           type: boolean
+ *     responses:
+ *       200:
+ *         description: Packages list
+ */
+router.get('/packages', vendor_controller_1.listVendorPackages);
+/**
+ * @swagger
+ * /v1/api/vendors/packages:
+ *   post:
+ *     summary: Create a new vendor package
+ *     tags: [Vendors]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, price]
+ *             properties:
+ *               name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               duration:
+ *                 type: number
+ *               durationType:
+ *                 type: string
+ *                 enum: [days, months, years]
+ *               features:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               isPopular:
+ *                 type: boolean
+ *               sortOrder:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Package created
+ */
+router.post('/packages', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.createVendorPackage);
+router.get('/packages/:id', vendor_controller_1.getVendorPackageById);
+router.put('/packages/:id', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.updateVendorPackage);
+router.delete('/packages/:id', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.deleteVendorPackage);
+// ============ PLATFORM SETTINGS ROUTES ============
+/**
+ * @swagger
+ * /v1/api/vendors/settings:
+ *   get:
+ *     summary: Get platform settings (fees)
+ *     tags: [Vendors]
+ *     responses:
+ *       200:
+ *         description: Settings retrieved
+ */
+router.get('/settings', vendor_controller_1.getPlatformSettings);
+/**
+ * @swagger
+ * /v1/api/vendors/settings:
+ *   put:
+ *     summary: Update a platform setting
+ *     tags: [Vendors]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [key, value]
+ *             properties:
+ *               key:
+ *                 type: string
+ *               value:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Setting updated
+ */
+router.put('/settings', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.updatePlatformSetting);
+// ============ VENDOR PAYMENT ROUTES ============
+/**
+ * @swagger
+ * /v1/api/vendors/payment/create-order:
+ *   post:
+ *     summary: Create Cashfree payment order for vendor package
+ *     tags: [Vendors]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [packageId, customerDetails]
+ *             properties:
+ *               packageId:
+ *                 type: string
+ *               customerDetails:
+ *                 type: object
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                   phone:
+ *                     type: string
+ *               returnUrl:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Payment order created
+ */
+router.post('/payment/create-order', vendor_payment_controller_1.createVendorPaymentOrder);
+/**
+ * @swagger
+ * /v1/api/vendors/payment/verify/{orderId}:
+ *   get:
+ *     summary: Verify Cashfree payment status
+ *     tags: [Vendors]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment status
+ */
+router.get('/payment/verify/:orderId', vendor_payment_controller_1.verifyVendorPayment);
+// Cashfree webhook
+router.post('/payment/webhook', vendor_payment_controller_1.handleVendorPaymentWebhook);
 exports.vendorRouter = router;
