@@ -45,6 +45,9 @@ const storage = new multer_storage_cloudinary_1.CloudinaryStorage({
             else if (req.originalUrl.includes('/vendors')) {
                 return 'vendor-kyc';
             }
+            else if (req.originalUrl.includes('/general-settings')) {
+                return 'general-settings';
+            }
             return 'restaurant-uploads';
         },
         allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif'],

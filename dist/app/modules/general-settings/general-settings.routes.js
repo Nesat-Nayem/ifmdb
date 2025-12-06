@@ -7,6 +7,7 @@ exports.generalSettingsRouter = void 0;
 const express_1 = __importDefault(require("express"));
 const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const general_settings_controller_1 = require("./general-settings.controller");
+const cloudinary_1 = require("../../config/cloudinary");
 const router = express_1.default.Router();
 /**
  * @swagger
@@ -70,5 +71,8 @@ router.get('/', general_settings_controller_1.getGeneralSettings);
  *                 data:
  *                   $ref: '#/components/schemas/GeneralSettings'
  */
-router.put('/', (0, authMiddleware_1.auth)('admin'), general_settings_controller_1.updateGeneralSettings);
+router.put('/', (0, authMiddleware_1.auth)('admin'), cloudinary_1.upload.fields([
+    { name: 'logo', maxCount: 1 },
+    { name: 'favicon', maxCount: 1 },
+]), general_settings_controller_1.updateGeneralSettings);
 exports.generalSettingsRouter = router;

@@ -22,7 +22,13 @@ catch (error) {
 app.use(express_1.default.json());
 // CORS configuration for production
 app.use((0, cors_1.default)({
-    origin: ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
+    origin: [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://moviemart.org',
+        'https://panel.moviemart.org',
+        'http://localhost:3002'
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     credentials: true
