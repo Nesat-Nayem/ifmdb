@@ -21,6 +21,8 @@ import { helpCenterRouter } from "../modules/help-center/help-center.routes";
 import { generalSettingsRouter } from "../modules/general-settings/general-settings.routes";
 import { subscriptionPlanRouter } from "../modules/subscription-plan/subscription-plan.routes";
 import { vendorRouter } from "../modules/vendor/vendor.routes";
+import watchVideosRouter from "../modules/watch-videos/watch-videos.routes";
+import { cloudflareStreamRouter } from "../modules/cloudflare-stream/cloudflare-stream.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -131,6 +133,14 @@ const moduleRoutes = [
   {
     path: "/vendors",
     route: vendorRouter,
+  },
+  {
+    path: "/watch-videos",
+    route: watchVideosRouter,
+  },
+  {
+    path: "/cloudflare-stream",
+    route: cloudflareStreamRouter,
   },
 ];
 

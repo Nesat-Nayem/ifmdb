@@ -27,8 +27,35 @@ app.use(cors({
      'https://panel.moviemart.org', 
      'http://localhost:3002'
   ],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'X-Requested-With', 
+    'Accept', 
+    'Origin',
+    // TUS protocol headers for video uploads
+    'Tus-Resumable',
+    'Upload-Length',
+    'Upload-Metadata',
+    'Upload-Offset',
+    'Upload-Concat',
+    'Upload-Defer-Length',
+    'X-HTTP-Method-Override',
+    'X-Request-ID',
+    'X-Requested-With'
+  ],
+  exposedHeaders: [
+    'Location',
+    'Upload-Offset',
+    'Upload-Length',
+    'Tus-Version',
+    'Tus-Resumable',
+    'Tus-Max-Size',
+    'Tus-Extension',
+    'Upload-Metadata',
+    'Stream-Media-Id'
+  ],
   credentials: true
 }));
 
