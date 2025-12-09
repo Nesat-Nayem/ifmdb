@@ -220,6 +220,15 @@ router.get('/recommended', WatchVideoController.getRecommendedVideos);
 
 /**
  * @swagger
+ * /v1/api/watch-videos/purchases:
+ *   get:
+ *     summary: Get all purchases (admin)
+ *     tags: [Watch Videos - Admin]
+ */
+router.get('/purchases', WatchVideoPaymentController.getAllPurchases);
+
+/**
+ * @swagger
  * /v1/api/watch-videos/{id}:
  *   get:
  *     summary: Get watch video by ID
@@ -428,15 +437,6 @@ router.post(
   validateRequest(WatchVideoValidation.initiateRefundValidation),
   WatchVideoPaymentController.initiateVideoRefund
 );
-
-/**
- * @swagger
- * /v1/api/watch-videos/purchases:
- *   get:
- *     summary: Get all purchases (admin)
- *     tags: [Watch Videos - Admin]
- */
-router.get('/purchases', WatchVideoPaymentController.getAllPurchases);
 
 /**
  * @swagger
