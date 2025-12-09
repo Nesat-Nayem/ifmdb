@@ -364,7 +364,11 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
 // Get Watch Video by ID
 const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { userId, countryCode } = req.query;
+  const { countryCode } = req.query;
+  // Handle userId - filter out 'null', 'undefined', or empty strings
+  const userId = req.query.userId && req.query.userId !== 'null' && req.query.userId !== 'undefined' 
+    ? req.query.userId 
+    : null;
 
   const video = await WatchVideo.findById(id)
     .populate('channelId', 'name logoUrl bannerUrl isVerified subscriberCount description')
