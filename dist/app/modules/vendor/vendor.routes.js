@@ -52,13 +52,13 @@ const router = express_1.default.Router();
  *           example: '+971501234567'
  *         aadharFrontUrl:
  *           type: string
- *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/kyc/aadhar-front.jpg'
+ *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/kyc/aadhar-front.jpg'
  *         aadharBackUrl:
  *           type: string
- *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/kyc/aadhar-back.jpg'
+ *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/kyc/aadhar-back.jpg'
  *         panImageUrl:
  *           type: string
- *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/kyc/pan.jpg'
+ *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/kyc/pan.jpg'
  *         status:
  *           type: string
  *           enum: [pending, approved, rejected]

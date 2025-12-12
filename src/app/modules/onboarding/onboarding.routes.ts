@@ -24,7 +24,7 @@ const router = express.Router();
  *         image:
  *           type: string
  *           description: Banner image URL
- *           example: 'https://res.cloudinary.com/demo/image/upload/v1724301123/ifmdb/onboarding/welcome.jpg'
+ *           example: 'https://res.cloudinary.com/demo/image/upload/v1724301123/moviemart/onboarding/welcome.jpg'
  *         status:
  *           type: string
  *           enum: [active, inactive]

@@ -15,7 +15,7 @@ const options = {
             // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
             contact: {
                 name: 'Moviemart Team',
-                email: 'support@ifmdb.com',
+                email: 'support@moviemart.com',
             },
             license: {
                 name: 'ISC',
@@ -148,14 +148,14 @@ const options = {
                     type: 'object',
                     properties: {
                         number: { type: 'string', example: '+971500000000' },
-                        email: { type: 'string', example: 'info@ifmdb.com' },
-                        facebook: { type: 'string', example: 'https://facebook.com/ifmdb' },
-                        instagram: { type: 'string', example: 'https://instagram.com/ifmdb' },
-                        linkedin: { type: 'string', example: 'https://linkedin.com/company/ifmdb' },
-                        twitter: { type: 'string', example: 'https://twitter.com/ifmdb' },
-                        youtube: { type: 'string', example: 'https://youtube.com/@ifmdb' },
-                        favicon: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/assets/favicon.ico' },
-                        logo: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/assets/logo.png' },
+                        email: { type: 'string', example: 'info@moviemart.com' },
+                        facebook: { type: 'string', example: 'https://facebook.com/moviemart' },
+                        instagram: { type: 'string', example: 'https://instagram.com/moviemart' },
+                        linkedin: { type: 'string', example: 'https://linkedin.com/company/moviemart' },
+                        twitter: { type: 'string', example: 'https://twitter.com/moviemart' },
+                        youtube: { type: 'string', example: 'https://youtube.com/@moviemart' },
+                        favicon: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/assets/favicon.ico' },
+                        logo: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/assets/logo.png' },
                         createdAt: { type: 'string' },
                         updatedAt: { type: 'string' },
                     },
@@ -186,7 +186,7 @@ const options = {
                         image: {
                             type: 'string',
                             description: 'Advertisement image URL',
-                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/ads/ad-1.jpg'
+                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/ads/ad-1.jpg'
                         },
                         link: {
                             type: 'string',
@@ -231,7 +231,7 @@ const options = {
                         image: {
                             type: 'string',
                             description: 'Category image URL',
-                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/categories/action.jpg'
+                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/categories/action.jpg'
                         },
                         status: {
                             type: 'string',
@@ -257,7 +257,7 @@ const options = {
                         image: {
                             type: 'string',
                             description: 'Banner image URL',
-                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/ifmdb/banners/summer-film-fest.jpg'
+                            example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/banners/summer-film-fest.jpg'
                         },
                         isActive: {
                             type: 'boolean',
