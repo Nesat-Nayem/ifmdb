@@ -10,11 +10,11 @@ const options = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'IFMDB',
+            title: 'Moviemart',
             version: '1.0.0',
             // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
             contact: {
-                name: 'IFMDB Team',
+                name: 'Moviemart Team',
                 email: 'support@ifmdb.com',
             },
             license: {
@@ -252,7 +252,7 @@ const options = {
                         title: {
                             type: 'string',
                             description: 'Banner title',
-                            example: 'IFMDB Summer Film Festival'
+                            example: 'Moviemart Summer Film Festival'
                         },
                         image: {
                             type: 'string',
@@ -723,7 +723,7 @@ const setupSwagger = (app) => {
     app.use('/api-docs', swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(specs, {
         explorer: true,
         customCss,
-        customSiteTitle: '🚀 IFMDB API Documentation',
+        customSiteTitle: '🚀 Moviemart API Documentation',
         customfavIcon: 'https://cdn-icons-png.flaticon.com/512/2721/2721297.png',
         swaggerOptions: {
             persistAuthorization: true,

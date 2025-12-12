@@ -10,7 +10,7 @@ const options = {
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'IFMDB',
+            title: 'Moviemart',
             version: '1.0.0',
             // description: 'A comprehensive e-commerce API built with Express.js and TypeScript',
             contact: {
@@ -413,7 +413,7 @@ const setupEnhancedSwagger = (app) => {
     <!DOCTYPE html>
     <html>
       <head>
-        <title>🚀 IFMDB API - Modern Documentation</title>
+        <title>🚀 Moviemart API - Modern Documentation</title>
         <link rel="stylesheet" type="text/css" href="./swagger-ui-bundle.css" />
         <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/2721/2721297.png" sizes="32x32" />
         <style>

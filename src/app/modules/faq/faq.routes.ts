@@ -24,7 +24,7 @@ const router = express.Router();
  *           example: "66c8c9f0a2b1e3d445678901"
  *         question:
  *           type: string
- *           example: "How do I book movie tickets on IFMDB?"
+ *           example: "How do I book movie tickets on Moviemart?"
  *         answer:
  *           type: string
  *           example: "Search for a movie, select showtime, choose seats, and complete payment to confirm your booking."
@@ -66,7 +66,7 @@ const router = express.Router();
  *             properties:
  *               question:
  *                 type: string
- *                 example: "How do I book movie tickets on IFMDB?"
+ *                 example: "How do I book movie tickets on Moviemart?"
  *               answer:
  *                 type: string
  *                 example: "Search for a movie, select showtime, choose seats, and complete payment to confirm your booking."

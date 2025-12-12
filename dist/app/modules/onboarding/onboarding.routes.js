@@ -21,7 +21,7 @@ const router = express_1.default.Router();
  *           example: '66c8b3f9e9b1c5a7d7654321'
  *         title:
  *           type: string
- *           example: 'Welcome to IFMDB'
+ *           example: 'Welcome to Moviemart'
  *         subtitle:
  *           type: string
  *           example: 'Discover movies, events, and more'
@@ -35,7 +35,7 @@ const router = express_1.default.Router();
  *           example: 'active'
  *         metaTitle:
  *           type: string
- *           example: 'IFMDB - Welcome'
+ *           example: 'Moviemart - Welcome'
  *         metaTags:
  *           type: array
  *           items:
@@ -43,7 +43,7 @@ const router = express_1.default.Router();
  *           example: ['movies', 'events', 'tickets']
  *         metaDescription:
  *           type: string
- *           example: 'Explore the latest movies, events, and exclusive offers on IFMDB.'
+ *           example: 'Explore the latest movies, events, and exclusive offers on Moviemart.'
  *         isDeleted:
  *           type: boolean
  *           example: false
@@ -81,7 +81,7 @@ const router = express_1.default.Router();
  *             properties:
  *               title:
  *                 type: string
- *                 example: 'Welcome to IFMDB'
+ *                 example: 'Welcome to Moviemart'
  *               subtitle:
  *                 type: string
  *                 example: 'Discover movies, events, and more'
@@ -94,14 +94,14 @@ const router = express_1.default.Router();
  *                 example: 'active'
  *               metaTitle:
  *                 type: string
- *                 example: 'IFMDB - Welcome'
+ *                 example: 'Moviemart - Welcome'
  *               metaTags:
  *                 type: string
  *                 description: Comma separated tags
  *                 example: 'movies, events, tickets'
  *               metaDescription:
  *                 type: string
- *                 example: 'Explore the latest movies, events, and exclusive offers on IFMDB.'
+ *                 example: 'Explore the latest movies, events, and exclusive offers on Moviemart.'
  *     responses:
  *       201:
  *         description: Onboarding created successfully
@@ -216,13 +216,13 @@ router.get('/:id', onboarding_controller_1.getOnboardingById);
  *                 example: 'inactive'
  *               metaTitle:
  *                 type: string
- *                 example: 'IFMDB - New Releases'
+ *                 example: 'Moviemart - New Releases'
  *               metaTags:
  *                 type: string
  *                 example: 'trailers, cast, showtimes'
  *               metaDescription:
  *                 type: string
- *                 example: 'Stay updated with the newest releases on IFMDB.'
+ *                 example: 'Stay updated with the newest releases on Moviemart.'
  *     responses:
  *       200:
  *         description: Updated

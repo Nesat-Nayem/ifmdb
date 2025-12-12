@@ -36,7 +36,7 @@ const router = express_1.default.Router();
  *             properties:
  *               title:
  *                 type: string
- *                 example: "IFMDB Summer Film Festival"
+ *                 example: "Moviemart Summer Film Festival"
  *               image:
  *                 type: string
  *                 format: binary
