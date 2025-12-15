@@ -189,13 +189,13 @@ const EventPaymentTransactionSchema = new Schema({
 // Indexes
 EventBookingSchema.index({ userId: 1 });
 EventBookingSchema.index({ eventId: 1 });
-EventBookingSchema.index({ bookingReference: 1 }, { unique: true });
+// EventBookingSchema.index({ bookingReference: 1 }, { unique: true });
 EventBookingSchema.index({ paymentStatus: 1 });
 EventBookingSchema.index({ bookingStatus: 1 });
 
 EventETicketSchema.index({ bookingId: 1 });
-EventETicketSchema.index({ ticketNumber: 1 }, { unique: true });
-EventETicketSchema.index({ ticketScannerId: 1 }, { unique: true });
+// EventETicketSchema.index({ ticketNumber: 1 }, { unique: true });
+// EventETicketSchema.index({ ticketScannerId: 1 }, { unique: true });
 
 EventPaymentTransactionSchema.index({ bookingId: 1 });
 EventPaymentTransactionSchema.index({ gatewayTransactionId: 1 });

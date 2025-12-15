@@ -22,13 +22,17 @@ const VendorApplicationSchema = new Schema<IVendorApplication>({
   vendorName: { type: String, required: true },
   businessType: { type: String, required: true },
   gstNumber: { type: String, default: '' },
-  panNumber: { type: String, required: true },
+  country: { type: String, required: true, default: 'IN' },
   address: { type: String, required: true },
-  email: { type: String, required: true, index: true },
+  email: { type: String, required: true },
   phone: { type: String, required: true },
+  // India specific KYC
   aadharFrontUrl: { type: String, default: '' },
   aadharBackUrl: { type: String, default: '' },
   panImageUrl: { type: String, default: '' },
+  // International KYC
+  nationalIdUrl: { type: String, default: '' },
+  passportUrl: { type: String, default: '' },
   
   // Services and payment
   selectedServices: { type: [SelectedServiceSchema], default: [] },
