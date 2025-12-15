@@ -154,6 +154,7 @@ export interface IMovie extends Document {
     negotiable?: boolean;
     notes?: string;
   }>;
+  tradeStatus?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -298,6 +299,12 @@ const movieSchema: Schema = new Schema(
       type: String,
       enum: ['', 'hot_rights_available', 'profitable_picks', 'international_deals', 'indie_gems'],
       default: '',
+    },
+    // Trade status for film mart cards (Get It Now, Sold Out, etc.)
+    tradeStatus: {
+      type: String,
+      enum: ['get_it_now', 'sold_out', 'out_of_stock', 'coming_soon', 'limited_offer', 'negotiating'],
+      default: 'get_it_now',
     },
   },
   {
