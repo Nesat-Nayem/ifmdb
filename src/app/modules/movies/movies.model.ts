@@ -273,6 +273,12 @@ const movieSchema: Schema = new Schema(
       ref: 'User',
       default: null,
     },
+    // Home page section for Trade Movies
+    homeSection: {
+      type: String,
+      enum: ['', 'hot_rights_available', 'profitable_picks', 'international_deals', 'indie_gems'],
+      default: '',
+    },
   },
   {
     timestamps: true
@@ -289,6 +295,7 @@ movieSchema.index({ isActive: 1 });
 movieSchema.index({ averageRating: -1 });
 movieSchema.index({ imdbRating: -1 });
 movieSchema.index({ vendorId: 1 });
+movieSchema.index({ homeSection: 1 });
 
 // Pre-save middleware to calculate average rating
 movieSchema.pre('save', function(this: any, next) {

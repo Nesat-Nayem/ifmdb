@@ -435,7 +435,13 @@ const watchVideoSchema: Schema = new Schema(
       type: String,
       enum: ['admin', 'vendor'],
       required: true
-    }
+    },
+    // Home page section for Watch Movies
+    homeSection: {
+      type: String,
+      enum: ['', 'trending_now', 'most_popular', 'exclusive_on_moviemart', 'new_release'],
+      default: '',
+    },
   },
   { timestamps: true }
 );
@@ -704,6 +710,7 @@ watchVideoSchema.index({ isFeatured: 1 });
 watchVideoSchema.index({ viewCount: -1 });
 watchVideoSchema.index({ averageRating: -1 });
 watchVideoSchema.index({ uploadedBy: 1 });
+watchVideoSchema.index({ homeSection: 1 });
 
 channelSchema.index({ name: 'text', description: 'text' });
 channelSchema.index({ ownerId: 1 });

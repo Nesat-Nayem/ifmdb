@@ -238,6 +238,12 @@ const eventSchema: Schema = new Schema(
       ref: 'User',
       default: null,
     },
+    // Home page section for Events
+    homeSection: {
+      type: String,
+      enum: ['', 'trending_events', 'celebrity_events', 'exclusive_invite_only', 'near_you'],
+      default: '',
+    },
   },
   {
     timestamps: true
@@ -256,6 +262,7 @@ eventSchema.index({ status: 1 });
 eventSchema.index({ isActive: 1 });
 eventSchema.index({ totalTicketsSold: -1 });
 eventSchema.index({ vendorId: 1 });
+eventSchema.index({ homeSection: 1 });
 
 const Event = mongoose.model<IEvent>('Event', eventSchema);
 
