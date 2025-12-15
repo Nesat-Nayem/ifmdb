@@ -51,6 +51,16 @@ const CompanySchema = new Schema({
   email: { type: String, default: '' },
 }, { _id: false });
 
+// Country-wise Asking Price Schema
+const CountryPricingSchema = new Schema({
+  countryCode: { type: String, required: true },
+  countryName: { type: String, required: true },
+  currency: { type: String, required: true },
+  askingPrice: { type: Number, min: 0, default: 0 },
+  negotiable: { type: Boolean, default: true },
+  notes: { type: String, default: '' },
+}, { _id: false });
+
 // Review Schema
 const ReviewSchema = new Schema({
   userId: {
@@ -136,6 +146,14 @@ export interface IMovie extends Document {
   };
   cast?: Array<{ name: string; type?: string; image?: string }>;
   crew?: Array<{ name: string; designation?: string; image?: string }>;
+  countryPricing?: Array<{
+    countryCode: string;
+    countryName: string;
+    currency: string;
+    askingPrice: number;
+    negotiable?: boolean;
+    notes?: string;
+  }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -267,6 +285,8 @@ const movieSchema: Schema = new Schema(
     company: { type: CompanySchema, default: undefined },
     cast: [CastSchema],
     crew: [CrewSchema],
+    // Country-wise asking prices for film rights
+    countryPricing: [CountryPricingSchema],
     // Vendor ownership
     vendorId: {
       type: mongoose.Schema.Types.ObjectId,
