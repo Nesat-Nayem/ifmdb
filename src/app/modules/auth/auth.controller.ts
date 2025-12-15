@@ -102,7 +102,7 @@ export const requestOtp: RequestHandler = async (req, res, next): Promise<void> 
     // Send OTP via WhatsApp API
     let whatsappSent = false;
     try {
-      const whatsappApiUrl = `http://wapi.nationalsms.in/wapp/v2/api/send?apikey=fe22749a04504c949e0786df974ac9c7&mobile=${phone}&msg=Your MovieMart login OTP is ${otp}. Valid for 5 minutes. Do not share this code with anyone.`;
+      const whatsappApiUrl = `http://wapi.nationalsms.in/wapp/v2/api/send?apikey=274d09e223464ff89c9ba70a7b68434e&mobile=${phone}&msg=Your MovieMart login OTP is ${otp}. Valid for 5 minutes. Do not share this code with anyone.`;
       const response = await fetch(whatsappApiUrl);
       const result = await response.text();
       console.log(`WhatsApp API Response: ${result}`);
