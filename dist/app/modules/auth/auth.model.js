@@ -82,14 +82,14 @@ const MenuBookmarkSchema = new mongoose_1.Schema({
 const userSchema = new mongoose_1.Schema({
     name: { type: String },
     password: { type: String },
-    phone: { type: String, sparse: true },
-    email: { type: String, sparse: true },
+    phone: { type: String, sparse: true, unique: true },
+    email: { type: String, sparse: true, unique: true },
     img: { type: String },
     role: { type: String, enum: ['admin', 'vendor', 'user'], default: 'user' },
     status: { type: String, enum: ['pending', 'active'], default: 'active' },
     otp: { type: String },
     otpExpires: { type: Date },
-    googleId: { type: String, sparse: true },
+    googleId: { type: String, sparse: true, unique: true },
     authProvider: { type: String, enum: ['local', 'google', 'phone'], default: 'local' },
     packageFeatures: {
         type: [String],
@@ -129,7 +129,7 @@ userSchema.methods.compareOtp = function (otp) {
     return this.otp === otp && this.otpExpires && this.otpExpires > new Date();
 };
 // Add indexes
-userSchema.index({ phone: 1 }, { unique: true, sparse: true });
-userSchema.index({ email: 1 }, { unique: true, sparse: true });
-userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+// userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+// userSchema.index({ email: 1 }, { unique: true, sparse: true });
+// userSchema.index({ googleId: 1 }, { unique: true, sparse: true });
 exports.User = mongoose_1.default.model('User', userSchema);

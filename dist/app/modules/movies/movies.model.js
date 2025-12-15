@@ -81,6 +81,15 @@ const CompanySchema = new mongoose_1.Schema({
     phone: { type: String, default: '' },
     email: { type: String, default: '' },
 }, { _id: false });
+// Country-wise Asking Price Schema
+const CountryPricingSchema = new mongoose_1.Schema({
+    countryCode: { type: String, required: true },
+    countryName: { type: String, required: true },
+    currency: { type: String, required: true },
+    askingPrice: { type: Number, min: 0, default: 0 },
+    negotiable: { type: Boolean, default: true },
+    notes: { type: String, default: '' },
+}, { _id: false });
 // Review Schema
 const ReviewSchema = new mongoose_1.Schema({
     userId: {
@@ -245,11 +254,25 @@ const movieSchema = new mongoose_1.Schema({
     company: { type: CompanySchema, default: undefined },
     cast: [CastSchema],
     crew: [CrewSchema],
+    // Country-wise asking prices for film rights
+    countryPricing: [CountryPricingSchema],
     // Vendor ownership
     vendorId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'User',
         default: null,
+    },
+    // Home page section for Trade Movies
+    homeSection: {
+        type: String,
+        enum: ['', 'hot_rights_available', 'profitable_picks', 'international_deals', 'indie_gems'],
+        default: '',
+    },
+    // Trade status for film mart cards (Get It Now, Sold Out, etc.)
+    tradeStatus: {
+        type: String,
+        enum: ['get_it_now', 'sold_out', 'out_of_stock', 'coming_soon', 'limited_offer', 'negotiating'],
+        default: 'get_it_now',
     },
 }, {
     timestamps: true
@@ -264,6 +287,7 @@ movieSchema.index({ isActive: 1 });
 movieSchema.index({ averageRating: -1 });
 movieSchema.index({ imdbRating: -1 });
 movieSchema.index({ vendorId: 1 });
+movieSchema.index({ homeSection: 1 });
 // Pre-save middleware to calculate average rating
 movieSchema.pre('save', function (next) {
     if (this.reviews && this.reviews.length > 0) {

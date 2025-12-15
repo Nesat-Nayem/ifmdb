@@ -38,9 +38,9 @@ const router = express_1.default.Router();
  *         gstNumber:
  *           type: string
  *           example: '27ABCDE1234F1Z5'
- *         panNumber:
+ *         country:
  *           type: string
- *           example: 'ABCDE1234F'
+ *           example: 'IN'
  *         address:
  *           type: string
  *           example: 'Office 21, Bay Square, Business Bay, Dubai'
@@ -59,6 +59,12 @@ const router = express_1.default.Router();
  *         panImageUrl:
  *           type: string
  *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/kyc/pan.jpg'
+ *         nationalIdUrl:
+ *           type: string
+ *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/kyc/national-id.jpg'
+ *         passportUrl:
+ *           type: string
+ *           example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/kyc/passport.jpg'
  *         status:
  *           type: string
  *           enum: [pending, approved, rejected]
@@ -84,7 +90,7 @@ const router = express_1.default.Router();
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required: [vendorName, businessType, panNumber, address, email, phone]
+ *             required: [vendorName, businessType, address, email, phone]
  *             properties:
  *               vendorName:
  *                 type: string
@@ -92,7 +98,7 @@ const router = express_1.default.Router();
  *                 type: string
  *               gstNumber:
  *                 type: string
- *               panNumber:
+ *               country:
  *                 type: string
  *               address:
  *                 type: string
@@ -108,6 +114,12 @@ const router = express_1.default.Router();
  *                 type: string
  *                 format: binary
  *               panImage:
+ *                 type: string
+ *                 format: binary
+ *               nationalId:
+ *                 type: string
+ *                 format: binary
+ *               passport:
  *                 type: string
  *                 format: binary
  *     responses:
@@ -131,6 +143,8 @@ router.post('/applications', cloudinary_1.upload.fields([
     { name: 'aadharFrontUrl', maxCount: 1 },
     { name: 'aadharBackUrl', maxCount: 1 },
     { name: 'panImageUrl', maxCount: 1 },
+    { name: 'nationalIdUrl', maxCount: 1 },
+    { name: 'passportUrl', maxCount: 1 },
 ]), vendor_controller_1.createVendorApplication);
 /**
  * @swagger

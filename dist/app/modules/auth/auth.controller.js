@@ -77,7 +77,7 @@ exports.singUpController = singUpController;
 const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
-// Request OTP handler
+// Request OTP handler - sends OTP via WhatsApp
 const requestOtp = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { phone } = auth_validation_1.requestOtpValidation.parse(req.body);
@@ -94,18 +94,39 @@ const requestOtp = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         else if (!user.authProvider) {
             user.authProvider = 'phone';
         }
-        // Generate OTP and set expiration
+        // Generate OTP and set expiration (5 minutes)
         const otp = generateOTP();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
         user.otp = otp;
-        user.otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+        user.otpExpires = expiresAt;
         yield user.save();
+        // Log OTP to console for development
+        console.log(`📱 WhatsApp OTP for ${phone}: ${otp}`);
+        console.log(`OTP expires at: ${expiresAt.toLocaleString()}`);
+        // Send OTP via WhatsApp API
+        let whatsappSent = false;
+        try {
+            const whatsappApiUrl = `http://wapi.nationalsms.in/wapp/v2/api/send?apikey=274d09e223464ff89c9ba70a7b68434e&mobile=${phone}&msg=Your MovieMart login OTP is ${otp}. Valid for 5 minutes. Do not share this code with anyone.`;
+            const response = yield fetch(whatsappApiUrl);
+            const result = yield response.text();
+            console.log(`WhatsApp API Response: ${result}`);
+            whatsappSent = true;
+        }
+        catch (whatsappError) {
+            console.error('Failed to send WhatsApp OTP:', whatsappError);
+            // Continue with the flow even if WhatsApp fails, for development purposes
+        }
         res.json({
             success: true,
             statusCode: 200,
-            message: "OTP sent successfully",
+            message: whatsappSent
+                ? "OTP sent successfully to your WhatsApp"
+                : "OTP generated successfully",
             data: {
-                otp,
-                phone
+                otp, // Include OTP in response for development/testing - remove in production
+                phone,
+                expiresIn: 300, // 300 seconds = 5 minutes
+                whatsappSent
             }
         });
         return;

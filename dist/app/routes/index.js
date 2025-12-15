@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_routes_1 = require("../modules/auth/auth.routes");
@@ -23,6 +26,8 @@ const help_center_routes_1 = require("../modules/help-center/help-center.routes"
 const general_settings_routes_1 = require("../modules/general-settings/general-settings.routes");
 const subscription_plan_routes_1 = require("../modules/subscription-plan/subscription-plan.routes");
 const vendor_routes_1 = require("../modules/vendor/vendor.routes");
+const watch_videos_routes_1 = __importDefault(require("../modules/watch-videos/watch-videos.routes"));
+const cloudflare_stream_routes_1 = require("../modules/cloudflare-stream/cloudflare-stream.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -112,6 +117,14 @@ const moduleRoutes = [
     {
         path: "/vendors",
         route: vendor_routes_1.vendorRouter,
+    },
+    {
+        path: "/watch-videos",
+        route: watch_videos_routes_1.default,
+    },
+    {
+        path: "/cloudflare-stream",
+        route: cloudflare_stream_routes_1.cloudflareStreamRouter,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

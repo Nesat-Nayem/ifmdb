@@ -403,11 +403,11 @@ ShowtimeSchema.index({ showDate: 1, showTime: 1 });
 ShowtimeSchema.index({ status: 1, isActive: 1 });
 BookingSchema.index({ userId: 1 });
 BookingSchema.index({ showtimeId: 1 });
-BookingSchema.index({ bookingReference: 1 }, { unique: true });
+// BookingSchema.index({ bookingReference: 1 }, { unique: true });
 BookingSchema.index({ paymentStatus: 1 });
 BookingSchema.index({ bookingStatus: 1 });
 ETicketSchema.index({ bookingId: 1 });
-ETicketSchema.index({ ticketNumber: 1 }, { unique: true });
+// ETicketSchema.index({ ticketNumber: 1 }, { unique: true });
 PaymentTransactionSchema.index({ bookingId: 1 });
 PaymentTransactionSchema.index({ gatewayTransactionId: 1 });
 // Create models

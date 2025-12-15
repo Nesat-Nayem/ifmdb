@@ -65,7 +65,7 @@ const eventCategorySchema = new mongoose_1.Schema({
     timestamps: true
 });
 // Indexes
-eventCategorySchema.index({ name: 1 });
+// eventCategorySchema.index({ name: 1 });
 eventCategorySchema.index({ isMusicShow: 1 });
 eventCategorySchema.index({ isComedyShow: 1 });
 eventCategorySchema.index({ isActive: 1 });
