@@ -8,6 +8,7 @@ import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import Event from './events.model';
 import { EventBooking, EventETicket, EventPaymentTransaction } from './event-booking.model';
+import { WalletController } from '../wallet/wallet.controller';
 
 // Cashfree API Configuration
 const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production' 
@@ -312,6 +313,28 @@ const verifyCashfreePayment = catchAsync(async (req: Request, res: Response) => 
         qrCodeImageUrl,
         quantity: booking.quantity,
       });
+
+      // Credit vendor wallet if event has a vendor
+      const eventData = event as any;
+      if (eventData && eventData.vendorId) {
+        try {
+          await WalletController.creditVendorEarnings({
+            vendorId: eventData.vendorId.toString(),
+            amount: booking.finalAmount,
+            serviceType: 'events',
+            referenceType: 'event_booking',
+            referenceId: (booking._id as mongoose.Types.ObjectId).toString(),
+            metadata: {
+              bookingId: (booking._id as mongoose.Types.ObjectId).toString(),
+              customerName: booking.customerDetails?.name,
+              customerEmail: booking.customerDetails?.email,
+              itemTitle: event?.title || '',
+            },
+          });
+        } catch (walletError) {
+          console.error('Failed to credit vendor wallet:', walletError);
+        }
+      }
 
       // Populate booking with event details
       const populatedBooking = await EventBooking.findById(booking._id)

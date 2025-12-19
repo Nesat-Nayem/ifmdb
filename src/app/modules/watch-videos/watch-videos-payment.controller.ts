@@ -11,6 +11,7 @@ import {
   VideoPaymentTransaction,
   Channel
 } from './watch-videos.model';
+import { WalletController } from '../wallet/wallet.controller';
 
 // Cashfree API Configuration
 const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production'
@@ -257,6 +258,29 @@ const verifyVideoPayment = catchAsync(async (req: Request, res: Response) => {
       // Get video details
       const video = await WatchVideo.findById(purchase.videoId)
         .populate('channelId', 'name logoUrl');
+
+      // Credit vendor wallet if video has a vendor
+      const videoData = video as any;
+      const purchaseData = purchase as any;
+      if (videoData && videoData.uploadedBy && videoData.uploadedByType === 'vendor') {
+        try {
+          await WalletController.creditVendorEarnings({
+            vendorId: videoData.uploadedBy.toString(),
+            amount: purchaseData.amount as number,
+            serviceType: 'movie_watch',
+            referenceType: 'video_purchase',
+            referenceId: purchaseData._id.toString(),
+            metadata: {
+              purchaseId: purchaseData._id.toString(),
+              customerName: purchaseData.customerDetails?.name || '',
+              customerEmail: purchaseData.customerDetails?.email || '',
+              itemTitle: videoData.title || '',
+            },
+          });
+        } catch (walletError) {
+          console.error('Failed to credit vendor wallet:', walletError);
+        }
+      }
 
       return sendResponse(res, {
         statusCode: httpStatus.OK,

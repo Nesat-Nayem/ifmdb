@@ -23,6 +23,7 @@ import { subscriptionPlanRouter } from "../modules/subscription-plan/subscriptio
 import { vendorRouter } from "../modules/vendor/vendor.routes";
 import watchVideosRouter from "../modules/watch-videos/watch-videos.routes";
 import { cloudflareStreamRouter } from "../modules/cloudflare-stream/cloudflare-stream.routes";
+import walletRouter from "../modules/wallet/wallet.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -141,6 +142,10 @@ const moduleRoutes = [
   {
     path: "/cloudflare-stream",
     route: cloudflareStreamRouter,
+  },
+  {
+    path: "/wallet",
+    route: walletRouter,
   },
 ];
 

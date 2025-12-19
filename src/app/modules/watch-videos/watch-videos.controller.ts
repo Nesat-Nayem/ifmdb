@@ -3,6 +3,7 @@ import httpStatus from 'http-status';
 import mongoose from 'mongoose';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
+import { userInterface } from '../../middlewares/userInterface';
 import {
   WatchVideo,
   Channel,
@@ -42,6 +43,7 @@ const createChannel = catchAsync(async (req: Request, res: Response) => {
 
 // Get All Channels
 const getAllChannels = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const {
     page = 1,
     limit = 10,
@@ -53,6 +55,11 @@ const getAllChannels = catchAsync(async (req: Request, res: Response) => {
   } = req.query;
 
   const query: any = {};
+
+  // If user is a vendor, only show their own channels
+  if (user && user.role === 'vendor') {
+    query.ownerId = user._id;
+  }
 
   if (search) {
     query.$text = { $search: search as string };
@@ -290,6 +297,7 @@ const createWatchVideo = catchAsync(async (req: Request, res: Response) => {
 
 // Get All Watch Videos
 const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const {
     page = 1,
     limit = 10,
@@ -312,6 +320,11 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
 
   const query: any = { isActive: true };
 
+  // If user is a vendor, only show their own videos
+  if (user && user.role === 'vendor') {
+    query.uploadedBy = user._id;
+  }
+
   if (search) {
     query.$text = { $search: search as string };
   }
@@ -324,7 +337,7 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
   if (status) query.status = status;
   if (isFree !== undefined) query.isFree = isFree === 'true';
   if (isFeatured !== undefined) query.isFeatured = isFeatured === 'true';
-  if (uploadedBy) query.uploadedBy = uploadedBy;
+  if (uploadedBy && (!user || user.role !== 'vendor')) query.uploadedBy = uploadedBy;
   
   if (minPrice || maxPrice) {
     query.defaultPrice = {};
