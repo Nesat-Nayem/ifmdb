@@ -19,6 +19,7 @@ import {
 
 // Create Channel
 const createChannel = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const channelData = req.body;
   
   const existingChannel = await Channel.findOne({ name: channelData.name });
@@ -30,8 +31,27 @@ const createChannel = catchAsync(async (req: Request, res: Response) => {
       data: null,
     });
   }
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const payload: any = { ...channelData };
+  // Prevent spoofing ownership from client
+  payload.ownerId = user._id;
+  payload.ownerType = user.role === 'admin' ? 'admin' : 'vendor';
+
+  // Vendors cannot self-verify channels
+  if (user.role === 'vendor') {
+    payload.isVerified = false;
+  }
   
-  const newChannel = await Channel.create(channelData);
+  const newChannel = await Channel.create(payload);
   
   return sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -101,6 +121,7 @@ const getAllChannels = catchAsync(async (req: Request, res: Response) => {
 
 // Get Channel by ID
 const getChannelById = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const { id } = req.params;
   
   const channel = await Channel.findById(id).populate('ownerId', 'name email');
@@ -110,6 +131,16 @@ const getChannelById = catchAsync(async (req: Request, res: Response) => {
       statusCode: httpStatus.NOT_FOUND,
       success: false,
       message: 'Channel not found',
+      data: null,
+    });
+  }
+
+  // Vendors can only access their own channel
+  if (user && user.role === 'vendor' && channel.ownerId && channel.ownerId.toString() !== user._id.toString()) {
+    return sendResponse(res, {
+      statusCode: httpStatus.FORBIDDEN,
+      success: false,
+      message: 'You are not allowed to access this channel',
       data: null,
     });
   }
@@ -124,9 +155,48 @@ const getChannelById = catchAsync(async (req: Request, res: Response) => {
 
 // Update Channel
 const updateChannel = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const { id } = req.params;
   const updateData = req.body;
-  
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const existing = await Channel.findById(id);
+  if (!existing) {
+    return sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Channel not found',
+      data: null,
+    });
+  }
+
+  // Vendors can only update their own channels
+  if (user.role === 'vendor' && existing.ownerId.toString() !== user._id.toString()) {
+    return sendResponse(res, {
+      statusCode: httpStatus.FORBIDDEN,
+      success: false,
+      message: 'You are not allowed to update this channel',
+      data: null,
+    });
+  }
+
+  // Prevent ownership changes
+  delete (updateData as any).ownerId;
+  delete (updateData as any).ownerType;
+
+  // Vendors cannot set verified
+  if (user.role === 'vendor') {
+    delete (updateData as any).isVerified;
+  }
+
   const channel = await Channel.findByIdAndUpdate(id, updateData, { new: true });
   
   if (!channel) {
@@ -148,7 +218,37 @@ const updateChannel = catchAsync(async (req: Request, res: Response) => {
 
 // Delete Channel
 const deleteChannel = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const { id } = req.params;
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const existing = await Channel.findById(id);
+  if (!existing) {
+    return sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Channel not found',
+      data: null,
+    });
+  }
+
+  // Vendors can only delete their own channels
+  if (user.role === 'vendor' && existing.ownerId.toString() !== user._id.toString()) {
+    return sendResponse(res, {
+      statusCode: httpStatus.FORBIDDEN,
+      success: false,
+      message: 'You are not allowed to delete this channel',
+      data: null,
+    });
+  }
   
   const channel = await Channel.findByIdAndUpdate(id, { isActive: false }, { new: true });
   

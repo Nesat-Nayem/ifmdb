@@ -53,8 +53,6 @@ const createChannelValidation = z.object({
     description: z.string().optional(),
     logoUrl: z.string().optional(),
     bannerUrl: z.string().optional(),
-    ownerId: z.string().min(1, 'Owner ID is required'),
-    ownerType: z.enum(['admin', 'vendor']),
     socialLinks: z.object({
       website: z.string().optional(),
       youtube: z.string().optional(),

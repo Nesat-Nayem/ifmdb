@@ -18,6 +18,7 @@ const router = express.Router();
  */
 router.post(
   '/channels',
+  auth(),
   validateRequest(WatchVideoValidation.createChannelValidation),
   WatchVideoController.createChannel
 );
@@ -38,7 +39,7 @@ router.get('/channels', auth(), WatchVideoController.getAllChannels);
  *     summary: Get channel by ID
  *     tags: [Watch Videos - Channels]
  */
-router.get('/channels/:id', WatchVideoController.getChannelById);
+router.get('/channels/:id', auth(), WatchVideoController.getChannelById);
 
 /**
  * @swagger
@@ -49,6 +50,7 @@ router.get('/channels/:id', WatchVideoController.getChannelById);
  */
 router.put(
   '/channels/:id',
+  auth(),
   validateRequest(WatchVideoValidation.updateChannelValidation),
   WatchVideoController.updateChannel
 );
@@ -60,7 +62,7 @@ router.put(
  *     summary: Delete channel (soft delete)
  *     tags: [Watch Videos - Channels]
  */
-router.delete('/channels/:id', WatchVideoController.deleteChannel);
+router.delete('/channels/:id', auth(), WatchVideoController.deleteChannel);
 
 /**
  * @swagger
