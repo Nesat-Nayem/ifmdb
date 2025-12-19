@@ -5,7 +5,7 @@ import { EventValidation } from './events.validation';
 import { EventBookingController } from './event-booking.controller';
 import { EventBookingValidation } from './event-booking.validation';
 import { CashfreePaymentController } from './cashfree-payment.controller';
-import { auth } from '../../middlewares/authMiddleware';
+import { auth, optionalAuth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -501,7 +501,7 @@ router.post(
  */
 router.get(
   '/',
-  auth(),
+  optionalAuth(),
   validateRequest(EventValidation.getEventsValidation),
   EventController.getAllEvents
 );

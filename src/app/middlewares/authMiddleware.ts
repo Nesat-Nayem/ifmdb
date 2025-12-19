@@ -42,3 +42,36 @@ export const auth = (...requiredRoles: string[]) => {
     }
   };
 };
+
+// Optional auth - attaches user if token exists, but doesn't fail if missing
+// Useful for public endpoints that need to show different data for authenticated users
+export const optionalAuth = () => {
+  return async (req: userInterface, res: Response, next: NextFunction) => {
+    try {
+      const token = req.headers.authorization?.split(" ")[1];
+      
+      if (!token) {
+        // No token provided - continue without user
+        req.user = undefined;
+        return next();
+      }
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+
+      // Find user
+      const user: any = await User.findById(decoded.userId);
+
+      if (user) {
+        // Attach user to request if found
+        req.user = user;
+      }
+      
+      next();
+    } catch (error) {
+      // Token invalid - continue without user (don't fail)
+      req.user = undefined;
+      next();
+    }
+  };
+};

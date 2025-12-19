@@ -3,7 +3,7 @@ import { WatchVideoController } from './watch-videos.controller';
 import { WatchVideoPaymentController } from './watch-videos-payment.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { WatchVideoValidation } from './watch-videos.validation';
-import { auth } from '../../middlewares/authMiddleware';
+import { auth, optionalAuth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -30,7 +30,7 @@ router.post(
  *     summary: Get all channels
  *     tags: [Watch Videos - Channels]
  */
-router.get('/channels', auth(), WatchVideoController.getAllChannels);
+router.get('/channels', optionalAuth(), WatchVideoController.getAllChannels);
 
 /**
  * @swagger
@@ -191,7 +191,7 @@ router.post(
  */
 router.get(
   '/',
-  auth(),
+  optionalAuth(),
   validateRequest(WatchVideoValidation.getWatchVideosValidation),
   WatchVideoController.getAllWatchVideos
 );

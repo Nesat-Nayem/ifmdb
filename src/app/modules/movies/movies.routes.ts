@@ -2,7 +2,7 @@ import express from 'express';
 import { MovieController } from './movies.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { MovieValidation } from './movies.validation';
-import { auth } from '../../middlewares/authMiddleware';
+import { auth, optionalAuth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -362,7 +362,7 @@ router.post(
  */
 router.get(
   '/',
-  auth(),
+  optionalAuth(),
   validateRequest(MovieValidation.getMoviesValidation),
   MovieController.getAllMovies
 );
