@@ -2,6 +2,7 @@ import express from 'express';
 import { MovieController } from './movies.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { MovieValidation } from './movies.validation';
+import { auth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -265,6 +266,7 @@ const router = express.Router();
  */
 router.post(
   '/',
+  auth(),
   validateRequest(MovieValidation.createMovieValidation),
   MovieController.createMovie
 );
@@ -360,6 +362,7 @@ router.post(
  */
 router.get(
   '/',
+  auth(),
   validateRequest(MovieValidation.getMoviesValidation),
   MovieController.getAllMovies
 );

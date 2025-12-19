@@ -3,6 +3,7 @@ import { WatchVideoController } from './watch-videos.controller';
 import { WatchVideoPaymentController } from './watch-videos-payment.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { WatchVideoValidation } from './watch-videos.validation';
+import { auth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -28,7 +29,7 @@ router.post(
  *     summary: Get all channels
  *     tags: [Watch Videos - Channels]
  */
-router.get('/channels', WatchVideoController.getAllChannels);
+router.get('/channels', auth(), WatchVideoController.getAllChannels);
 
 /**
  * @swagger
@@ -174,6 +175,7 @@ router.delete('/categories/:id', WatchVideoController.deleteCategory);
  */
 router.post(
   '/',
+  auth(),
   validateRequest(WatchVideoValidation.createWatchVideoValidation),
   WatchVideoController.createWatchVideo
 );
@@ -187,6 +189,7 @@ router.post(
  */
 router.get(
   '/',
+  auth(),
   validateRequest(WatchVideoValidation.getWatchVideosValidation),
   WatchVideoController.getAllWatchVideos
 );

@@ -5,6 +5,7 @@ import { EventValidation } from './events.validation';
 import { EventBookingController } from './event-booking.controller';
 import { EventBookingValidation } from './event-booking.validation';
 import { CashfreePaymentController } from './cashfree-payment.controller';
+import { auth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -383,6 +384,7 @@ const router = express.Router();
  */
 router.post(
   '/',
+  auth(),
   validateRequest(EventValidation.createEventValidation),
   EventController.createEvent
 );
@@ -499,6 +501,7 @@ router.post(
  */
 router.get(
   '/',
+  auth(),
   validateRequest(EventValidation.getEventsValidation),
   EventController.getAllEvents
 );
