@@ -116,6 +116,7 @@ export interface IMovie extends Document {
   posterUrl: string;
   backdropUrl: string;
   trailerUrl: string;
+  cloudflareTrailerUid?: string;
   galleryImages: string[];
   budget: number;
   boxOffice: number;
@@ -221,6 +222,10 @@ const movieSchema: Schema = new Schema(
       default: ''
     },
     trailerUrl: {
+      type: String,
+      default: ''
+    },
+    cloudflareTrailerUid: {
       type: String,
       default: ''
     },
