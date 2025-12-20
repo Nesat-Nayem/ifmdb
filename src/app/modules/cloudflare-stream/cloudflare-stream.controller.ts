@@ -8,11 +8,24 @@ const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CLOUDFLARE_STREAM_CUSTOMER_CODE = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
 
+const getMaxAllowedBytes = (uploadType?: string, videoType?: string) => {
+  if (uploadType === 'trailer') return 100 * 1024 * 1024;
+  if (videoType === 'series') return 500 * 1024 * 1024;
+  return 2 * 1024 * 1024 * 1024;
+};
+
 /**
  * Generate Direct Upload URL for basic uploads (under 200MB)
  */
 const getDirectUploadUrl = catchAsync(async (req: Request, res: Response) => {
-  const { maxDurationSeconds = 3600, meta = {} } = req.body;
+  const {
+    maxDurationSeconds = 3600,
+    meta = {},
+    fileName,
+    fileSize,
+    uploadType,
+    videoType,
+  } = req.body;
 
   if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN) {
     return sendResponse(res, {
@@ -23,11 +36,40 @@ const getDirectUploadUrl = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
+  if (typeof fileSize !== 'number' || fileSize <= 0) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'fileSize is required',
+      data: null,
+    });
+  }
+
+  const maxAllowedBytes = getMaxAllowedBytes(uploadType, videoType);
+  if (fileSize > maxAllowedBytes) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'File too large for this upload type',
+      data: {
+        fileSize,
+        maxAllowedBytes,
+        uploadType,
+        videoType,
+      },
+    });
+  }
+
   const response = await axios.post(
     `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/direct_upload`,
     {
       maxDurationSeconds,
-      meta,
+      meta: {
+        ...meta,
+        ...(fileName ? { name: fileName } : {}),
+        ...(uploadType ? { uploadType } : {}),
+        ...(videoType ? { videoType } : {}),
+      },
       requireSignedURLs: false,
       allowedOrigins: ['*'],
     },
@@ -65,7 +107,13 @@ const getDirectUploadUrl = catchAsync(async (req: Request, res: Response) => {
  * This endpoint is called with JSON body from the frontend, then we request Cloudflare for a TUS URL
  */
 const getTusUploadUrl = catchAsync(async (req: Request, res: Response) => {
-  const { maxDurationSeconds = 21600, fileName = 'video' } = req.body; // Default 6 hours max
+  const {
+    maxDurationSeconds = 21600,
+    fileName = 'video',
+    fileSize,
+    uploadType,
+    videoType,
+  } = req.body; // Default 6 hours max
 
   if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN) {
     return sendResponse(res, {
@@ -76,11 +124,40 @@ const getTusUploadUrl = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
+  if (typeof fileSize !== 'number' || fileSize <= 0) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'fileSize is required for TUS uploads',
+      data: null,
+    });
+  }
+
+  const maxAllowedBytes = getMaxAllowedBytes(uploadType, videoType);
+  if (fileSize > maxAllowedBytes) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'File too large for this upload type',
+      data: {
+        fileSize,
+        maxAllowedBytes,
+        uploadType,
+        videoType,
+      },
+    });
+  }
+
   try {
     // Encode metadata in base64 as required by TUS protocol
     const maxDurationBase64 = Buffer.from(String(maxDurationSeconds)).toString('base64');
     const nameBase64 = Buffer.from(fileName).toString('base64');
-    const uploadMetadata = `maxDurationSeconds ${maxDurationBase64},name ${nameBase64}`;
+    const uploadTypeBase64 = uploadType ? Buffer.from(String(uploadType)).toString('base64') : undefined;
+    const videoTypeBase64 = videoType ? Buffer.from(String(videoType)).toString('base64') : undefined;
+    const uploadMetadataParts = [`maxDurationSeconds ${maxDurationBase64}`, `name ${nameBase64}`];
+    if (uploadTypeBase64) uploadMetadataParts.push(`uploadType ${uploadTypeBase64}`);
+    if (videoTypeBase64) uploadMetadataParts.push(`videoType ${videoTypeBase64}`);
+    const uploadMetadata = uploadMetadataParts.join(',');
 
     console.log('Requesting TUS URL from Cloudflare...');
     console.log('Account ID:', CLOUDFLARE_ACCOUNT_ID);
@@ -93,13 +170,22 @@ const getTusUploadUrl = catchAsync(async (req: Request, res: Response) => {
         headers: {
           'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
           'Tus-Resumable': '1.0.0',
-          'Upload-Length': '1', // Placeholder, actual size sent by client
+          'Upload-Length': String(fileSize),
           'Upload-Metadata': uploadMetadata,
         },
         // Important: Don't throw on 2xx responses
         validateStatus: (status) => status < 500,
       }
     );
+
+    if (response.status < 200 || response.status >= 300) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: 'Failed to generate TUS upload URL from Cloudflare',
+        data: response.data,
+      });
+    }
 
     console.log('Cloudflare response status:', response.status);
     console.log('Cloudflare response headers:', response.headers);
