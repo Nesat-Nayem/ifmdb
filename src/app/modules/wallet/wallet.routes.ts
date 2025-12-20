@@ -1,5 +1,6 @@
 import express from 'express';
 import { WalletController } from './wallet.controller';
+import PayoutWebhookController from './wallet-payout-webhook.controller';
 import { auth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
@@ -69,6 +70,17 @@ router.get('/withdrawals', auth('vendor', 'admin'), WalletController.getMyWithdr
  */
 router.post('/withdrawals/:id/cancel', auth('vendor'), WalletController.cancelWithdrawal);
 
+// ==================== CASHFREE PAYOUT WEBHOOK ====================
+
+/**
+ * @swagger
+ * /v1/api/wallet/webhooks/cashfree-payout:
+ *   post:
+ *     summary: Cashfree Payout Webhook (No Auth)
+ *     tags: [Wallet - Webhooks]
+ */
+router.post('/webhooks/cashfree-payout', PayoutWebhookController.handlePayoutWebhook);
+
 // ==================== ADMIN ROUTES ====================
 
 /**
@@ -106,5 +118,14 @@ router.get('/admin/withdrawals', auth('admin'), WalletController.getAllWithdrawa
  *     tags: [Wallet - Admin]
  */
 router.post('/admin/withdrawals/:id/process', auth('admin'), WalletController.processWithdrawal);
+
+/**
+ * @swagger
+ * /v1/api/wallet/admin/withdrawals/{id}/sync-status:
+ *   post:
+ *     summary: Manually sync transfer status from Cashfree (Admin)
+ *     tags: [Wallet - Admin]
+ */
+router.post('/admin/withdrawals/:id/sync-status', auth('admin'), PayoutWebhookController.syncTransferStatus);
 
 export default router;

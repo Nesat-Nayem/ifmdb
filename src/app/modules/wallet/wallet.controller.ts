@@ -6,6 +6,7 @@ import { sendResponse } from '../../utils/sendResponse';
 import { userInterface } from '../../middlewares/userInterface';
 import { Wallet, WalletTransaction, WithdrawalRequest } from './wallet.model';
 import { PlatformSettings } from '../vendor/platformSettings.model';
+import cashfreePayoutService from '../../services/cashfreePayoutService';
 
 // ==================== WALLET CONTROLLERS ====================
 
@@ -358,15 +359,15 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     userId: user._id,
     amount,
     bankDetails: wallet.bankDetails,
-    status: 'pending'
+    status: 'processing' // Changed from 'pending' to 'processing'
   });
 
-  // Deduct from wallet balance
+  // Deduct from wallet balance immediately
   wallet.balance -= amount;
   await wallet.save();
 
   // Create transaction record
-  await WalletTransaction.create({
+  const transaction = await WalletTransaction.create({
     walletId: wallet._id,
     userId: user._id,
     type: 'debit',
@@ -379,12 +380,88 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     status: 'pending'
   });
 
-  return sendResponse(res, {
-    statusCode: httpStatus.CREATED,
-    success: true,
-    message: 'Withdrawal request submitted successfully',
-    data: withdrawalRequest,
-  });
+  // ✅ AUTOMATIC CASHFREE PAYOUT - Process withdrawal immediately
+  try {
+    if (!cashfreePayoutService.isPayoutsConfigured()) {
+      throw new Error('Cashfree Payouts not configured. Please contact admin.');
+    }
+
+    const payoutResult = await cashfreePayoutService.processWithdrawal(
+      (withdrawalRequest._id as mongoose.Types.ObjectId).toString(),
+      (user._id as mongoose.Types.ObjectId).toString(),
+      amount,
+      {
+        accountHolderName: wallet.bankDetails.accountHolderName,
+        accountNumber: wallet.bankDetails.accountNumber,
+        ifscCode: wallet.bankDetails.ifscCode,
+        bankName: wallet.bankDetails.bankName,
+      },
+      user.email,
+      user.phone || '0000000000'
+    );
+
+    if (payoutResult.success) {
+      // Update withdrawal request with Cashfree details
+      withdrawalRequest.gatewayTransactionId = payoutResult.transferId;
+      withdrawalRequest.gatewayResponse = payoutResult.gatewayResponse;
+      withdrawalRequest.status = 'processing'; // Will be updated to 'completed' via webhook
+      await withdrawalRequest.save();
+
+      return sendResponse(res, {
+        statusCode: httpStatus.CREATED,
+        success: true,
+        message: 'Withdrawal initiated successfully. Funds will be transferred to your bank within 24 hours.',
+        data: {
+          ...withdrawalRequest.toObject(),
+          transferId: payoutResult.transferId,
+          estimatedTime: '24 hours'
+        },
+      });
+    } else {
+      // Payout failed - refund to wallet
+      withdrawalRequest.status = 'failed';
+      withdrawalRequest.failureReason = payoutResult.message;
+      withdrawalRequest.gatewayResponse = payoutResult.gatewayResponse;
+      await withdrawalRequest.save();
+
+      // Refund amount back to wallet
+      wallet.balance += amount;
+      await wallet.save();
+
+      // Update transaction status
+      transaction.status = 'failed';
+      await transaction.save();
+
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: `Withdrawal failed: ${payoutResult.message}`,
+        data: null,
+      });
+    }
+  } catch (error: any) {
+    console.error('Cashfree Payout Error:', error);
+
+    // Payout failed - refund to wallet
+    withdrawalRequest.status = 'failed';
+    withdrawalRequest.failureReason = error.message || 'Payout service error';
+    await withdrawalRequest.save();
+
+    // Refund amount back to wallet
+    wallet.balance += amount;
+    await wallet.save();
+
+    // Update transaction status
+    transaction.status = 'failed';
+    await transaction.save();
+
+    return sendResponse(res, {
+      statusCode: httpStatus.INTERNAL_SERVER_ERROR,
+      success: false,
+      message: error.message || 'Failed to process withdrawal. Amount has been refunded to your wallet.',
+      data: null,
+    });
+  }
 });
 
 // Get My Withdrawal History
