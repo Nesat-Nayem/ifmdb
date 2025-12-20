@@ -73,7 +73,7 @@ router.delete('/channels/:id', auth(), WatchVideoController.deleteChannel);
  */
 router.post(
   '/channels/:channelId/subscribe',
-  validateRequest(WatchVideoValidation.subscribeValidation),
+  auth(),
   WatchVideoController.subscribeToChannel
 );
 
@@ -86,19 +86,33 @@ router.post(
  */
 router.post(
   '/channels/:channelId/unsubscribe',
-  validateRequest(WatchVideoValidation.subscribeValidation),
+  auth(),
   WatchVideoController.unsubscribeFromChannel
 );
 
 /**
  * @swagger
- * /v1/api/watch-videos/channels/{channelId}/subscription/{userId}:
+ * /v1/api/watch-videos/channels/{channelId}/toggle-notification:
+ *   patch:
+ *     summary: Toggle notification for a subscribed channel
+ *     tags: [Watch Videos - Channels]
+ */
+router.patch(
+  '/channels/:channelId/toggle-notification',
+  auth(),
+  WatchVideoController.toggleNotification
+);
+
+/**
+ * @swagger
+ * /v1/api/watch-videos/channels/{channelId}/subscription:
  *   get:
  *     summary: Check subscription status
  *     tags: [Watch Videos - Channels]
  */
 router.get(
-  '/channels/:channelId/subscription/:userId',
+  '/channels/:channelId/subscription',
+  auth(),
   WatchVideoController.checkSubscription
 );
 
@@ -113,12 +127,12 @@ router.get('/channels/:channelId/videos', WatchVideoController.getVideosByChanne
 
 /**
  * @swagger
- * /v1/api/watch-videos/user/{userId}/subscriptions:
+ * /v1/api/watch-videos/user/subscriptions:
  *   get:
  *     summary: Get user's subscribed channels
  *     tags: [Watch Videos - Channels]
  */
-router.get('/user/:userId/subscriptions', WatchVideoController.getUserSubscriptions);
+router.get('/user/subscriptions', auth(), WatchVideoController.getUserSubscriptions);
 
 // ==================== CATEGORY ROUTES ====================
 

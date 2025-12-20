@@ -4,6 +4,7 @@ import notFound from './app/middlewares/notFound';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import { setupSwagger } from './app/config/swagger';
 import initializeFirebaseAdmin from './app/config/firebase-admin';
+import { initializeFirebase } from './app/config/firebase';
 const app:Application = express();
 import cors from 'cors';
 
@@ -12,6 +13,13 @@ try {
   initializeFirebaseAdmin();
 } catch (error) {
   console.warn('⚠️ Firebase Admin SDK not initialized - Google auth will not work');
+}
+
+// Initialize Firebase for push notifications
+try {
+  initializeFirebase();
+} catch (error) {
+  console.warn('⚠️ Firebase push notifications not initialized');
 }
 
 

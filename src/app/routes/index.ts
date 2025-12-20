@@ -24,6 +24,7 @@ import { vendorRouter } from "../modules/vendor/vendor.routes";
 import watchVideosRouter from "../modules/watch-videos/watch-videos.routes";
 import { cloudflareStreamRouter } from "../modules/cloudflare-stream/cloudflare-stream.routes";
 import walletRouter from "../modules/wallet/wallet.routes";
+import notificationRouter from "../modules/notifications/notifications.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -146,6 +147,10 @@ const moduleRoutes = [
   {
     path: "/wallet",
     route: walletRouter,
+  },
+  {
+    path: "/notifications",
+    route: notificationRouter,
   },
 ];
 

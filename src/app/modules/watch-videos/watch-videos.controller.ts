@@ -14,6 +14,7 @@ import {
   VideoPurchase,
   VideoLike
 } from './watch-videos.model';
+import notificationService from '../notifications/notifications.service';
 
 // ==================== CHANNEL CONTROLLERS ====================
 
@@ -271,8 +272,19 @@ const deleteChannel = catchAsync(async (req: Request, res: Response) => {
 
 // Subscribe to Channel
 const subscribeToChannel = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const { channelId } = req.params;
-  const { userId } = req.body;
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const userId = user._id;
 
   const channel = await Channel.findById(channelId);
   if (!channel || !channel.isActive) {
@@ -294,7 +306,7 @@ const subscribeToChannel = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  const subscription = await ChannelSubscription.create({ channelId, userId });
+  const subscription = await ChannelSubscription.create({ channelId, userId, isNotificationEnabled: true });
   await Channel.findByIdAndUpdate(channelId, { $inc: { subscriberCount: 1 } });
 
   return sendResponse(res, {
@@ -307,8 +319,19 @@ const subscribeToChannel = catchAsync(async (req: Request, res: Response) => {
 
 // Unsubscribe from Channel
 const unsubscribeFromChannel = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const { channelId } = req.params;
-  const { userId } = req.body;
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const userId = user._id;
 
   const subscription = await ChannelSubscription.findOneAndDelete({ channelId, userId });
   if (!subscription) {
@@ -330,9 +353,61 @@ const unsubscribeFromChannel = catchAsync(async (req: Request, res: Response) =>
   });
 });
 
+// Toggle Notification for Subscription
+const toggleNotification = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
+  const { channelId } = req.params;
+  const { isNotificationEnabled } = req.body;
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const userId = user._id;
+
+  const subscription = await ChannelSubscription.findOneAndUpdate(
+    { channelId, userId },
+    { isNotificationEnabled },
+    { new: true }
+  );
+
+  if (!subscription) {
+    return sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Subscription not found',
+      data: null,
+    });
+  }
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: `Notifications ${isNotificationEnabled ? 'enabled' : 'disabled'} successfully`,
+    data: subscription,
+  });
+});
+
 // Check Subscription Status
 const checkSubscription = catchAsync(async (req: Request, res: Response) => {
-  const { channelId, userId } = req.params;
+  const user = (req as userInterface).user;
+  const { channelId } = req.params;
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const userId = user._id;
 
   const subscription = await ChannelSubscription.findOne({ channelId, userId });
 
@@ -340,13 +415,27 @@ const checkSubscription = catchAsync(async (req: Request, res: Response) => {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Subscription status retrieved',
-    data: { isSubscribed: !!subscription },
+    data: { 
+      isSubscribed: !!subscription,
+      isNotificationEnabled: subscription?.isNotificationEnabled || false
+    },
   });
 });
 
 // Get User's Subscribed Channels
 const getUserSubscriptions = catchAsync(async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const user = (req as userInterface).user;
+
+  if (!user) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Unauthorized',
+      data: null,
+    });
+  }
+
+  const userId = user._id;
 
   const subscriptions = await ChannelSubscription.find({ userId })
     .populate('channelId')
@@ -386,6 +475,20 @@ const createWatchVideo = catchAsync(async (req: Request, res: Response) => {
   }
 
   const newVideo = await WatchVideo.create(videoData);
+
+  // Notify channel subscribers about the new video
+  try {
+    await notificationService.notifyChannelSubscribers({
+      channelId: channel._id as mongoose.Types.ObjectId,
+      channelName: channel.name,
+      videoId: newVideo._id as mongoose.Types.ObjectId,
+      videoTitle: newVideo.title,
+      thumbnailUrl: newVideo.thumbnailUrl
+    });
+  } catch (notifError) {
+    console.error('Error sending notifications:', notifError);
+    // Don't fail the video creation if notifications fail
+  }
 
   return sendResponse(res, {
     statusCode: httpStatus.CREATED,
@@ -1227,6 +1330,7 @@ export const WatchVideoController = {
   deleteChannel,
   subscribeToChannel,
   unsubscribeFromChannel,
+  toggleNotification,
   checkSubscription,
   getUserSubscriptions,
   
