@@ -25,6 +25,7 @@ import watchVideosRouter from "../modules/watch-videos/watch-videos.routes";
 import { cloudflareStreamRouter } from "../modules/cloudflare-stream/cloudflare-stream.routes";
 import walletRouter from "../modules/wallet/wallet.routes";
 import notificationRouter from "../modules/notifications/notifications.routes";
+import sectionSettingsRouter from "../modules/section-settings/section-settings.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -151,6 +152,10 @@ const moduleRoutes = [
   {
     path: "/notifications",
     route: notificationRouter,
+  },
+  {
+    path: "/section-settings",
+    route: sectionSettingsRouter,
   },
 ];
 
