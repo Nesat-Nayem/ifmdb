@@ -26,6 +26,7 @@ import { cloudflareStreamRouter } from "../modules/cloudflare-stream/cloudflare-
 import walletRouter from "../modules/wallet/wallet.routes";
 import notificationRouter from "../modules/notifications/notifications.routes";
 import sectionSettingsRouter from "../modules/section-settings/section-settings.routes";
+import ccavenuePaymentRouter from "../modules/payment/ccavenue-payment.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -156,6 +157,10 @@ const moduleRoutes = [
   {
     path: "/section-settings",
     route: sectionSettingsRouter,
+  },
+  {
+    path: "/payment/ccavenue",
+    route: ccavenuePaymentRouter,
   },
 ];
 

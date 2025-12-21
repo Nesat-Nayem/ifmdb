@@ -9,6 +9,7 @@ import { sendResponse } from '../../utils/sendResponse';
 import Event from './events.model';
 import { EventBooking, EventETicket, EventPaymentTransaction } from './event-booking.model';
 import { WalletController } from '../wallet/wallet.controller';
+import ccavenueService from '../../services/ccavenueService';
 
 // Cashfree API Configuration
 const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production' 
@@ -113,17 +114,102 @@ const createCashfreeOrder = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  // Calculate amounts
+  // Calculate amounts (no booking fee or GST)
   const totalAmount = unitPrice * quantity;
-  const bookingFee = Math.round(totalAmount * 0.02); // 2% booking fee
-  const taxAmount = Math.round(totalAmount * 0.18); // 18% GST
-  const finalAmount = totalAmount + bookingFee + taxAmount;
+  const bookingFee = 0;
+  const taxAmount = 0;
+  const finalAmount = totalAmount;
 
   const bookingReference = generateBookingReference();
   const orderId = generateOrderId();
+  
+  // Get country code from request (default to IN for Indian users)
+  const countryCode = req.body.countryCode || 'IN';
+  const isIndianUser = countryCode.toUpperCase() === 'IN';
 
-  // Create Cashfree order
   try {
+    // Route to CCAvenue for international users
+    if (!isIndianUser) {
+      const ccOrderId = ccavenueService.generateCCOrderId();
+      
+      const ccOrderParams = {
+        orderId: ccOrderId,
+        amount: finalAmount,
+        currency: 'USD', // Default to USD for international users
+        customerName: customerDetails.name,
+        customerEmail: customerDetails.email,
+        customerPhone: customerDetails.phone || '0000000000',
+        billingCountry: countryCode,
+        redirectUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/callback`,
+        cancelUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/cancel`,
+        merchantParam1: userId,
+        merchantParam2: eventId,
+        merchantParam3: 'event',
+        merchantParam4: seatType,
+        merchantParam5: bookingReference,
+      };
+
+      const ccavenueData = ccavenueService.createEncryptedRequest(ccOrderParams);
+
+      // Create booking with pending status
+      const bookingData = {
+        eventId: new mongoose.Types.ObjectId(eventId),
+        userId: new mongoose.Types.ObjectId(userId),
+        bookingReference,
+        quantity,
+        seatType,
+        unitPrice,
+        totalAmount,
+        bookingFee: 0,
+        taxAmount: 0,
+        discountAmount: 0,
+        finalAmount,
+        paymentStatus: 'pending',
+        bookingStatus: 'pending',
+        paymentMethod: 'ccavenue',
+        cashfreeOrderId: ccOrderId,
+        bookedAt: new Date(),
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+        customerDetails,
+      };
+
+      const newBooking = await EventBooking.create(bookingData);
+
+      // Record initial transaction
+      await EventPaymentTransaction.create({
+        bookingId: newBooking._id,
+        paymentGateway: 'ccavenue',
+        gatewayTransactionId: ccOrderId,
+        amount: finalAmount,
+        currency: 'USD',
+        status: 'pending',
+        paymentMethod: 'ccavenue',
+        gatewayResponse: { orderId: ccOrderId },
+      });
+
+      return sendResponse(res, {
+        statusCode: httpStatus.CREATED,
+        success: true,
+        message: 'CCAvenue payment order created successfully',
+        data: {
+          booking: newBooking,
+          paymentGateway: 'ccavenue',
+          ccavenueOrder: {
+            orderId: ccOrderId,
+            encRequest: ccavenueData.encRequest,
+            accessCode: ccavenueData.accessCode,
+            ccavenueUrl: ccavenueData.ccavenueUrl,
+          },
+          event: {
+            id: event._id,
+            title: event.title,
+          }
+        },
+      });
+    }
+
+    // Use Cashfree for Indian users
+  // Create Cashfree order
     const cashfreeResponse = await axios.post(
       `${CASHFREE_API_URL}/orders`,
       {

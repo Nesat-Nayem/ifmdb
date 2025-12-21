@@ -12,6 +12,7 @@ import {
   Channel
 } from './watch-videos.model';
 import { WalletController } from '../wallet/wallet.controller';
+import ccavenueService from '../../services/ccavenueService';
 
 // Cashfree API Configuration
 const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production'
@@ -101,10 +102,12 @@ const createVideoPaymentOrder = catchAsync(async (req: Request, res: Response) =
     }
   }
 
-  // Calculate amounts
+  // Calculate amounts (no GST for video purchases)
   const totalAmount = price;
-  const taxAmount = Math.round(totalAmount * 0.18); // 18% GST
-  const finalAmount = totalAmount + taxAmount;
+  const finalAmount = totalAmount;
+  
+  // Check if user is from India (use Cashfree) or international (use CCAvenue)
+  const isIndianUser = countryCode.toUpperCase() === 'IN';
 
   const purchaseReference = generatePurchaseReference();
   const orderId = generateOrderId();
@@ -116,6 +119,84 @@ const createVideoPaymentOrder = catchAsync(async (req: Request, res: Response) =
   }
 
   try {
+    // Route to appropriate payment gateway based on country
+    if (!isIndianUser) {
+      // Use CCAvenue for international users
+      const ccOrderId = ccavenueService.generateCCOrderId();
+      
+      const ccOrderParams = {
+        orderId: ccOrderId,
+        amount: finalAmount,
+        currency: currency,
+        customerName: customerDetails.name,
+        customerEmail: customerDetails.email,
+        customerPhone: customerDetails.phone || '0000000000',
+        billingCountry: countryCode,
+        redirectUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/callback`,
+        cancelUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/cancel`,
+        merchantParam1: userId,
+        merchantParam2: videoId,
+        merchantParam3: 'video',
+        merchantParam4: purchaseType,
+        merchantParam5: purchaseReference,
+      };
+
+      const ccavenueData = ccavenueService.createEncryptedRequest(ccOrderParams);
+
+      // Create purchase record with pending status
+      const purchaseData = {
+        userId: new mongoose.Types.ObjectId(userId),
+        videoId: new mongoose.Types.ObjectId(videoId),
+        purchaseType,
+        amount: totalAmount,
+        currency,
+        countryCode,
+        paymentStatus: 'pending',
+        paymentMethod: 'ccavenue',
+        transactionId: ccOrderId,
+        purchaseReference,
+        expiresAt,
+        customerDetails,
+        purchasedAt: new Date(),
+      };
+
+      const newPurchase = await VideoPurchase.create(purchaseData);
+
+      // Record initial transaction
+      await VideoPaymentTransaction.create({
+        purchaseId: newPurchase._id,
+        paymentGateway: 'ccavenue',
+        gatewayTransactionId: ccOrderId,
+        amount: finalAmount,
+        currency,
+        status: 'pending',
+        paymentMethod: 'ccavenue',
+        gatewayResponse: { orderId: ccOrderId },
+      });
+
+      return sendResponse(res, {
+        statusCode: httpStatus.CREATED,
+        success: true,
+        message: 'CCAvenue payment order created successfully',
+        data: {
+          purchase: newPurchase,
+          paymentGateway: 'ccavenue',
+          ccavenueOrder: {
+            orderId: ccOrderId,
+            encRequest: ccavenueData.encRequest,
+            accessCode: ccavenueData.accessCode,
+            ccavenueUrl: ccavenueData.ccavenueUrl,
+          },
+          video: {
+            id: video._id,
+            title: video.title,
+            thumbnailUrl: video.thumbnailUrl
+          }
+        },
+      });
+    }
+
+    // Use Cashfree for Indian users
     // Create Cashfree order
     const cashfreeResponse = await axios.post(
       `${CASHFREE_API_URL}/orders`,
