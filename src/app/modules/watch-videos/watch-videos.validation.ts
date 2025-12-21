@@ -169,6 +169,8 @@ const updateWatchVideoValidation = z.object({
     status: z.enum(['draft', 'published', 'archived']).optional(),
     isActive: z.boolean().optional(),
     isFeatured: z.boolean().optional(),
+    homeSection: z.string().optional(),
+    rentalDays: z.number().min(0).optional(),
   }),
 });
 
