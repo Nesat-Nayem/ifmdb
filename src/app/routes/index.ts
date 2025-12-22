@@ -7,6 +7,10 @@ import { saveCardRouter } from "../modules/savecard/savecard.routes";
 import { faqRouter } from "../modules/faq/faq.routes";
 import { privacyPolicyRouter } from "../modules/privacy-policy/privacy-policy.routes";
 import { TermsConditionRouter } from "../modules/terms-condition/terms-condition.routes";
+import { CancellationRefundRouter } from "../modules/cancellation-refund/cancellation-refund.routes";
+import { PartnerTermsRouter } from "../modules/partner-terms/partner-terms.routes";
+import { AboutUsRouter } from "../modules/about-us/about-us.routes";
+import { ContactUsRouter } from "../modules/contact-us/contact-us.routes";
 import { helpSupportRouter } from "../modules/help-support/help-support.routes";
 import { blogRouter } from "../modules/blog/blog.routes";
 import { uploadRouter } from "../modules/upload/upload.routes";
@@ -93,6 +97,26 @@ const moduleRoutes = [
   {
     path: "/terms-condition",
     route: TermsConditionRouter,
+  },
+
+  {
+    path: "/cancellation-refund",
+    route: CancellationRefundRouter,
+  },
+
+  {
+    path: "/partner-terms",
+    route: PartnerTermsRouter,
+  },
+
+  {
+    path: "/about-us",
+    route: AboutUsRouter,
+  },
+
+  {
+    path: "/contact-us",
+    route: ContactUsRouter,
   },
 
   {
