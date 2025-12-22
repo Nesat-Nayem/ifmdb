@@ -12,6 +12,10 @@ const savecard_routes_1 = require("../modules/savecard/savecard.routes");
 const faq_routes_1 = require("../modules/faq/faq.routes");
 const privacy_policy_routes_1 = require("../modules/privacy-policy/privacy-policy.routes");
 const terms_condition_routes_1 = require("../modules/terms-condition/terms-condition.routes");
+const cancellation_refund_routes_1 = require("../modules/cancellation-refund/cancellation-refund.routes");
+const partner_terms_routes_1 = require("../modules/partner-terms/partner-terms.routes");
+const about_us_routes_1 = require("../modules/about-us/about-us.routes");
+const contact_us_routes_1 = require("../modules/contact-us/contact-us.routes");
 const help_support_routes_1 = require("../modules/help-support/help-support.routes");
 const blog_routes_1 = require("../modules/blog/blog.routes");
 const upload_routes_1 = require("../modules/upload/upload.routes");
@@ -85,6 +89,22 @@ const moduleRoutes = [
     {
         path: "/terms-condition",
         route: terms_condition_routes_1.TermsConditionRouter,
+    },
+    {
+        path: "/cancellation-refund",
+        route: cancellation_refund_routes_1.CancellationRefundRouter,
+    },
+    {
+        path: "/partner-terms",
+        route: partner_terms_routes_1.PartnerTermsRouter,
+    },
+    {
+        path: "/about-us",
+        route: about_us_routes_1.AboutUsRouter,
+    },
+    {
+        path: "/contact-us",
+        route: contact_us_routes_1.ContactUsRouter,
     },
     {
         path: "/help-support",
