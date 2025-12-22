@@ -205,6 +205,14 @@ const eventSchema = new mongoose_1.Schema({
         type: String,
         required: [true, 'Poster image is required']
     },
+    videoUrl: {
+        type: String,
+        default: ''
+    },
+    cloudflareVideoUid: {
+        type: String,
+        default: ''
+    },
     galleryImages: [{
             type: String
         }],

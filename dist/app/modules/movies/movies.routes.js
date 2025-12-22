@@ -8,6 +8,7 @@ const express_1 = __importDefault(require("express"));
 const movies_controller_1 = require("./movies.controller");
 const validateRequest_1 = __importDefault(require("../../middlewares/validateRequest"));
 const movies_validation_1 = require("./movies.validation");
+const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const router = express_1.default.Router();
 /**
  * @swagger
@@ -266,7 +267,7 @@ const router = express_1.default.Router();
  *       400:
  *         description: Bad request
  */
-router.post('/', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.createMovieValidation), movies_controller_1.MovieController.createMovie);
+router.post('/', (0, authMiddleware_1.auth)(), (0, validateRequest_1.default)(movies_validation_1.MovieValidation.createMovieValidation), movies_controller_1.MovieController.createMovie);
 /**
  * @swagger
  * /v1/api/movies:
@@ -356,7 +357,7 @@ router.post('/', (0, validateRequest_1.default)(movies_validation_1.MovieValidat
  *       200:
  *         description: Movies retrieved successfully
  */
-router.get('/', (0, validateRequest_1.default)(movies_validation_1.MovieValidation.getMoviesValidation), movies_controller_1.MovieController.getAllMovies);
+router.get('/', (0, authMiddleware_1.optionalAuth)(), (0, validateRequest_1.default)(movies_validation_1.MovieValidation.getMoviesValidation), movies_controller_1.MovieController.getAllMovies);
 /**
  * @swagger
  * /v1/api/movies/upcoming:

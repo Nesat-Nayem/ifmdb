@@ -192,6 +192,10 @@ const movieSchema = new mongoose_1.Schema({
         type: String,
         default: ''
     },
+    cloudflareTrailerUid: {
+        type: String,
+        default: ''
+    },
     galleryImages: [{
             type: String
         }],

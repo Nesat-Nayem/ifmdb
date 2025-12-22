@@ -28,6 +28,10 @@ const subscription_plan_routes_1 = require("../modules/subscription-plan/subscri
 const vendor_routes_1 = require("../modules/vendor/vendor.routes");
 const watch_videos_routes_1 = __importDefault(require("../modules/watch-videos/watch-videos.routes"));
 const cloudflare_stream_routes_1 = require("../modules/cloudflare-stream/cloudflare-stream.routes");
+const wallet_routes_1 = __importDefault(require("../modules/wallet/wallet.routes"));
+const notifications_routes_1 = __importDefault(require("../modules/notifications/notifications.routes"));
+const section_settings_routes_1 = __importDefault(require("../modules/section-settings/section-settings.routes"));
+const ccavenue_payment_routes_1 = __importDefault(require("../modules/payment/ccavenue-payment.routes"));
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -125,6 +129,22 @@ const moduleRoutes = [
     {
         path: "/cloudflare-stream",
         route: cloudflare_stream_routes_1.cloudflareStreamRouter,
+    },
+    {
+        path: "/wallet",
+        route: wallet_routes_1.default,
+    },
+    {
+        path: "/notifications",
+        route: notifications_routes_1.default,
+    },
+    {
+        path: "/section-settings",
+        route: section_settings_routes_1.default,
+    },
+    {
+        path: "/payment/ccavenue",
+        route: ccavenue_payment_routes_1.default,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

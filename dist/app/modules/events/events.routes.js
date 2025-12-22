@@ -11,6 +11,7 @@ const events_validation_1 = require("./events.validation");
 const event_booking_controller_1 = require("./event-booking.controller");
 const event_booking_validation_1 = require("./event-booking.validation");
 const cashfree_payment_controller_1 = require("./cashfree-payment.controller");
+const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const router = express_1.default.Router();
 /**
  * @swagger
@@ -384,7 +385,7 @@ const router = express_1.default.Router();
  *       400:
  *         description: Bad request
  */
-router.post('/', (0, validateRequest_1.default)(events_validation_1.EventValidation.createEventValidation), events_controller_1.EventController.createEvent);
+router.post('/', (0, authMiddleware_1.auth)(), (0, validateRequest_1.default)(events_validation_1.EventValidation.createEventValidation), events_controller_1.EventController.createEvent);
 /**
  * @swagger
  * /v1/api/events:
@@ -495,7 +496,7 @@ router.post('/', (0, validateRequest_1.default)(events_validation_1.EventValidat
  *                     totalPages:
  *                       type: integer
  */
-router.get('/', (0, validateRequest_1.default)(events_validation_1.EventValidation.getEventsValidation), events_controller_1.EventController.getAllEvents);
+router.get('/', (0, authMiddleware_1.optionalAuth)(), (0, validateRequest_1.default)(events_validation_1.EventValidation.getEventsValidation), events_controller_1.EventController.getAllEvents);
 /**
  * @swagger
  * /v1/api/events/upcoming:

@@ -1,13 +1,14 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import httpStatus from 'http-status';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import notificationService from './notifications.service';
+import { userInterface } from '../../middlewares/userInterface';
 
 /**
  * Get user notifications
  */
-const getUserNotifications = catchAsync(async (req: Request, res: Response) => {
+const getUserNotifications = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 20;
@@ -30,7 +31,7 @@ const getUserNotifications = catchAsync(async (req: Request, res: Response) => {
 /**
  * Get unread notification count
  */
-const getUnreadCount = catchAsync(async (req: Request, res: Response) => {
+const getUnreadCount = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const count = await notificationService.getUnreadCount(userId);
 
@@ -45,7 +46,7 @@ const getUnreadCount = catchAsync(async (req: Request, res: Response) => {
 /**
  * Mark notification as read
  */
-const markAsRead = catchAsync(async (req: Request, res: Response) => {
+const markAsRead = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const { notificationId } = req.params;
 
@@ -71,7 +72,7 @@ const markAsRead = catchAsync(async (req: Request, res: Response) => {
 /**
  * Mark all notifications as read
  */
-const markAllAsRead = catchAsync(async (req: Request, res: Response) => {
+const markAllAsRead = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const result = await notificationService.markAllAsRead(userId);
 
@@ -86,7 +87,7 @@ const markAllAsRead = catchAsync(async (req: Request, res: Response) => {
 /**
  * Delete a notification
  */
-const deleteNotification = catchAsync(async (req: Request, res: Response) => {
+const deleteNotification = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const { notificationId } = req.params;
 
@@ -112,7 +113,7 @@ const deleteNotification = catchAsync(async (req: Request, res: Response) => {
 /**
  * Register device token for push notifications
  */
-const registerDeviceToken = catchAsync(async (req: Request, res: Response) => {
+const registerDeviceToken = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const { deviceToken, deviceType, deviceInfo } = req.body;
 
@@ -143,7 +144,7 @@ const registerDeviceToken = catchAsync(async (req: Request, res: Response) => {
 /**
  * Unregister device token
  */
-const unregisterDeviceToken = catchAsync(async (req: Request, res: Response) => {
+const unregisterDeviceToken = catchAsync(async (req: userInterface, res: Response) => {
   const { deviceToken } = req.body;
 
   if (!deviceToken) {
@@ -168,7 +169,7 @@ const unregisterDeviceToken = catchAsync(async (req: Request, res: Response) => 
 /**
  * Get user's device tokens
  */
-const getUserDeviceTokens = catchAsync(async (req: Request, res: Response) => {
+const getUserDeviceTokens = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const tokens = await notificationService.getUserDeviceTokens(userId);
 
@@ -183,7 +184,7 @@ const getUserDeviceTokens = catchAsync(async (req: Request, res: Response) => {
 /**
  * Send test push notification
  */
-const sendTestPushNotification = catchAsync(async (req: Request, res: Response) => {
+const sendTestPushNotification = catchAsync(async (req: userInterface, res: Response) => {
   const userId = req.user?._id;
   const { title, body, data } = req.body;
 

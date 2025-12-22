@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.auth = void 0;
+exports.optionalAuth = exports.auth = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const auth_model_1 = require("../modules/auth/auth.model");
 const appError_1 = require("../errors/appError");
@@ -48,3 +48,33 @@ const auth = (...requiredRoles) => {
     });
 };
 exports.auth = auth;
+// Optional auth - attaches user if token exists, but doesn't fail if missing
+// Useful for public endpoints that need to show different data for authenticated users
+const optionalAuth = () => {
+    return (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+        var _a;
+        try {
+            const token = (_a = req.headers.authorization) === null || _a === void 0 ? void 0 : _a.split(" ")[1];
+            if (!token) {
+                // No token provided - continue without user
+                req.user = undefined;
+                return next();
+            }
+            // Verify token
+            const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET);
+            // Find user
+            const user = yield auth_model_1.User.findById(decoded.userId);
+            if (user) {
+                // Attach user to request if found
+                req.user = user;
+            }
+            next();
+        }
+        catch (error) {
+            // Token invalid - continue without user (don't fail)
+            req.user = undefined;
+            next();
+        }
+    });
+};
+exports.optionalAuth = optionalAuth;

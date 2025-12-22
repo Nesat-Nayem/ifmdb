@@ -20,6 +20,8 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const watch_videos_model_1 = require("./watch-videos.model");
+const wallet_controller_1 = require("../wallet/wallet.controller");
+const ccavenueService_1 = __importDefault(require("../../services/ccavenueService"));
 // Cashfree API Configuration
 const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production'
     ? 'https://api.cashfree.com/pg'
@@ -90,10 +92,11 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
             currency = countryPrice.currency;
         }
     }
-    // Calculate amounts
+    // Calculate amounts (no GST for video purchases)
     const totalAmount = price;
-    const taxAmount = Math.round(totalAmount * 0.18); // 18% GST
-    const finalAmount = totalAmount + taxAmount;
+    const finalAmount = totalAmount;
+    // Check if user is from India (use Cashfree) or international (use CCAvenue)
+    const isIndianUser = countryCode.toUpperCase() === 'IN';
     const purchaseReference = generatePurchaseReference();
     const orderId = generateOrderId();
     // Calculate expiry for rental (7 days)
@@ -102,6 +105,77 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
         expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
     try {
+        // Route to appropriate payment gateway based on country
+        if (!isIndianUser) {
+            // Use CCAvenue for international users
+            const ccOrderId = ccavenueService_1.default.generateCCOrderId();
+            const ccOrderParams = {
+                orderId: ccOrderId,
+                amount: finalAmount,
+                currency: currency,
+                customerName: customerDetails.name,
+                customerEmail: customerDetails.email,
+                customerPhone: customerDetails.phone || '0000000000',
+                billingCountry: countryCode,
+                redirectUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/callback`,
+                cancelUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/cancel`,
+                merchantParam1: userId,
+                merchantParam2: videoId,
+                merchantParam3: 'video',
+                merchantParam4: purchaseType,
+                merchantParam5: purchaseReference,
+            };
+            const ccavenueData = ccavenueService_1.default.createEncryptedRequest(ccOrderParams);
+            // Create purchase record with pending status
+            const purchaseData = {
+                userId: new mongoose_1.default.Types.ObjectId(userId),
+                videoId: new mongoose_1.default.Types.ObjectId(videoId),
+                purchaseType,
+                amount: totalAmount,
+                currency,
+                countryCode,
+                paymentStatus: 'pending',
+                paymentMethod: 'ccavenue',
+                transactionId: ccOrderId,
+                purchaseReference,
+                expiresAt,
+                customerDetails,
+                purchasedAt: new Date(),
+            };
+            const newPurchase = yield watch_videos_model_1.VideoPurchase.create(purchaseData);
+            // Record initial transaction
+            yield watch_videos_model_1.VideoPaymentTransaction.create({
+                purchaseId: newPurchase._id,
+                paymentGateway: 'ccavenue',
+                gatewayTransactionId: ccOrderId,
+                amount: finalAmount,
+                currency,
+                status: 'pending',
+                paymentMethod: 'ccavenue',
+                gatewayResponse: { orderId: ccOrderId },
+            });
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.CREATED,
+                success: true,
+                message: 'CCAvenue payment order created successfully',
+                data: {
+                    purchase: newPurchase,
+                    paymentGateway: 'ccavenue',
+                    ccavenueOrder: {
+                        orderId: ccOrderId,
+                        encRequest: ccavenueData.encRequest,
+                        accessCode: ccavenueData.accessCode,
+                        ccavenueUrl: ccavenueData.ccavenueUrl,
+                    },
+                    video: {
+                        id: video._id,
+                        title: video.title,
+                        thumbnailUrl: video.thumbnailUrl
+                    }
+                },
+            });
+        }
+        // Use Cashfree for Indian users
         // Create Cashfree order
         const cashfreeResponse = yield axios_1.default.post(`${CASHFREE_API_URL}/orders`, {
             order_id: orderId,
@@ -189,7 +263,7 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
 }));
 // Verify Cashfree payment for video
 const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c;
     const { orderId } = req.params;
     try {
         // Fetch order status from Cashfree
@@ -224,6 +298,29 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
             // Get video details
             const video = yield watch_videos_model_1.WatchVideo.findById(purchase.videoId)
                 .populate('channelId', 'name logoUrl');
+            // Credit vendor wallet if video has a vendor
+            const videoData = video;
+            const purchaseData = purchase;
+            if (videoData && videoData.uploadedBy && videoData.uploadedByType === 'vendor') {
+                try {
+                    yield wallet_controller_1.WalletController.creditVendorEarnings({
+                        vendorId: videoData.uploadedBy.toString(),
+                        amount: purchaseData.amount,
+                        serviceType: 'movie_watch',
+                        referenceType: 'video_purchase',
+                        referenceId: purchaseData._id.toString(),
+                        metadata: {
+                            purchaseId: purchaseData._id.toString(),
+                            customerName: ((_a = purchaseData.customerDetails) === null || _a === void 0 ? void 0 : _a.name) || '',
+                            customerEmail: ((_b = purchaseData.customerDetails) === null || _b === void 0 ? void 0 : _b.email) || '',
+                            itemTitle: videoData.title || '',
+                        },
+                    });
+                }
+                catch (walletError) {
+                    console.error('Failed to credit vendor wallet:', walletError);
+                }
+            }
             return (0, sendResponse_1.sendResponse)(res, {
                 statusCode: http_status_1.default.OK,
                 success: true,
@@ -263,7 +360,7 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
         }
     }
     catch (error) {
-        console.error('Payment verification error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        console.error('Payment verification error:', ((_c = error.response) === null || _c === void 0 ? void 0 : _c.data) || error.message);
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.BAD_REQUEST,
             success: false,

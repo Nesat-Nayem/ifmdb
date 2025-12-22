@@ -49,8 +49,6 @@ const createChannelValidation = zod_1.z.object({
         description: zod_1.z.string().optional(),
         logoUrl: zod_1.z.string().optional(),
         bannerUrl: zod_1.z.string().optional(),
-        ownerId: zod_1.z.string().min(1, 'Owner ID is required'),
-        ownerType: zod_1.z.enum(['admin', 'vendor']),
         socialLinks: zod_1.z.object({
             website: zod_1.z.string().optional(),
             youtube: zod_1.z.string().optional(),
@@ -154,6 +152,8 @@ const updateWatchVideoValidation = zod_1.z.object({
         status: zod_1.z.enum(['draft', 'published', 'archived']).optional(),
         isActive: zod_1.z.boolean().optional(),
         isFeatured: zod_1.z.boolean().optional(),
+        homeSection: zod_1.z.string().optional(),
+        rentalDays: zod_1.z.number().min(0).optional(),
     }),
 });
 const getWatchVideosValidation = zod_1.z.object({

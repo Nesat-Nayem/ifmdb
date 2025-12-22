@@ -8,6 +8,7 @@ const watch_videos_controller_1 = require("./watch-videos.controller");
 const watch_videos_payment_controller_1 = require("./watch-videos-payment.controller");
 const validateRequest_1 = __importDefault(require("../../middlewares/validateRequest"));
 const watch_videos_validation_1 = require("./watch-videos.validation");
+const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const router = express_1.default.Router();
 // ==================== CHANNEL ROUTES ====================
 /**
@@ -17,7 +18,7 @@ const router = express_1.default.Router();
  *     summary: Create a new channel
  *     tags: [Watch Videos - Channels]
  */
-router.post('/channels', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.createChannelValidation), watch_videos_controller_1.WatchVideoController.createChannel);
+router.post('/channels', (0, authMiddleware_1.auth)(), (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.createChannelValidation), watch_videos_controller_1.WatchVideoController.createChannel);
 /**
  * @swagger
  * /v1/api/watch-videos/channels:
@@ -25,7 +26,7 @@ router.post('/channels', (0, validateRequest_1.default)(watch_videos_validation_
  *     summary: Get all channels
  *     tags: [Watch Videos - Channels]
  */
-router.get('/channels', watch_videos_controller_1.WatchVideoController.getAllChannels);
+router.get('/channels', (0, authMiddleware_1.optionalAuth)(), watch_videos_controller_1.WatchVideoController.getAllChannels);
 /**
  * @swagger
  * /v1/api/watch-videos/channels/{id}:
@@ -33,7 +34,7 @@ router.get('/channels', watch_videos_controller_1.WatchVideoController.getAllCha
  *     summary: Get channel by ID
  *     tags: [Watch Videos - Channels]
  */
-router.get('/channels/:id', watch_videos_controller_1.WatchVideoController.getChannelById);
+router.get('/channels/:id', (0, authMiddleware_1.auth)(), watch_videos_controller_1.WatchVideoController.getChannelById);
 /**
  * @swagger
  * /v1/api/watch-videos/channels/{id}:
@@ -41,7 +42,7 @@ router.get('/channels/:id', watch_videos_controller_1.WatchVideoController.getCh
  *     summary: Update channel
  *     tags: [Watch Videos - Channels]
  */
-router.put('/channels/:id', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.updateChannelValidation), watch_videos_controller_1.WatchVideoController.updateChannel);
+router.put('/channels/:id', (0, authMiddleware_1.auth)(), (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.updateChannelValidation), watch_videos_controller_1.WatchVideoController.updateChannel);
 /**
  * @swagger
  * /v1/api/watch-videos/channels/{id}:
@@ -49,7 +50,7 @@ router.put('/channels/:id', (0, validateRequest_1.default)(watch_videos_validati
  *     summary: Delete channel (soft delete)
  *     tags: [Watch Videos - Channels]
  */
-router.delete('/channels/:id', watch_videos_controller_1.WatchVideoController.deleteChannel);
+router.delete('/channels/:id', (0, authMiddleware_1.auth)(), watch_videos_controller_1.WatchVideoController.deleteChannel);
 /**
  * @swagger
  * /v1/api/watch-videos/channels/{channelId}/subscribe:
@@ -57,7 +58,7 @@ router.delete('/channels/:id', watch_videos_controller_1.WatchVideoController.de
  *     summary: Subscribe to a channel
  *     tags: [Watch Videos - Channels]
  */
-router.post('/channels/:channelId/subscribe', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.subscribeValidation), watch_videos_controller_1.WatchVideoController.subscribeToChannel);
+router.post('/channels/:channelId/subscribe', (0, authMiddleware_1.auth)(), watch_videos_controller_1.WatchVideoController.subscribeToChannel);
 /**
  * @swagger
  * /v1/api/watch-videos/channels/{channelId}/unsubscribe:
@@ -65,15 +66,23 @@ router.post('/channels/:channelId/subscribe', (0, validateRequest_1.default)(wat
  *     summary: Unsubscribe from a channel
  *     tags: [Watch Videos - Channels]
  */
-router.post('/channels/:channelId/unsubscribe', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.subscribeValidation), watch_videos_controller_1.WatchVideoController.unsubscribeFromChannel);
+router.post('/channels/:channelId/unsubscribe', (0, authMiddleware_1.auth)(), watch_videos_controller_1.WatchVideoController.unsubscribeFromChannel);
 /**
  * @swagger
- * /v1/api/watch-videos/channels/{channelId}/subscription/{userId}:
+ * /v1/api/watch-videos/channels/{channelId}/toggle-notification:
+ *   patch:
+ *     summary: Toggle notification for a subscribed channel
+ *     tags: [Watch Videos - Channels]
+ */
+router.patch('/channels/:channelId/toggle-notification', (0, authMiddleware_1.auth)(), watch_videos_controller_1.WatchVideoController.toggleNotification);
+/**
+ * @swagger
+ * /v1/api/watch-videos/channels/{channelId}/subscription:
  *   get:
  *     summary: Check subscription status
  *     tags: [Watch Videos - Channels]
  */
-router.get('/channels/:channelId/subscription/:userId', watch_videos_controller_1.WatchVideoController.checkSubscription);
+router.get('/channels/:channelId/subscription', (0, authMiddleware_1.auth)(), watch_videos_controller_1.WatchVideoController.checkSubscription);
 /**
  * @swagger
  * /v1/api/watch-videos/channels/{channelId}/videos:
@@ -84,12 +93,12 @@ router.get('/channels/:channelId/subscription/:userId', watch_videos_controller_
 router.get('/channels/:channelId/videos', watch_videos_controller_1.WatchVideoController.getVideosByChannel);
 /**
  * @swagger
- * /v1/api/watch-videos/user/{userId}/subscriptions:
+ * /v1/api/watch-videos/user/subscriptions:
  *   get:
  *     summary: Get user's subscribed channels
  *     tags: [Watch Videos - Channels]
  */
-router.get('/user/:userId/subscriptions', watch_videos_controller_1.WatchVideoController.getUserSubscriptions);
+router.get('/user/subscriptions', (0, authMiddleware_1.auth)(), watch_videos_controller_1.WatchVideoController.getUserSubscriptions);
 // ==================== CATEGORY ROUTES ====================
 /**
  * @swagger
@@ -131,7 +140,7 @@ router.delete('/categories/:id', watch_videos_controller_1.WatchVideoController.
  *     summary: Create a new watch video
  *     tags: [Watch Videos]
  */
-router.post('/', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.createWatchVideoValidation), watch_videos_controller_1.WatchVideoController.createWatchVideo);
+router.post('/', (0, authMiddleware_1.auth)(), (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.createWatchVideoValidation), watch_videos_controller_1.WatchVideoController.createWatchVideo);
 /**
  * @swagger
  * /v1/api/watch-videos:
@@ -139,7 +148,7 @@ router.post('/', (0, validateRequest_1.default)(watch_videos_validation_1.WatchV
  *     summary: Get all watch videos with filtering and pagination
  *     tags: [Watch Videos]
  */
-router.get('/', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.getWatchVideosValidation), watch_videos_controller_1.WatchVideoController.getAllWatchVideos);
+router.get('/', (0, authMiddleware_1.optionalAuth)(), (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.getWatchVideosValidation), watch_videos_controller_1.WatchVideoController.getAllWatchVideos);
 /**
  * @swagger
  * /v1/api/watch-videos/featured:

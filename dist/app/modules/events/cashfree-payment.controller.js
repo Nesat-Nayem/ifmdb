@@ -22,6 +22,8 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const events_model_1 = __importDefault(require("./events.model"));
 const event_booking_model_1 = require("./event-booking.model");
+const wallet_controller_1 = require("../wallet/wallet.controller");
+const ccavenueService_1 = __importDefault(require("../../services/ccavenueService"));
 // Cashfree API Configuration
 const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production'
     ? 'https://api.cashfree.com/pg'
@@ -107,15 +109,92 @@ const createCashfreeOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             data: null,
         });
     }
-    // Calculate amounts
+    // Calculate amounts (no booking fee or GST)
     const totalAmount = unitPrice * quantity;
-    const bookingFee = Math.round(totalAmount * 0.02); // 2% booking fee
-    const taxAmount = Math.round(totalAmount * 0.18); // 18% GST
-    const finalAmount = totalAmount + bookingFee + taxAmount;
+    const bookingFee = 0;
+    const taxAmount = 0;
+    const finalAmount = totalAmount;
     const bookingReference = generateBookingReference();
     const orderId = generateOrderId();
-    // Create Cashfree order
+    // Get country code from request (default to IN for Indian users)
+    const countryCode = req.body.countryCode || 'IN';
+    const isIndianUser = countryCode.toUpperCase() === 'IN';
     try {
+        // Route to CCAvenue for international users
+        if (!isIndianUser) {
+            const ccOrderId = ccavenueService_1.default.generateCCOrderId();
+            const ccOrderParams = {
+                orderId: ccOrderId,
+                amount: finalAmount,
+                currency: 'USD', // Default to USD for international users
+                customerName: customerDetails.name,
+                customerEmail: customerDetails.email,
+                customerPhone: customerDetails.phone || '0000000000',
+                billingCountry: countryCode,
+                redirectUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/callback`,
+                cancelUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/cancel`,
+                merchantParam1: userId,
+                merchantParam2: eventId,
+                merchantParam3: 'event',
+                merchantParam4: seatType,
+                merchantParam5: bookingReference,
+            };
+            const ccavenueData = ccavenueService_1.default.createEncryptedRequest(ccOrderParams);
+            // Create booking with pending status
+            const bookingData = {
+                eventId: new mongoose_1.default.Types.ObjectId(eventId),
+                userId: new mongoose_1.default.Types.ObjectId(userId),
+                bookingReference,
+                quantity,
+                seatType,
+                unitPrice,
+                totalAmount,
+                bookingFee: 0,
+                taxAmount: 0,
+                discountAmount: 0,
+                finalAmount,
+                paymentStatus: 'pending',
+                bookingStatus: 'pending',
+                paymentMethod: 'ccavenue',
+                cashfreeOrderId: ccOrderId,
+                bookedAt: new Date(),
+                expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+                customerDetails,
+            };
+            const newBooking = yield event_booking_model_1.EventBooking.create(bookingData);
+            // Record initial transaction
+            yield event_booking_model_1.EventPaymentTransaction.create({
+                bookingId: newBooking._id,
+                paymentGateway: 'ccavenue',
+                gatewayTransactionId: ccOrderId,
+                amount: finalAmount,
+                currency: 'USD',
+                status: 'pending',
+                paymentMethod: 'ccavenue',
+                gatewayResponse: { orderId: ccOrderId },
+            });
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.CREATED,
+                success: true,
+                message: 'CCAvenue payment order created successfully',
+                data: {
+                    booking: newBooking,
+                    paymentGateway: 'ccavenue',
+                    ccavenueOrder: {
+                        orderId: ccOrderId,
+                        encRequest: ccavenueData.encRequest,
+                        accessCode: ccavenueData.accessCode,
+                        ccavenueUrl: ccavenueData.ccavenueUrl,
+                    },
+                    event: {
+                        id: event._id,
+                        title: event.title,
+                    }
+                },
+            });
+        }
+        // Use Cashfree for Indian users
+        // Create Cashfree order
         const cashfreeResponse = yield axios_1.default.post(`${CASHFREE_API_URL}/orders`, {
             order_id: orderId,
             order_amount: finalAmount,
@@ -202,7 +281,7 @@ const createCashfreeOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
 }));
 // Verify Cashfree payment
 const verifyCashfreePayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c;
     const { orderId } = req.params;
     try {
         // Fetch order status from Cashfree
@@ -279,6 +358,28 @@ const verifyCashfreePayment = (0, catchAsync_1.catchAsync)((req, res) => __await
                 qrCodeImageUrl,
                 quantity: booking.quantity,
             });
+            // Credit vendor wallet if event has a vendor
+            const eventData = event;
+            if (eventData && eventData.vendorId) {
+                try {
+                    yield wallet_controller_1.WalletController.creditVendorEarnings({
+                        vendorId: eventData.vendorId.toString(),
+                        amount: booking.finalAmount,
+                        serviceType: 'events',
+                        referenceType: 'event_booking',
+                        referenceId: booking._id.toString(),
+                        metadata: {
+                            bookingId: booking._id.toString(),
+                            customerName: (_a = booking.customerDetails) === null || _a === void 0 ? void 0 : _a.name,
+                            customerEmail: (_b = booking.customerDetails) === null || _b === void 0 ? void 0 : _b.email,
+                            itemTitle: (event === null || event === void 0 ? void 0 : event.title) || '',
+                        },
+                    });
+                }
+                catch (walletError) {
+                    console.error('Failed to credit vendor wallet:', walletError);
+                }
+            }
             // Populate booking with event details
             const populatedBooking = yield event_booking_model_1.EventBooking.findById(booking._id)
                 .populate('eventId', 'title posterImage startDate startTime endTime location')
@@ -321,7 +422,7 @@ const verifyCashfreePayment = (0, catchAsync_1.catchAsync)((req, res) => __await
         }
     }
     catch (error) {
-        console.error('Payment verification error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        console.error('Payment verification error:', ((_c = error.response) === null || _c === void 0 ? void 0 : _c.data) || error.message);
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.BAD_REQUEST,
             success: false,

@@ -17,9 +17,11 @@ const http_status_1 = __importDefault(require("http-status"));
 const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const watch_videos_model_1 = require("./watch-videos.model");
+const notifications_service_1 = __importDefault(require("../notifications/notifications.service"));
 // ==================== CHANNEL CONTROLLERS ====================
 // Create Channel
 const createChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const channelData = req.body;
     const existingChannel = yield watch_videos_model_1.Channel.findOne({ name: channelData.name });
     if (existingChannel) {
@@ -30,7 +32,23 @@ const createChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 
             data: null,
         });
     }
-    const newChannel = yield watch_videos_model_1.Channel.create(channelData);
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const payload = Object.assign({}, channelData);
+    // Prevent spoofing ownership from client
+    payload.ownerId = user._id;
+    payload.ownerType = user.role === 'admin' ? 'admin' : 'vendor';
+    // Vendors cannot self-verify channels
+    if (user.role === 'vendor') {
+        payload.isVerified = false;
+    }
+    const newChannel = yield watch_videos_model_1.Channel.create(payload);
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.CREATED,
         success: true,
@@ -40,8 +58,13 @@ const createChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 
 }));
 // Get All Channels
 const getAllChannels = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { page = 1, limit = 10, search, isActive, isVerified, sortBy = 'subscriberCount', sortOrder = 'desc' } = req.query;
     const query = {};
+    // If user is a vendor, only show their own channels
+    if (user && user.role === 'vendor') {
+        query.ownerId = user._id;
+    }
     if (search) {
         query.$text = { $search: search };
     }
@@ -77,6 +100,7 @@ const getAllChannels = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void
 }));
 // Get Channel by ID
 const getChannelById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { id } = req.params;
     const channel = yield watch_videos_model_1.Channel.findById(id).populate('ownerId', 'name email');
     if (!channel) {
@@ -84,6 +108,15 @@ const getChannelById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,
             message: 'Channel not found',
+            data: null,
+        });
+    }
+    // Vendors can only access their own channel
+    if (user && user.role === 'vendor' && channel.ownerId && channel.ownerId.toString() !== user._id.toString()) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.FORBIDDEN,
+            success: false,
+            message: 'You are not allowed to access this channel',
             data: null,
         });
     }
@@ -96,8 +129,42 @@ const getChannelById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void
 }));
 // Update Channel
 const updateChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { id } = req.params;
     const updateData = req.body;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const existing = yield watch_videos_model_1.Channel.findById(id);
+    if (!existing) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.NOT_FOUND,
+            success: false,
+            message: 'Channel not found',
+            data: null,
+        });
+    }
+    // Vendors can only update their own channels
+    if (user.role === 'vendor' && existing.ownerId.toString() !== user._id.toString()) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.FORBIDDEN,
+            success: false,
+            message: 'You are not allowed to update this channel',
+            data: null,
+        });
+    }
+    // Prevent ownership changes
+    delete updateData.ownerId;
+    delete updateData.ownerType;
+    // Vendors cannot set verified
+    if (user.role === 'vendor') {
+        delete updateData.isVerified;
+    }
     const channel = yield watch_videos_model_1.Channel.findByIdAndUpdate(id, updateData, { new: true });
     if (!channel) {
         return (0, sendResponse_1.sendResponse)(res, {
@@ -116,7 +183,34 @@ const updateChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 
 }));
 // Delete Channel
 const deleteChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { id } = req.params;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const existing = yield watch_videos_model_1.Channel.findById(id);
+    if (!existing) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.NOT_FOUND,
+            success: false,
+            message: 'Channel not found',
+            data: null,
+        });
+    }
+    // Vendors can only delete their own channels
+    if (user.role === 'vendor' && existing.ownerId.toString() !== user._id.toString()) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.FORBIDDEN,
+            success: false,
+            message: 'You are not allowed to delete this channel',
+            data: null,
+        });
+    }
     const channel = yield watch_videos_model_1.Channel.findByIdAndUpdate(id, { isActive: false }, { new: true });
     if (!channel) {
         return (0, sendResponse_1.sendResponse)(res, {
@@ -135,8 +229,17 @@ const deleteChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 
 }));
 // Subscribe to Channel
 const subscribeToChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { channelId } = req.params;
-    const { userId } = req.body;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const userId = user._id;
     const channel = yield watch_videos_model_1.Channel.findById(channelId);
     if (!channel || !channel.isActive) {
         return (0, sendResponse_1.sendResponse)(res, {
@@ -155,7 +258,7 @@ const subscribeToChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
             data: null,
         });
     }
-    const subscription = yield watch_videos_model_1.ChannelSubscription.create({ channelId, userId });
+    const subscription = yield watch_videos_model_1.ChannelSubscription.create({ channelId, userId, isNotificationEnabled: true });
     yield watch_videos_model_1.Channel.findByIdAndUpdate(channelId, { $inc: { subscriberCount: 1 } });
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.CREATED,
@@ -166,8 +269,17 @@ const subscribeToChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
 }));
 // Unsubscribe from Channel
 const unsubscribeFromChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { channelId } = req.params;
-    const { userId } = req.body;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const userId = user._id;
     const subscription = yield watch_videos_model_1.ChannelSubscription.findOneAndDelete({ channelId, userId });
     if (!subscription) {
         return (0, sendResponse_1.sendResponse)(res, {
@@ -185,20 +297,72 @@ const unsubscribeFromChannel = (0, catchAsync_1.catchAsync)((req, res) => __awai
         data: null,
     });
 }));
+// Toggle Notification for Subscription
+const toggleNotification = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
+    const { channelId } = req.params;
+    const { isNotificationEnabled } = req.body;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const userId = user._id;
+    const subscription = yield watch_videos_model_1.ChannelSubscription.findOneAndUpdate({ channelId, userId }, { isNotificationEnabled }, { new: true });
+    if (!subscription) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.NOT_FOUND,
+            success: false,
+            message: 'Subscription not found',
+            data: null,
+        });
+    }
+    return (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: `Notifications ${isNotificationEnabled ? 'enabled' : 'disabled'} successfully`,
+        data: subscription,
+    });
+}));
 // Check Subscription Status
 const checkSubscription = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { channelId, userId } = req.params;
+    const user = req.user;
+    const { channelId } = req.params;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const userId = user._id;
     const subscription = yield watch_videos_model_1.ChannelSubscription.findOne({ channelId, userId });
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
         message: 'Subscription status retrieved',
-        data: { isSubscribed: !!subscription },
+        data: {
+            isSubscribed: !!subscription,
+            isNotificationEnabled: (subscription === null || subscription === void 0 ? void 0 : subscription.isNotificationEnabled) || false
+        },
     });
 }));
 // Get User's Subscribed Channels
 const getUserSubscriptions = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { userId } = req.params;
+    const user = req.user;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const userId = user._id;
     const subscriptions = yield watch_videos_model_1.ChannelSubscription.find({ userId })
         .populate('channelId')
         .sort({ createdAt: -1 });
@@ -228,6 +392,20 @@ const createWatchVideo = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(vo
         videoData.totalEpisodes = videoData.seasons.reduce((total, season) => { var _a; return total + (((_a = season.episodes) === null || _a === void 0 ? void 0 : _a.length) || 0); }, 0);
     }
     const newVideo = yield watch_videos_model_1.WatchVideo.create(videoData);
+    // Notify channel subscribers about the new video
+    try {
+        yield notifications_service_1.default.notifyChannelSubscribers({
+            channelId: channel._id,
+            channelName: channel.name,
+            videoId: newVideo._id,
+            videoTitle: newVideo.title,
+            thumbnailUrl: newVideo.thumbnailUrl
+        });
+    }
+    catch (notifError) {
+        console.error('Error sending notifications:', notifError);
+        // Don't fail the video creation if notifications fail
+    }
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.CREATED,
         success: true,
@@ -237,8 +415,13 @@ const createWatchVideo = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(vo
 }));
 // Get All Watch Videos
 const getAllWatchVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { page = 1, limit = 10, search, category, categoryId, channelId, videoType, genre, language, status, isFree, isFeatured, minPrice, maxPrice, sortBy = 'createdAt', sortOrder = 'desc', uploadedBy } = req.query;
     const query = { isActive: true };
+    // If user is a vendor, only show their own videos
+    if (user && user.role === 'vendor') {
+        query.uploadedBy = user._id;
+    }
     if (search) {
         query.$text = { $search: search };
     }
@@ -260,7 +443,7 @@ const getAllWatchVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
         query.isFree = isFree === 'true';
     if (isFeatured !== undefined)
         query.isFeatured = isFeatured === 'true';
-    if (uploadedBy)
+    if (uploadedBy && (!user || user.role !== 'vendor'))
         query.uploadedBy = uploadedBy;
     if (minPrice || maxPrice) {
         query.defaultPrice = {};
@@ -904,6 +1087,7 @@ exports.WatchVideoController = {
     deleteChannel,
     subscribeToChannel,
     unsubscribeFromChannel,
+    toggleNotification,
     checkSubscription,
     getUserSubscriptions,
     // Watch Videos
