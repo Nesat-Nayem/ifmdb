@@ -335,6 +335,330 @@ const options: swaggerJSDoc.Options = {
             },
           },
         },
+        Channel: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '67890abcdef1234567890123' },
+            name: { type: 'string', example: 'Moviemart Originals' },
+            description: { type: 'string', example: 'Official channel for Moviemart exclusive content and original series' },
+            logoUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/channels/moviemart-logo.png' },
+            bannerUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/channels/moviemart-banner.jpg' },
+            ownerId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            ownerType: { type: 'string', enum: ['admin', 'vendor'], example: 'admin' },
+            subscriberCount: { type: 'number', example: 125000 },
+            totalViews: { type: 'number', example: 5420000 },
+            isVerified: { type: 'boolean', example: true },
+            isActive: { type: 'boolean', example: true },
+            socialLinks: {
+              type: 'object',
+              properties: {
+                website: { type: 'string', example: 'https://moviemart.com' },
+                youtube: { type: 'string', example: 'https://youtube.com/@moviemart' },
+                instagram: { type: 'string', example: 'https://instagram.com/moviemart' },
+                twitter: { type: 'string', example: 'https://twitter.com/moviemart' },
+                facebook: { type: 'string', example: 'https://facebook.com/moviemart' }
+              }
+            },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        ChannelCreate: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name: { type: 'string', example: 'Moviemart Originals' },
+            description: { type: 'string', example: 'Official channel for Moviemart exclusive content' },
+            logoUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/channels/logo.png' },
+            bannerUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/channels/banner.jpg' },
+            socialLinks: {
+              type: 'object',
+              properties: {
+                website: { type: 'string', example: 'https://moviemart.com' },
+                youtube: { type: 'string', example: 'https://youtube.com/@moviemart' },
+                instagram: { type: 'string', example: 'https://instagram.com/moviemart' },
+                twitter: { type: 'string', example: 'https://twitter.com/moviemart' },
+                facebook: { type: 'string', example: 'https://facebook.com/moviemart' }
+              }
+            }
+          }
+        },
+        ChannelUpdate: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', example: 'Moviemart Originals Updated' },
+            description: { type: 'string', example: 'Updated description' },
+            logoUrl: { type: 'string' },
+            bannerUrl: { type: 'string' },
+            isVerified: { type: 'boolean', example: true },
+            isActive: { type: 'boolean', example: true },
+            socialLinks: { type: 'object' }
+          }
+        },
+        WatchVideoCategory: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '67890abcdef1234567890456' },
+            name: { type: 'string', example: 'Action & Adventure' },
+            description: { type: 'string', example: 'High-octane action movies and thrilling adventures' },
+            imageUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/categories/action.jpg' },
+            iconUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/icons/action.svg' },
+            parentId: { type: 'string', nullable: true, example: null },
+            order: { type: 'number', example: 1 },
+            isActive: { type: 'boolean', example: true },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        WatchVideoCategoryCreate: {
+          type: 'object',
+          required: ['name'],
+          properties: {
+            name: { type: 'string', example: 'Action & Adventure' },
+            description: { type: 'string', example: 'High-octane action movies and thrilling adventures' },
+            imageUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/categories/action.jpg' },
+            iconUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/icons/action.svg' },
+            parentId: { type: 'string', nullable: true },
+            order: { type: 'number', example: 1 }
+          }
+        },
+        WatchVideo: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '67890abcdef1234567890789' },
+            title: { type: 'string', example: 'The Dark Knight' },
+            description: { type: 'string', example: 'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.' },
+            channelId: { type: 'string', example: '67890abcdef1234567890123' },
+            videoType: { type: 'string', enum: ['single', 'series'], example: 'single' },
+            category: { type: 'string', example: 'Action & Adventure' },
+            categoryId: { type: 'string', example: '67890abcdef1234567890456' },
+            genres: { type: 'array', items: { type: 'string' }, example: ['Action', 'Crime', 'Drama', 'Thriller'] },
+            languages: { type: 'array', items: { type: 'string' }, example: ['English', 'Hindi', 'Tamil'] },
+            tags: { type: 'array', items: { type: 'string' }, example: ['superhero', 'batman', 'dc', 'crime-thriller'] },
+            videoUrl: { type: 'string', example: 'https://stream.moviemart.com/videos/dark-knight-1080p.m3u8' },
+            trailerUrl: { type: 'string', example: 'https://stream.moviemart.com/trailers/dark-knight-trailer.mp4' },
+            thumbnailUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/thumbnails/dark-knight.jpg' },
+            posterUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/posters/dark-knight.jpg' },
+            backdropUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/backdrops/dark-knight.jpg' },
+            galleryImages: { type: 'array', items: { type: 'string' }, example: ['https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/gallery/dk-1.jpg', 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/gallery/dk-2.jpg'] },
+            duration: { type: 'number', example: 9120, description: 'Duration in seconds (152 minutes)' },
+            releaseDate: { type: 'string', format: 'date-time', example: '2008-07-18T00:00:00.000Z' },
+            isFree: { type: 'boolean', example: false },
+            defaultPrice: { type: 'number', example: 299 },
+            countryPricing: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  countryCode: { type: 'string', example: 'US' },
+                  countryName: { type: 'string', example: 'United States' },
+                  currency: { type: 'string', example: 'USD' },
+                  price: { type: 'number', example: 3.99 },
+                  isActive: { type: 'boolean', example: true }
+                }
+              }
+            },
+            averageRating: { type: 'number', example: 9.0 },
+            totalRatings: { type: 'number', example: 15420 },
+            viewCount: { type: 'number', example: 2540000 },
+            likeCount: { type: 'number', example: 98500 },
+            ageRating: { type: 'string', enum: ['U', 'UA', 'A', 'S', 'G', 'PG', 'PG-13', 'R', 'NC-17'], example: 'PG-13' },
+            certification: { type: 'string', example: 'CBFC: UA' },
+            director: { type: 'string', example: 'Christopher Nolan' },
+            producer: { type: 'string', example: 'Emma Thomas, Charles Roven' },
+            cast: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'Christian Bale' },
+                  role: { type: 'string', example: 'Bruce Wayne / Batman' },
+                  image: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/cast/christian-bale.jpg' }
+                }
+              }
+            },
+            crew: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', example: 'Wally Pfister' },
+                  designation: { type: 'string', example: 'Director of Photography' },
+                  image: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/crew/wally-pfister.jpg' }
+                }
+              }
+            },
+            status: { type: 'string', enum: ['draft', 'published', 'archived'], example: 'published' },
+            isActive: { type: 'boolean', example: true },
+            isFeatured: { type: 'boolean', example: true },
+            uploadedBy: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            uploadedByType: { type: 'string', enum: ['admin', 'vendor'], example: 'admin' },
+            homeSection: { type: 'string', enum: ['', 'trending_now', 'most_popular', 'exclusive_on_moviemart', 'new_release'], example: 'trending_now' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        WatchVideoCreate: {
+          type: 'object',
+          required: ['title', 'description', 'channelId', 'videoType', 'category', 'thumbnailUrl', 'posterUrl', 'duration', 'releaseDate', 'uploadedBy', 'uploadedByType'],
+          properties: {
+            title: { type: 'string', example: 'The Dark Knight' },
+            description: { type: 'string', example: 'When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests.' },
+            channelId: { type: 'string', example: '67890abcdef1234567890123' },
+            videoType: { type: 'string', enum: ['single', 'series'], example: 'single' },
+            category: { type: 'string', example: 'Action & Adventure' },
+            categoryId: { type: 'string', example: '67890abcdef1234567890456' },
+            genres: { type: 'array', items: { type: 'string' }, example: ['Action', 'Crime', 'Drama'] },
+            languages: { type: 'array', items: { type: 'string' }, example: ['English', 'Hindi'] },
+            tags: { type: 'array', items: { type: 'string' }, example: ['superhero', 'batman'] },
+            videoUrl: { type: 'string', example: 'https://stream.moviemart.com/videos/dark-knight-1080p.m3u8' },
+            trailerUrl: { type: 'string', example: 'https://stream.moviemart.com/trailers/dark-knight-trailer.mp4' },
+            thumbnailUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/thumbnails/dark-knight.jpg' },
+            posterUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/posters/dark-knight.jpg' },
+            backdropUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/backdrops/dark-knight.jpg' },
+            galleryImages: { type: 'array', items: { type: 'string' } },
+            duration: { type: 'number', example: 9120 },
+            releaseDate: { type: 'string', format: 'date-time', example: '2008-07-18T00:00:00.000Z' },
+            isFree: { type: 'boolean', example: false },
+            defaultPrice: { type: 'number', example: 299 },
+            countryPricing: { type: 'array', items: { type: 'object' } },
+            ageRating: { type: 'string', enum: ['U', 'UA', 'A', 'S', 'G', 'PG', 'PG-13', 'R', 'NC-17'], example: 'PG-13' },
+            certification: { type: 'string', example: 'CBFC: UA' },
+            director: { type: 'string', example: 'Christopher Nolan' },
+            producer: { type: 'string', example: 'Emma Thomas' },
+            cast: { type: 'array', items: { type: 'object' } },
+            crew: { type: 'array', items: { type: 'object' } },
+            status: { type: 'string', enum: ['draft', 'published', 'archived'], example: 'draft' },
+            isFeatured: { type: 'boolean', example: false },
+            uploadedBy: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            uploadedByType: { type: 'string', enum: ['admin', 'vendor'], example: 'admin' }
+          }
+        },
+        Season: {
+          type: 'object',
+          properties: {
+            seasonNumber: { type: 'number', example: 1 },
+            title: { type: 'string', example: 'Season 1' },
+            description: { type: 'string', example: 'The first season of the epic series' },
+            episodes: { type: 'array', items: { $ref: '#/components/schemas/Episode' } },
+            releaseDate: { type: 'string', format: 'date-time' },
+            isActive: { type: 'boolean', example: true }
+          }
+        },
+        Episode: {
+          type: 'object',
+          properties: {
+            episodeNumber: { type: 'number', example: 1 },
+            title: { type: 'string', example: 'Pilot' },
+            description: { type: 'string', example: 'The beginning of an epic journey' },
+            videoUrl: { type: 'string', example: 'https://stream.moviemart.com/series/s1e1.m3u8' },
+            thumbnailUrl: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/episodes/s1e1.jpg' },
+            duration: { type: 'number', example: 3600 },
+            releaseDate: { type: 'string', format: 'date-time' },
+            isActive: { type: 'boolean', example: true },
+            viewCount: { type: 'number', example: 125000 }
+          }
+        },
+        VideoReview: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '67890abcdef1234567890999' },
+            videoId: { type: 'string', example: '67890abcdef1234567890789' },
+            userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            rating: { type: 'number', minimum: 1, maximum: 10, example: 9 },
+            reviewText: { type: 'string', example: 'An absolute masterpiece! Christopher Nolan delivers a gripping and intense superhero film.' },
+            isVerified: { type: 'boolean', example: true },
+            helpfulCount: { type: 'number', example: 245 },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        VideoReviewCreate: {
+          type: 'object',
+          required: ['userId', 'rating'],
+          properties: {
+            userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            rating: { type: 'number', minimum: 1, maximum: 10, example: 9 },
+            reviewText: { type: 'string', example: 'An absolute masterpiece! Highly recommended.' }
+          }
+        },
+        WatchProgress: {
+          type: 'object',
+          required: ['userId', 'watchedDuration', 'totalDuration'],
+          properties: {
+            userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            watchedDuration: { type: 'number', example: 4560, description: 'Watched duration in seconds' },
+            totalDuration: { type: 'number', example: 9120, description: 'Total duration in seconds' },
+            episodeId: { type: 'string', nullable: true },
+            seasonNumber: { type: 'number', nullable: true },
+            episodeNumber: { type: 'number', nullable: true }
+          }
+        },
+        VideoPurchase: {
+          type: 'object',
+          properties: {
+            _id: { type: 'string', example: '67890abcdef1234567891111' },
+            userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            videoId: { type: 'string', example: '67890abcdef1234567890789' },
+            purchaseType: { type: 'string', enum: ['rent', 'buy'], example: 'buy' },
+            amount: { type: 'number', example: 299 },
+            currency: { type: 'string', example: 'INR' },
+            countryCode: { type: 'string', example: 'IN' },
+            paymentStatus: { type: 'string', enum: ['pending', 'completed', 'failed', 'refunded'], example: 'completed' },
+            paymentMethod: { type: 'string', example: 'cashfree' },
+            transactionId: { type: 'string', example: 'TXN_20231218_123456' },
+            purchaseReference: { type: 'string', example: 'PURCHASE_20231218_123456' },
+            expiresAt: { type: 'string', format: 'date-time', nullable: true },
+            customerDetails: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', example: 'John Doe' },
+                email: { type: 'string', example: 'john.doe@example.com' },
+                phone: { type: 'string', example: '+919876543210' }
+              }
+            },
+            purchasedAt: { type: 'string', format: 'date-time' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' }
+          }
+        },
+        PaymentOrderCreate: {
+          type: 'object',
+          required: ['userId', 'customerDetails'],
+          properties: {
+            userId: { type: 'string', example: '507f1f77bcf86cd799439011' },
+            purchaseType: { type: 'string', enum: ['rent', 'buy'], example: 'buy' },
+            countryCode: { type: 'string', example: 'IN' },
+            customerDetails: {
+              type: 'object',
+              required: ['name', 'email', 'phone'],
+              properties: {
+                name: { type: 'string', example: 'John Doe' },
+                email: { type: 'string', example: 'john.doe@example.com' },
+                phone: { type: 'string', example: '+919876543210' }
+              }
+            },
+            returnUrl: { type: 'string', example: 'https://moviemart.com/payment/success' }
+          }
+        },
+        PaymentOrderResponse: {
+          type: 'object',
+          properties: {
+            orderId: { type: 'string', example: 'ORDER_20231218_123456' },
+            paymentSessionId: { type: 'string', example: 'session_abc123xyz' },
+            amount: { type: 'number', example: 299 },
+            currency: { type: 'string', example: 'INR' },
+            paymentUrl: { type: 'string', example: 'https://payments.cashfree.com/order/session_abc123xyz' }
+          }
+        },
+        SubscriptionStatus: {
+          type: 'object',
+          properties: {
+            isSubscribed: { type: 'boolean', example: true },
+            isNotificationEnabled: { type: 'boolean', example: true },
+            subscribedAt: { type: 'string', format: 'date-time' }
+          }
+        }
       },
     },
     security: [
