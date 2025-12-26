@@ -4,7 +4,7 @@ import validateRequest from '../../middlewares/validateRequest';
 import { EventValidation } from './events.validation';
 import { EventBookingController } from './event-booking.controller';
 import { EventBookingValidation } from './event-booking.validation';
-import { CashfreePaymentController } from './cashfree-payment.controller';
+import { RazorpayPaymentController } from './razorpay-payment.controller';
 import { auth, optionalAuth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
@@ -1167,15 +1167,15 @@ router.post('/tickets/validate/:scannerId', EventBookingController.validateTicke
 router.get('/tickets/status/:scannerId', EventBookingController.checkTicketStatus);
 
 // =============================================
-// CASHFREE PAYMENT ROUTES
+// RAZORPAY PAYMENT ROUTES
 // =============================================
 
 /**
  * @swagger
  * /v1/api/events/{id}/payment/create-order:
  *   post:
- *     summary: Create Cashfree payment order
- *     tags: [Events - Cashfree Payment]
+ *     summary: Create Razorpay payment order
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: id
@@ -1228,14 +1228,14 @@ router.get('/tickets/status/:scannerId', EventBookingController.checkTicketStatu
  *       404:
  *         description: Event not found
  */
-router.post('/:id/payment/create-order', CashfreePaymentController.createCashfreeOrder);
+router.post('/:id/payment/create-order', RazorpayPaymentController.createRazorpayOrder);
 
 /**
  * @swagger
- * /v1/api/events/payment/verify/{orderId}:
- *   get:
- *     summary: Verify Cashfree payment status
- *     tags: [Events - Cashfree Payment]
+ * /v1/api/events/payment/verify:
+ *   post:
+ *     summary: Verify Razorpay payment
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -1249,14 +1249,14 @@ router.post('/:id/payment/create-order', CashfreePaymentController.createCashfre
  *       404:
  *         description: Booking not found
  */
-router.get('/payment/verify/:orderId', CashfreePaymentController.verifyCashfreePayment);
+router.post('/payment/verify', RazorpayPaymentController.verifyRazorpayPayment);
 
 /**
  * @swagger
  * /v1/api/events/payment/status/{orderId}:
  *   get:
  *     summary: Get payment status by order ID
- *     tags: [Events - Cashfree Payment]
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -1270,14 +1270,14 @@ router.get('/payment/verify/:orderId', CashfreePaymentController.verifyCashfreeP
  *       404:
  *         description: Booking not found
  */
-router.get('/payment/status/:orderId', CashfreePaymentController.getPaymentStatus);
+router.get('/payment/status/:orderId', RazorpayPaymentController.getPaymentStatus);
 
 /**
  * @swagger
  * /v1/api/events/payment/webhook:
  *   post:
- *     summary: Cashfree webhook handler
- *     tags: [Events - Cashfree Payment]
+ *     summary: Razorpay webhook handler
+ *     tags: [Events - Razorpay Payment]
  *     requestBody:
  *       required: true
  *       content:
@@ -1288,14 +1288,14 @@ router.get('/payment/status/:orderId', CashfreePaymentController.getPaymentStatu
  *       200:
  *         description: Webhook received
  */
-router.post('/payment/webhook', CashfreePaymentController.handleCashfreeWebhook);
+router.post('/payment/webhook', RazorpayPaymentController.handleRazorpayWebhook);
 
 /**
  * @swagger
  * /v1/api/events/payment/refund/{bookingId}:
  *   post:
  *     summary: Initiate refund for a booking
- *     tags: [Events - Cashfree Payment]
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: bookingId
@@ -1320,6 +1320,6 @@ router.post('/payment/webhook', CashfreePaymentController.handleCashfreeWebhook)
  *       404:
  *         description: Booking not found
  */
-router.post('/payment/refund/:bookingId', CashfreePaymentController.initiateRefund);
+router.post('/payment/refund/:bookingId', RazorpayPaymentController.initiateRefund);
 
 export const eventRouter = router;

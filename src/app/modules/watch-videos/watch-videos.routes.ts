@@ -1,6 +1,6 @@
 import express from 'express';
 import { WatchVideoController } from './watch-videos.controller';
-import { WatchVideoPaymentController } from './watch-videos-payment.controller';
+import { RazorpayVideoPaymentController } from './razorpay-payment.controller';
 import validateRequest from '../../middlewares/validateRequest';
 import { WatchVideoValidation } from './watch-videos.validation';
 import { auth, optionalAuth } from '../../middlewares/authMiddleware';
@@ -1140,7 +1140,7 @@ router.get('/recommended', WatchVideoController.getRecommendedVideos);
  *                     pagination:
  *                       type: object
  */
-router.get('/purchases', WatchVideoPaymentController.getAllPurchases);
+router.get('/purchases', RazorpayVideoPaymentController.getAllPurchases);
 
 /**
  * @swagger
@@ -1955,15 +1955,15 @@ router.get('/user/:userId/purchases', WatchVideoController.getUserPurchases);
  */
 router.get('/:videoId/access/:userId', WatchVideoController.checkVideoAccess);
 
-// ==================== PAYMENT ROUTES ====================
+// ==================== RAZORPAY PAYMENT ROUTES ====================
 
 /**
  * @swagger
  * /v1/api/watch-videos/{videoId}/payment/create-order:
  *   post:
- *     summary: Create payment order for video purchase
- *     description: Create a payment order to purchase or rent a video
- *     tags: [Watch Videos - Payment]
+ *     summary: Create Razorpay payment order for video purchase
+ *     description: Create a Razorpay payment order to purchase or rent a video
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: videoId
@@ -2007,16 +2007,16 @@ router.get('/:videoId/access/:userId', WatchVideoController.checkVideoAccess);
 router.post(
   '/:videoId/payment/create-order',
   validateRequest(WatchVideoValidation.createPaymentOrderValidation),
-  WatchVideoPaymentController.createVideoPaymentOrder
+  RazorpayVideoPaymentController.createVideoPaymentOrder
 );
 
 /**
  * @swagger
- * /v1/api/watch-videos/payment/verify/{orderId}:
- *   get:
- *     summary: Verify payment status
- *     description: Verify the payment status after payment completion
- *     tags: [Watch Videos - Payment]
+ * /v1/api/watch-videos/payment/verify:
+ *   post:
+ *     summary: Verify Razorpay payment
+ *     description: Verify the Razorpay payment signature after payment completion
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -2058,7 +2058,7 @@ router.post(
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/payment/verify/:orderId', WatchVideoPaymentController.verifyVideoPayment);
+router.post('/payment/verify', RazorpayVideoPaymentController.verifyVideoPayment);
 
 /**
  * @swagger
@@ -2066,7 +2066,7 @@ router.get('/payment/verify/:orderId', WatchVideoPaymentController.verifyVideoPa
  *   get:
  *     summary: Get payment status
  *     description: Get the current status of a payment order
- *     tags: [Watch Videos - Payment]
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -2115,15 +2115,15 @@ router.get('/payment/verify/:orderId', WatchVideoPaymentController.verifyVideoPa
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/payment/status/:orderId', WatchVideoPaymentController.getVideoPaymentStatus);
+router.get('/payment/status/:orderId', RazorpayVideoPaymentController.getVideoPaymentStatus);
 
 /**
  * @swagger
  * /v1/api/watch-videos/payment/webhook:
  *   post:
- *     summary: Cashfree webhook handler
- *     description: Handle payment gateway webhooks (internal use)
- *     tags: [Watch Videos - Payment]
+ *     summary: Razorpay webhook handler
+ *     description: Handle Razorpay payment webhooks (internal use)
+ *     tags: [Watch Videos - Razorpay Payment]
  *     requestBody:
  *       required: true
  *       content:
@@ -2146,7 +2146,7 @@ router.get('/payment/status/:orderId', WatchVideoPaymentController.getVideoPayme
  *                   type: string
  *                   example: Webhook processed successfully
  */
-router.post('/payment/webhook', WatchVideoPaymentController.handleVideoPaymentWebhook);
+router.post('/payment/webhook', RazorpayVideoPaymentController.handleVideoPaymentWebhook);
 
 /**
  * @swagger
@@ -2154,7 +2154,7 @@ router.post('/payment/webhook', WatchVideoPaymentController.handleVideoPaymentWe
  *   post:
  *     summary: Initiate refund
  *     description: Initiate a refund for a video purchase
- *     tags: [Watch Videos - Payment]
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: purchaseId
@@ -2212,7 +2212,7 @@ router.post('/payment/webhook', WatchVideoPaymentController.handleVideoPaymentWe
 router.post(
   '/payment/refund/:purchaseId',
   validateRequest(WatchVideoValidation.initiateRefundValidation),
-  WatchVideoPaymentController.initiateVideoRefund
+  RazorpayVideoPaymentController.initiateVideoRefund
 );
 
 /**
@@ -2290,6 +2290,6 @@ router.post(
  *                     pagination:
  *                       type: object
  */
-router.get('/vendor/:vendorId/purchases', WatchVideoPaymentController.getVendorPurchases);
+router.get('/vendor/:vendorId/purchases', RazorpayVideoPaymentController.getVendorPurchases);
 
 export default router;
