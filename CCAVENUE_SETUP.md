@@ -41,7 +41,7 @@ Since you already have a CCAvenue account used for another project, follow these
    - **Development**: `http://localhost:3000` (or your dev port)
    - **Production**: `https://yourdomain.com`
 3. Add your backend URL for webhooks:
-   - **Development**: `https://api.moviemart.org`
+   - **Development**: `http://localhost:8080`
    - **Production**: `https://api.yourdomain.com`
 
 ### Step 5: Configure Redirect URLs
