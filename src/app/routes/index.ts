@@ -31,6 +31,7 @@ import walletRouter from "../modules/wallet/wallet.routes";
 import notificationRouter from "../modules/notifications/notifications.routes";
 import sectionSettingsRouter from "../modules/section-settings/section-settings.routes";
 import ccavenuePaymentRouter from "../modules/payment/ccavenue-payment.routes";
+import watchlistRouter from "../modules/watchlist/watchlist.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -185,6 +186,10 @@ const moduleRoutes = [
   {
     path: "/payment/ccavenue",
     route: ccavenuePaymentRouter,
+  },
+  {
+    path: "/watchlist",
+    route: watchlistRouter,
   },
 ];
 

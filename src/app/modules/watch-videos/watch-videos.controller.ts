@@ -1108,23 +1108,36 @@ const toggleLike = catchAsync(async (req: Request, res: Response) => {
 
   if (existingLike) {
     await VideoLike.deleteOne({ _id: existingLike._id });
-    await WatchVideo.findByIdAndUpdate(videoId, { $inc: { likeCount: -1 } });
+    const video = await WatchVideo.findByIdAndUpdate(
+      videoId, 
+      { $inc: { likeCount: -1 } },
+      { new: true }
+    );
+
+    const newLikeCount = Math.max(0, video?.likeCount || 0);
+    if (video && video.likeCount < 0) {
+      await WatchVideo.findByIdAndUpdate(videoId, { likeCount: 0 });
+    }
 
     return sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
       message: 'Like removed',
-      data: { liked: false },
+      data: { liked: false, likeCount: newLikeCount },
     });
   } else {
     await VideoLike.create({ videoId, userId });
-    await WatchVideo.findByIdAndUpdate(videoId, { $inc: { likeCount: 1 } });
+    const video = await WatchVideo.findByIdAndUpdate(
+      videoId, 
+      { $inc: { likeCount: 1 } },
+      { new: true }
+    );
 
     return sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
       message: 'Video liked',
-      data: { liked: true },
+      data: { liked: true, likeCount: video?.likeCount || 1 },
     });
   }
 });

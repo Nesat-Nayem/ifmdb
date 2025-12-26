@@ -211,7 +211,7 @@ const createVideoPaymentOrder = catchAsync(async (req: Request, res: Response) =
           customer_phone: customerDetails.phone,
         },
         order_meta: {
-          return_url: returnUrl || `${process.env.FRONTEND_URL}/watch-movie-deatils?videoId=${videoId}&order_id={order_id}`,
+          return_url: returnUrl || `${process.env.FRONTEND_URL}/watch-movie-deatils?id=${videoId}&order_id={order_id}`,
           notify_url: `${process.env.BACKEND_URL}/v1/api/watch-videos/payment/webhook`,
         },
         order_note: `Video: ${video.title} | Type: ${purchaseType}`,
