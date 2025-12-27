@@ -3,23 +3,15 @@ import router from './app/routes';
 import notFound from './app/middlewares/notFound';
 import globalErrorHandler from './app/middlewares/globalErrorHandler';
 import { setupSwagger } from './app/config/swagger';
-import initializeFirebaseAdmin from './app/config/firebase-admin';
 import { initializeFirebase } from './app/config/firebase';
 const app:Application = express();
 import cors from 'cors';
 
-// Initialize Firebase Admin SDK for Google Auth
-try {
-  initializeFirebaseAdmin();
-} catch (error) {
-  console.warn('⚠️ Firebase Admin SDK not initialized - Google auth will not work');
-}
-
-// Initialize Firebase for push notifications
+// Initialize Firebase Admin SDK (for both Google Auth and Push Notifications)
 try {
   initializeFirebase();
 } catch (error) {
-  console.warn('⚠️ Firebase push notifications not initialized');
+  console.warn('⚠️ Firebase not initialized - Google auth and push notifications will not work');
 }
 
 

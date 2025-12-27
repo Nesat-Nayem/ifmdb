@@ -2,40 +2,40 @@ import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
 
 
-const MenuBookmarkSchema = new Schema({
-  menuItemId: {
-    type: String,
-    required: true
-  },
-  hotelId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Hotel',
-    required: true
+// const MenuBookmarkSchema = new Schema({
+//   menuItemId: {
+//     type: String,
+//     required: true
+//   },
+//   hotelId: {
+//     type: mongoose.Schema.Types.ObjectId,
+//     ref: 'Hotel',
+//     required: true
     
-  },
-  hotelName: {
-    type: String,
-    required: true
-  },
+//   },
+//   hotelName: {
+//     type: String,
+//     required: true
+//   },
   
   
-  menuTitle: {
-    type: String,
-    required: true
-  },
-  menuImage: {
-    type: String,
-    required: true
-  },
-  menuPrice: {
-    type: Number,
-    required: true
-  },
-  bookmarkedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, { _id: false });
+//   menuTitle: {
+//     type: String,
+//     required: true
+//   },
+//   menuImage: {
+//     type: String,
+//     required: true
+//   },
+//   menuPrice: {
+//     type: Number,
+//     required: true
+//   },
+//   bookmarkedAt: {
+//     type: Date,
+//     default: Date.now
+//   }
+// }, { _id: false });
 
 export type VendorServiceType = 'film_trade' | 'events' | 'movie_watch';
 
@@ -53,7 +53,7 @@ export interface IUser extends Document {
   packageFeatures?: string[];
   vendorServices?: VendorServiceType[];
   vendorApplicationId?: mongoose.Types.ObjectId;
-  menuBookmarks?: typeof MenuBookmarkSchema[];
+  // menuBookmarks?: typeof MenuBookmarkSchema[];
   comparePassword(password: string): Promise<boolean>;
   compareOtp(otp: string): boolean;
 }
@@ -90,10 +90,10 @@ const userSchema: Schema = new Schema(
       ref: 'VendorApplication'
     },
 
-    menuBookmarks: {
-    type: [MenuBookmarkSchema],
-    default: []
-  },
+  //   menuBookmarks: {
+  //   type: [MenuBookmarkSchema],
+  //   default: []
+  // },
   },
   { timestamps: true }
 );

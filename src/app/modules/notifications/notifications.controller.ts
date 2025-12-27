@@ -117,7 +117,14 @@ const registerDeviceToken = catchAsync(async (req: userInterface, res: Response)
   const userId = req.user?._id;
   const { deviceToken, deviceType, deviceInfo } = req.body;
 
+  console.log('🔔 [FCM Registration] Request received');
+  console.log('🔔 [FCM Registration] User ID:', userId);
+  console.log('🔔 [FCM Registration] Device Token:', deviceToken?.substring(0, 20) + '...');
+  console.log('🔔 [FCM Registration] Device Type:', deviceType);
+  console.log('🔔 [FCM Registration] Device Info:', deviceInfo);
+
   if (!deviceToken || !deviceType) {
+    console.log('❌ [FCM Registration] Missing required fields');
     return sendResponse(res, {
       statusCode: httpStatus.BAD_REQUEST,
       success: false,
@@ -132,6 +139,8 @@ const registerDeviceToken = catchAsync(async (req: userInterface, res: Response)
     deviceType,
     deviceInfo
   });
+
+  console.log('✅ [FCM Registration] Token registered successfully:', result._id);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
