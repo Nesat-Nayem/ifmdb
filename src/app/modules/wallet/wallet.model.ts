@@ -231,7 +231,7 @@ const withdrawalRequestSchema: Schema = new Schema(
     },
     paymentGateway: {
       type: String,
-      default: 'cashfree'
+      default: 'razorpay'
     },
     gatewayTransactionId: {
       type: String

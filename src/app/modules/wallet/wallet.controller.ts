@@ -6,7 +6,7 @@ import { sendResponse } from '../../utils/sendResponse';
 import { userInterface } from '../../middlewares/userInterface';
 import { Wallet, WalletTransaction, WithdrawalRequest } from './wallet.model';
 import { PlatformSettings } from '../vendor/platformSettings.model';
-import cashfreePayoutService from '../../services/cashfreePayoutService';
+import razorpayPayoutService from '../../services/razorpayPayoutService';
 
 // ==================== WALLET CONTROLLERS ====================
 
@@ -380,13 +380,13 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     status: 'pending'
   });
 
-  // ✅ AUTOMATIC CASHFREE PAYOUT - Process withdrawal immediately
+  // ✅ AUTOMATIC RAZORPAY PAYOUT - Process withdrawal immediately
   try {
-    if (!cashfreePayoutService.isPayoutsConfigured()) {
-      throw new Error('Cashfree Payouts not configured. Please contact admin.');
+    if (!razorpayPayoutService.isPayoutsConfigured()) {
+      throw new Error('Razorpay Payouts not configured. Please contact admin.');
     }
 
-    const payoutResult = await cashfreePayoutService.processWithdrawal(
+    const payoutResult = await razorpayPayoutService.processWithdrawal(
       (withdrawalRequest._id as mongoose.Types.ObjectId).toString(),
       (user._id as mongoose.Types.ObjectId).toString(),
       amount,
@@ -401,7 +401,7 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     );
 
     if (payoutResult.success) {
-      // Update withdrawal request with Cashfree details
+      // Update withdrawal request with Razorpay details
       withdrawalRequest.gatewayTransactionId = payoutResult.transferId;
       withdrawalRequest.gatewayResponse = payoutResult.gatewayResponse;
       withdrawalRequest.status = 'processing'; // Will be updated to 'completed' via webhook
@@ -440,7 +440,7 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
       });
     }
   } catch (error: any) {
-    console.error('Cashfree Payout Error:', error);
+    console.error('Razorpay Payout Error:', error);
 
     // Payout failed - refund to wallet
     withdrawalRequest.status = 'failed';
