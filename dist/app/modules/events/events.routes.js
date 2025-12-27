@@ -10,7 +10,7 @@ const validateRequest_1 = __importDefault(require("../../middlewares/validateReq
 const events_validation_1 = require("./events.validation");
 const event_booking_controller_1 = require("./event-booking.controller");
 const event_booking_validation_1 = require("./event-booking.validation");
-const cashfree_payment_controller_1 = require("./cashfree-payment.controller");
+const razorpay_payment_controller_1 = require("./razorpay-payment.controller");
 const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const router = express_1.default.Router();
 /**
@@ -1119,14 +1119,14 @@ router.post('/tickets/validate/:scannerId', event_booking_controller_1.EventBook
  */
 router.get('/tickets/status/:scannerId', event_booking_controller_1.EventBookingController.checkTicketStatus);
 // =============================================
-// CASHFREE PAYMENT ROUTES
+// RAZORPAY PAYMENT ROUTES
 // =============================================
 /**
  * @swagger
  * /v1/api/events/{id}/payment/create-order:
  *   post:
- *     summary: Create Cashfree payment order
- *     tags: [Events - Cashfree Payment]
+ *     summary: Create Razorpay payment order
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: id
@@ -1179,13 +1179,13 @@ router.get('/tickets/status/:scannerId', event_booking_controller_1.EventBooking
  *       404:
  *         description: Event not found
  */
-router.post('/:id/payment/create-order', cashfree_payment_controller_1.CashfreePaymentController.createCashfreeOrder);
+router.post('/:id/payment/create-order', razorpay_payment_controller_1.RazorpayPaymentController.createRazorpayOrder);
 /**
  * @swagger
- * /v1/api/events/payment/verify/{orderId}:
- *   get:
- *     summary: Verify Cashfree payment status
- *     tags: [Events - Cashfree Payment]
+ * /v1/api/events/payment/verify:
+ *   post:
+ *     summary: Verify Razorpay payment
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -1199,13 +1199,13 @@ router.post('/:id/payment/create-order', cashfree_payment_controller_1.CashfreeP
  *       404:
  *         description: Booking not found
  */
-router.get('/payment/verify/:orderId', cashfree_payment_controller_1.CashfreePaymentController.verifyCashfreePayment);
+router.post('/payment/verify', razorpay_payment_controller_1.RazorpayPaymentController.verifyRazorpayPayment);
 /**
  * @swagger
  * /v1/api/events/payment/status/{orderId}:
  *   get:
  *     summary: Get payment status by order ID
- *     tags: [Events - Cashfree Payment]
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -1219,13 +1219,13 @@ router.get('/payment/verify/:orderId', cashfree_payment_controller_1.CashfreePay
  *       404:
  *         description: Booking not found
  */
-router.get('/payment/status/:orderId', cashfree_payment_controller_1.CashfreePaymentController.getPaymentStatus);
+router.get('/payment/status/:orderId', razorpay_payment_controller_1.RazorpayPaymentController.getPaymentStatus);
 /**
  * @swagger
  * /v1/api/events/payment/webhook:
  *   post:
- *     summary: Cashfree webhook handler
- *     tags: [Events - Cashfree Payment]
+ *     summary: Razorpay webhook handler
+ *     tags: [Events - Razorpay Payment]
  *     requestBody:
  *       required: true
  *       content:
@@ -1236,13 +1236,13 @@ router.get('/payment/status/:orderId', cashfree_payment_controller_1.CashfreePay
  *       200:
  *         description: Webhook received
  */
-router.post('/payment/webhook', cashfree_payment_controller_1.CashfreePaymentController.handleCashfreeWebhook);
+router.post('/payment/webhook', razorpay_payment_controller_1.RazorpayPaymentController.handleRazorpayWebhook);
 /**
  * @swagger
  * /v1/api/events/payment/refund/{bookingId}:
  *   post:
  *     summary: Initiate refund for a booking
- *     tags: [Events - Cashfree Payment]
+ *     tags: [Events - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: bookingId
@@ -1267,5 +1267,5 @@ router.post('/payment/webhook', cashfree_payment_controller_1.CashfreePaymentCon
  *       404:
  *         description: Booking not found
  */
-router.post('/payment/refund/:bookingId', cashfree_payment_controller_1.CashfreePaymentController.initiateRefund);
+router.post('/payment/refund/:bookingId', razorpay_payment_controller_1.RazorpayPaymentController.initiateRefund);
 exports.eventRouter = router;

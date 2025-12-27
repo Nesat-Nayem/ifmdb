@@ -96,13 +96,13 @@ const EventBookingSchema = new mongoose_1.Schema({
     },
     bookingStatus: {
         type: String,
-        enum: ['confirmed', 'cancelled', 'expired'],
-        default: 'confirmed',
+        enum: ['pending', 'confirmed', 'cancelled', 'expired'],
+        default: 'pending',
     },
     paymentMethod: {
         type: String,
-        enum: ['card', 'wallet', 'upi', 'netbanking', 'cash', 'cashfree'],
-        default: 'card',
+        enum: ['card', 'wallet', 'upi', 'netbanking', 'cash', 'cashfree', 'razorpay'],
+        default: 'razorpay',
     },
     transactionId: {
         type: String,
@@ -202,7 +202,7 @@ const EventPaymentTransactionSchema = new mongoose_1.Schema({
     },
     status: {
         type: String,
-        enum: ['pending', 'success', 'failed', 'cancelled'],
+        enum: ['pending', 'completed', 'success', 'failed', 'cancelled'],
         default: 'pending',
     },
     paymentMethod: {

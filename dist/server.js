@@ -15,12 +15,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const mongoose_1 = __importDefault(require("mongoose"));
 const app_1 = __importDefault(require("./app"));
 const config_1 = __importDefault(require("./app/config"));
+const videoExpiryScheduler_1 = require("./app/schedulers/videoExpiryScheduler");
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             yield mongoose_1.default.connect(config_1.default.database_url);
             app_1.default.listen(config_1.default.port, () => {
                 console.log(`movie mart server is running on ports ${config_1.default.port}`);
+                // Start video expiry scheduler (runs every hour)
+                (0, videoExpiryScheduler_1.startVideoExpiryScheduler)(60 * 60 * 1000);
             });
         }
         catch (err) {

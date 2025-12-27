@@ -18,6 +18,33 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const watch_videos_model_1 = require("./watch-videos.model");
 const notifications_service_1 = __importDefault(require("../notifications/notifications.service"));
+const videoExpiryScheduler_1 = __importDefault(require("../../schedulers/videoExpiryScheduler"));
+// ==================== DEEP LINK REDIRECT ====================
+/**
+ * Handle deep link redirects for mobile app
+ * Redirects users to appropriate platform (Play Store/App Store) or web fallback
+ */
+const handleDeepLinkRedirect = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id: videoId } = req.query;
+    const userAgent = req.headers['user-agent'] || '';
+    if (!videoId) {
+        return res.redirect('/');
+    }
+    // Detect platform
+    const isAndroid = /android/i.test(userAgent);
+    const isIOS = /iphone|ipad|ipod/i.test(userAgent);
+    // Check if video exists
+    const video = yield watch_videos_model_1.WatchVideo.findById(videoId);
+    if (!video) {
+        return res.redirect('/');
+    }
+    // For mobile platforms, redirect to smart redirect page
+    if (isAndroid || isIOS) {
+        return res.redirect(`/watch-movie-deatils/redirect?id=${videoId}`);
+    }
+    // For desktop/web, show video directly
+    return res.redirect(`/watch-movie-deatils?id=${videoId}`);
+}));
 // ==================== CHANNEL CONTROLLERS ====================
 // Create Channel
 const createChannel = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -422,6 +449,24 @@ const getAllWatchVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     if (user && user.role === 'vendor') {
         query.uploadedBy = user._id;
     }
+    // Visibility schedule filter - only for non-admin/vendor panel requests
+    // Admin and vendors can see all their videos regardless of schedule
+    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+    if (!isAdminOrVendor) {
+        const now = new Date();
+        query.$or = [
+            // Not scheduled videos
+            { isScheduled: { $ne: true } },
+            // Scheduled videos within visibility window
+            {
+                isScheduled: true,
+                $and: [
+                    { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+                    { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+                ]
+            }
+        ];
+    }
     if (search) {
         query.$text = { $search: search };
     }
@@ -495,6 +540,31 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
             message: 'Video not found',
             data: null,
         });
+    }
+    // Check visibility schedule for public access
+    const videoData = video;
+    if (videoData.isScheduled) {
+        const now = new Date();
+        const visibleFrom = videoData.visibleFrom ? new Date(videoData.visibleFrom) : null;
+        const visibleUntil = videoData.visibleUntil ? new Date(videoData.visibleUntil) : null;
+        // Check if video is not yet visible
+        if (visibleFrom && now < visibleFrom) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.FORBIDDEN,
+                success: false,
+                message: `This video will be available from ${visibleFrom.toLocaleDateString()}`,
+                data: { availableFrom: visibleFrom },
+            });
+        }
+        // Check if video has expired
+        if (visibleUntil && now > visibleUntil) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.GONE,
+                success: false,
+                message: 'This video is no longer available',
+                data: { expiredAt: visibleUntil },
+            });
+        }
     }
     // Get price based on country
     let price = video.defaultPrice;
@@ -903,22 +973,26 @@ const toggleLike = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, 
     const existingLike = yield watch_videos_model_1.VideoLike.findOne({ videoId, userId });
     if (existingLike) {
         yield watch_videos_model_1.VideoLike.deleteOne({ _id: existingLike._id });
-        yield watch_videos_model_1.WatchVideo.findByIdAndUpdate(videoId, { $inc: { likeCount: -1 } });
+        const video = yield watch_videos_model_1.WatchVideo.findByIdAndUpdate(videoId, { $inc: { likeCount: -1 } }, { new: true });
+        const newLikeCount = Math.max(0, (video === null || video === void 0 ? void 0 : video.likeCount) || 0);
+        if (video && video.likeCount < 0) {
+            yield watch_videos_model_1.WatchVideo.findByIdAndUpdate(videoId, { likeCount: 0 });
+        }
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.OK,
             success: true,
             message: 'Like removed',
-            data: { liked: false },
+            data: { liked: false, likeCount: newLikeCount },
         });
     }
     else {
         yield watch_videos_model_1.VideoLike.create({ videoId, userId });
-        yield watch_videos_model_1.WatchVideo.findByIdAndUpdate(videoId, { $inc: { likeCount: 1 } });
+        const video = yield watch_videos_model_1.WatchVideo.findByIdAndUpdate(videoId, { $inc: { likeCount: 1 } }, { new: true });
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.OK,
             success: true,
             message: 'Video liked',
-            data: { liked: true },
+            data: { liked: true, likeCount: (video === null || video === void 0 ? void 0 : video.likeCount) || 1 },
         });
     }
 }));
@@ -1078,6 +1152,56 @@ const checkVideoAccess = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(vo
         },
     });
 }));
+// ==================== VIDEO EXPIRY MANAGEMENT (Admin) ====================
+// Get scheduled/expiring videos
+const getScheduledVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { status, daysAhead = 7 } = req.query;
+    const now = new Date();
+    let query = { isScheduled: true, isActive: true };
+    if (status === 'upcoming') {
+        // Videos that will become visible in the future
+        query.visibleFrom = { $gt: now };
+    }
+    else if (status === 'expiring') {
+        // Videos expiring soon
+        const futureDate = new Date(now.getTime() + Number(daysAhead) * 24 * 60 * 60 * 1000);
+        query.visibleUntil = { $gte: now, $lte: futureDate };
+    }
+    else if (status === 'expired') {
+        // Already expired videos
+        query.visibleUntil = { $lt: now };
+    }
+    const videos = yield watch_videos_model_1.WatchVideo.find(query)
+        .select('title thumbnailUrl visibleFrom visibleUntil autoDeleteOnExpiry status createdAt')
+        .sort({ visibleUntil: 1 });
+    return (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Scheduled videos retrieved',
+        data: videos,
+    });
+}));
+// Manually process expired videos
+const processExpiredVideosManually = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield videoExpiryScheduler_1.default.processExpiredVideos();
+    return (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Expired videos processed',
+        data: result,
+    });
+}));
+// Get upcoming expiring videos for dashboard
+const getUpcomingExpiringVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { daysAhead = 7 } = req.query;
+    const videos = yield videoExpiryScheduler_1.default.getUpcomingExpiringVideos(Number(daysAhead));
+    return (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Upcoming expiring videos retrieved',
+        data: videos,
+    });
+}));
 exports.WatchVideoController = {
     // Channel
     createChannel,
@@ -1121,4 +1245,10 @@ exports.WatchVideoController = {
     // Purchases
     getUserPurchases,
     checkVideoAccess,
+    // Deep Link Redirect
+    handleDeepLinkRedirect,
+    // Video Expiry Management (Admin)
+    getScheduledVideos,
+    processExpiredVideosManually,
+    getUpcomingExpiringVideos,
 };

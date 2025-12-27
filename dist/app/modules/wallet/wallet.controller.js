@@ -19,7 +19,7 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const wallet_model_1 = require("./wallet.model");
 const platformSettings_model_1 = require("../vendor/platformSettings.model");
-const cashfreePayoutService_1 = __importDefault(require("../../services/cashfreePayoutService"));
+const razorpayPayoutService_1 = __importDefault(require("../../services/razorpayPayoutService"));
 // ==================== WALLET CONTROLLERS ====================
 // Get or Create Wallet for User
 const getOrCreateWallet = (userId, userType) => __awaiter(void 0, void 0, void 0, function* () {
@@ -341,19 +341,19 @@ const requestWithdrawal = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
         referenceId: withdrawalRequest._id,
         status: 'pending'
     });
-    // ✅ AUTOMATIC CASHFREE PAYOUT - Process withdrawal immediately
+    // ✅ AUTOMATIC RAZORPAY PAYOUT - Process withdrawal immediately
     try {
-        if (!cashfreePayoutService_1.default.isPayoutsConfigured()) {
-            throw new Error('Cashfree Payouts not configured. Please contact admin.');
+        if (!razorpayPayoutService_1.default.isPayoutsConfigured()) {
+            throw new Error('Razorpay Payouts not configured. Please contact admin.');
         }
-        const payoutResult = yield cashfreePayoutService_1.default.processWithdrawal(withdrawalRequest._id.toString(), user._id.toString(), amount, {
+        const payoutResult = yield razorpayPayoutService_1.default.processWithdrawal(withdrawalRequest._id.toString(), user._id.toString(), amount, {
             accountHolderName: wallet.bankDetails.accountHolderName,
             accountNumber: wallet.bankDetails.accountNumber,
             ifscCode: wallet.bankDetails.ifscCode,
             bankName: wallet.bankDetails.bankName,
         }, user.email, user.phone || '0000000000');
         if (payoutResult.success) {
-            // Update withdrawal request with Cashfree details
+            // Update withdrawal request with Razorpay details
             withdrawalRequest.gatewayTransactionId = payoutResult.transferId;
             withdrawalRequest.gatewayResponse = payoutResult.gatewayResponse;
             withdrawalRequest.status = 'processing'; // Will be updated to 'completed' via webhook
@@ -386,7 +386,7 @@ const requestWithdrawal = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
         }
     }
     catch (error) {
-        console.error('Cashfree Payout Error:', error);
+        console.error('Razorpay Payout Error:', error);
         // Payout failed - refund to wallet
         withdrawalRequest.status = 'failed';
         withdrawalRequest.failureReason = error.message || 'Payout service error';

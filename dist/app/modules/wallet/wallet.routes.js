@@ -65,15 +65,15 @@ router.get('/withdrawals', (0, authMiddleware_1.auth)('vendor', 'admin'), wallet
  *     tags: [Wallet - Withdrawals]
  */
 router.post('/withdrawals/:id/cancel', (0, authMiddleware_1.auth)('vendor'), wallet_controller_1.WalletController.cancelWithdrawal);
-// ==================== CASHFREE PAYOUT WEBHOOK ====================
+// ==================== RAZORPAY PAYOUT WEBHOOK ====================
 /**
  * @swagger
- * /v1/api/wallet/webhooks/cashfree-payout:
+ * /v1/api/wallet/webhooks/razorpay-payout:
  *   post:
- *     summary: Cashfree Payout Webhook (No Auth)
+ *     summary: Razorpay Payout Webhook (No Auth)
  *     tags: [Wallet - Webhooks]
  */
-router.post('/webhooks/cashfree-payout', wallet_payout_webhook_controller_1.default.handlePayoutWebhook);
+router.post('/webhooks/razorpay-payout', wallet_payout_webhook_controller_1.default.handlePayoutWebhook);
 // ==================== ADMIN ROUTES ====================
 /**
  * @swagger
@@ -111,7 +111,7 @@ router.post('/admin/withdrawals/:id/process', (0, authMiddleware_1.auth)('admin'
  * @swagger
  * /v1/api/wallet/admin/withdrawals/{id}/sync-status:
  *   post:
- *     summary: Manually sync transfer status from Cashfree (Admin)
+ *     summary: Manually sync transfer status from Razorpay (Admin)
  *     tags: [Wallet - Admin]
  */
 router.post('/admin/withdrawals/:id/sync-status', (0, authMiddleware_1.auth)('admin'), wallet_payout_webhook_controller_1.default.syncTransferStatus);

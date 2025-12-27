@@ -35,6 +35,68 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VideoLike = exports.WatchVideoCategory = exports.VideoWatchHistory = exports.VideoReview = exports.VideoPaymentTransaction = exports.VideoPurchase = exports.WatchVideo = exports.ChannelSubscription = exports.Channel = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
+// Subtitle/Caption Schema - for multi-language subtitles
+const SubtitleSchema = new mongoose_1.Schema({
+    language: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    languageCode: {
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true
+    },
+    label: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    url: {
+        type: String,
+        required: true
+    },
+    isDefault: {
+        type: Boolean,
+        default: false
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+});
+// Audio Track Schema - for multi-language audio
+const AudioTrackSchema = new mongoose_1.Schema({
+    language: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    languageCode: {
+        type: String,
+        required: true,
+        trim: true,
+        lowercase: true
+    },
+    label: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    url: {
+        type: String,
+        required: true
+    },
+    isDefault: {
+        type: Boolean,
+        default: false
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    }
+});
 // Country Pricing Schema - for country-wise pricing
 const CountryPricingSchema = new mongoose_1.Schema({
     countryCode: {
@@ -104,6 +166,23 @@ const EpisodeSchema = new mongoose_1.Schema({
     viewCount: {
         type: Number,
         default: 0
+    },
+    // Visibility Schedule - for time-limited episodes
+    isScheduled: {
+        type: Boolean,
+        default: false
+    },
+    visibleFrom: {
+        type: Date,
+        default: null
+    },
+    visibleUntil: {
+        type: Date,
+        default: null
+    },
+    autoDeleteOnExpiry: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 // Season Schema - for organizing episodes
@@ -252,6 +331,17 @@ const watchVideoSchema = new mongoose_1.Schema({
         type: String,
         default: ''
     },
+    // Multi-language support
+    subtitles: [SubtitleSchema],
+    audioTracks: [AudioTrackSchema],
+    defaultSubtitleLanguage: {
+        type: String,
+        default: ''
+    },
+    defaultAudioLanguage: {
+        type: String,
+        default: 'en'
+    },
     // For series
     seasons: [SeasonSchema],
     totalEpisodes: {
@@ -367,6 +457,23 @@ const watchVideoSchema = new mongoose_1.Schema({
         type: String,
         enum: ['', 'trending_now', 'most_popular', 'exclusive_on_moviemart', 'new_release'],
         default: '',
+    },
+    // Visibility Schedule - for time-limited videos
+    isScheduled: {
+        type: Boolean,
+        default: false
+    },
+    visibleFrom: {
+        type: Date,
+        default: null
+    },
+    visibleUntil: {
+        type: Date,
+        default: null
+    },
+    autoDeleteOnExpiry: {
+        type: Boolean,
+        default: false
     },
 }, { timestamps: true });
 // Video Purchase Schema - tracks user purchases
@@ -610,6 +717,7 @@ watchVideoSchema.index({ viewCount: -1 });
 watchVideoSchema.index({ averageRating: -1 });
 watchVideoSchema.index({ uploadedBy: 1 });
 watchVideoSchema.index({ homeSection: 1 });
+watchVideoSchema.index({ isScheduled: 1, visibleFrom: 1, visibleUntil: 1 });
 channelSchema.index({ name: 'text', description: 'text' });
 channelSchema.index({ ownerId: 1 });
 channelSchema.index({ isActive: 1 });

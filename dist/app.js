@@ -8,23 +8,15 @@ const routes_1 = __importDefault(require("./app/routes"));
 const notFound_1 = __importDefault(require("./app/middlewares/notFound"));
 const globalErrorHandler_1 = __importDefault(require("./app/middlewares/globalErrorHandler"));
 const swagger_1 = require("./app/config/swagger");
-const firebase_admin_1 = __importDefault(require("./app/config/firebase-admin"));
 const firebase_1 = require("./app/config/firebase");
 const app = (0, express_1.default)();
 const cors_1 = __importDefault(require("cors"));
-// Initialize Firebase Admin SDK for Google Auth
-try {
-    (0, firebase_admin_1.default)();
-}
-catch (error) {
-    console.warn('⚠️ Firebase Admin SDK not initialized - Google auth will not work');
-}
-// Initialize Firebase for push notifications
+// Initialize Firebase Admin SDK (for both Google Auth and Push Notifications)
 try {
     (0, firebase_1.initializeFirebase)();
 }
 catch (error) {
-    console.warn('⚠️ Firebase push notifications not initialized');
+    console.warn('⚠️ Firebase not initialized - Google auth and push notifications will not work');
 }
 // parsers
 app.use(express_1.default.json());

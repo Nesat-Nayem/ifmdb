@@ -48,37 +48,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.User = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
-const MenuBookmarkSchema = new mongoose_1.Schema({
-    menuItemId: {
-        type: String,
-        required: true
-    },
-    hotelId: {
-        type: mongoose_1.default.Schema.Types.ObjectId,
-        ref: 'Hotel',
-        required: true
-    },
-    hotelName: {
-        type: String,
-        required: true
-    },
-    menuTitle: {
-        type: String,
-        required: true
-    },
-    menuImage: {
-        type: String,
-        required: true
-    },
-    menuPrice: {
-        type: Number,
-        required: true
-    },
-    bookmarkedAt: {
-        type: Date,
-        default: Date.now
-    }
-}, { _id: false });
 const userSchema = new mongoose_1.Schema({
     name: { type: String },
     password: { type: String },
@@ -104,10 +73,10 @@ const userSchema = new mongoose_1.Schema({
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'VendorApplication'
     },
-    menuBookmarks: {
-        type: [MenuBookmarkSchema],
-        default: []
-    },
+    //   menuBookmarks: {
+    //   type: [MenuBookmarkSchema],
+    //   default: []
+    // },
 }, { timestamps: true });
 userSchema.pre('save', function (next) {
     return __awaiter(this, void 0, void 0, function* () {

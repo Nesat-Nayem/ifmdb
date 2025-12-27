@@ -1,8 +1,8 @@
 "use strict";
 /**
- * Cashfree Payout Webhook Handler
+ * Razorpay Payout Webhook Handler
  *
- * Handles webhook notifications from Cashfree Payouts
+ * Handles webhook notifications from Razorpay Payouts (RazorpayX)
  * Updates withdrawal status automatically when transfer completes
  */
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -22,19 +22,23 @@ const http_status_1 = __importDefault(require("http-status"));
 const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const wallet_model_1 = require("./wallet.model");
-const cashfreePayoutService_1 = __importDefault(require("../../services/cashfreePayoutService"));
+const razorpayPayoutService_1 = __importDefault(require("../../services/razorpayPayoutService"));
 /**
- * Handle Cashfree Payout Webhook
+ * Handle Razorpay Payout Webhook
  *
  * Webhook events:
- * - TRANSFER_SUCCESS: Transfer completed successfully
- * - TRANSFER_FAILED: Transfer failed
- * - TRANSFER_REVERSED: Transfer was reversed/refunded
+ * - payout.processed: Payout completed successfully
+ * - payout.failed: Payout failed
+ * - payout.reversed: Payout was reversed
+ * - payout.queued: Payout is queued
+ * - payout.pending: Payout is pending
  */
 const handlePayoutWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { event, data, signature, timestamp } = req.body;
+    var _a;
+    const signature = req.headers['x-razorpay-signature'];
+    const payload = JSON.stringify(req.body);
     // Verify webhook signature
-    const isValid = cashfreePayoutService_1.default.verifyWebhookSignature(JSON.stringify(data), signature, timestamp);
+    const isValid = razorpayPayoutService_1.default.verifyWebhookSignature(payload, signature);
     if (!isValid) {
         console.error('Invalid webhook signature');
         return (0, sendResponse_1.sendResponse)(res, {
@@ -44,15 +48,28 @@ const handlePayoutWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             data: null,
         });
     }
-    console.log('Cashfree Payout Webhook Received:', event, data);
+    const { event, payload: webhookPayload } = req.body;
+    const data = (_a = webhookPayload === null || webhookPayload === void 0 ? void 0 : webhookPayload.payout) === null || _a === void 0 ? void 0 : _a.entity;
+    console.log('Razorpay Payout Webhook Received:', event, data);
     try {
-        const { transferId, status, utr, reason } = data;
-        // Find withdrawal request by gateway transaction ID
+        if (!data) {
+            console.log('No payout data in webhook');
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.OK,
+                success: true,
+                message: 'Webhook received but no payout data',
+                data: null,
+            });
+        }
+        const payoutId = data.id;
+        const utr = data.utr;
+        const failureReason = data.failure_reason;
+        // Find withdrawal request by gateway transaction ID (payout ID)
         const withdrawal = yield wallet_model_1.WithdrawalRequest.findOne({
-            gatewayTransactionId: transferId,
+            gatewayTransactionId: payoutId,
         });
         if (!withdrawal) {
-            console.error('Withdrawal not found for transferId:', transferId);
+            console.error('Withdrawal not found for payoutId:', payoutId);
             return (0, sendResponse_1.sendResponse)(res, {
                 statusCode: http_status_1.default.OK,
                 success: true,
@@ -74,13 +91,13 @@ const handlePayoutWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
                 data: null,
             });
         }
-        // Handle different webhook events
+        // Handle different Razorpay webhook events
         switch (event) {
-            case 'TRANSFER_SUCCESS':
-                // Transfer completed successfully
+            case 'payout.processed':
+                // Payout completed successfully
                 withdrawal.status = 'completed';
                 withdrawal.processedAt = new Date();
-                withdrawal.gatewayResponse = Object.assign(Object.assign({}, withdrawal.gatewayResponse), { utr, completedAt: new Date() });
+                withdrawal.gatewayResponse = Object.assign(Object.assign({}, withdrawal.gatewayResponse), { utr, completedAt: new Date(), razorpayStatus: data.status });
                 yield withdrawal.save();
                 // Update transaction
                 if (transaction) {
@@ -92,12 +109,12 @@ const handlePayoutWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
                 yield wallet.save();
                 console.log(`Withdrawal ${withdrawal._id} completed successfully`);
                 break;
-            case 'TRANSFER_FAILED':
-            case 'TRANSFER_REVERSED':
-                // Transfer failed or reversed - refund to wallet
+            case 'payout.failed':
+            case 'payout.reversed':
+                // Payout failed or reversed - refund to wallet
                 withdrawal.status = 'failed';
-                withdrawal.failureReason = reason || 'Transfer failed';
-                withdrawal.gatewayResponse = Object.assign(Object.assign({}, withdrawal.gatewayResponse), { failureReason: reason, failedAt: new Date() });
+                withdrawal.failureReason = failureReason || 'Transfer failed';
+                withdrawal.gatewayResponse = Object.assign(Object.assign({}, withdrawal.gatewayResponse), { failureReason, failedAt: new Date(), razorpayStatus: data.status });
                 yield withdrawal.save();
                 // Refund amount to wallet
                 wallet.balance += withdrawal.amount;
@@ -109,10 +126,18 @@ const handlePayoutWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
                 }
                 console.log(`Withdrawal ${withdrawal._id} failed and refunded`);
                 break;
+            case 'payout.queued':
+            case 'payout.pending':
+                // Payout is pending - update status
+                withdrawal.status = 'processing';
+                withdrawal.gatewayResponse = Object.assign(Object.assign({}, withdrawal.gatewayResponse), { razorpayStatus: data.status });
+                yield withdrawal.save();
+                console.log(`Withdrawal ${withdrawal._id} is ${event}`);
+                break;
             default:
                 console.log('Unknown webhook event:', event);
         }
-        // Send success response to Cashfree
+        // Send success response to Razorpay
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.OK,
             success: true,
@@ -122,7 +147,7 @@ const handlePayoutWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
     }
     catch (error) {
         console.error('Webhook processing error:', error);
-        // Still return 200 to Cashfree to prevent retries
+        // Still return 200 to Razorpay to prevent retries
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.OK,
             success: true,
@@ -133,7 +158,7 @@ const handlePayoutWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
 }));
 /**
  * Manual sync transfer status
- * Admin can manually check status from Cashfree
+ * Admin can manually check status from Razorpay
  */
 const syncTransferStatus = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params; // withdrawal ID
@@ -155,11 +180,11 @@ const syncTransferStatus = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
         });
     }
     try {
-        // Get status from Cashfree
-        const statusResponse = yield cashfreePayoutService_1.default.getTransferStatus(withdrawal.gatewayTransactionId);
-        if (statusResponse.status === 'SUCCESS' && statusResponse.data) {
+        // Get status from Razorpay
+        const statusResponse = yield razorpayPayoutService_1.default.getTransferStatus(withdrawal.gatewayTransactionId);
+        if (statusResponse.success && statusResponse.data) {
             const { transfer } = statusResponse.data;
-            // Update withdrawal based on Cashfree status
+            // Update withdrawal based on Razorpay status
             if (transfer.status === 'SUCCESS') {
                 withdrawal.status = 'completed';
                 withdrawal.processedAt = new Date();

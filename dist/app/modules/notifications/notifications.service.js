@@ -222,9 +222,13 @@ class NotificationService {
      */
     registerDeviceToken(data) {
         return __awaiter(this, void 0, void 0, function* () {
+            console.log('🔔 [Service] Registering device token...');
+            console.log('🔔 [Service] User ID:', data.userId);
+            console.log('🔔 [Service] Device Type:', data.deviceType);
             // Check if token already exists
             const existing = yield notifications_model_1.UserDeviceToken.findOne({ deviceToken: data.deviceToken });
             if (existing) {
+                console.log('🔔 [Service] Token already exists, updating...');
                 // Update existing token
                 existing.userId = data.userId;
                 existing.deviceType = data.deviceType;
@@ -232,8 +236,10 @@ class NotificationService {
                 existing.isActive = true;
                 existing.lastUsed = new Date();
                 yield existing.save();
+                console.log('✅ [Service] Token updated successfully:', existing._id);
                 return existing;
             }
+            console.log('🔔 [Service] Creating new token...');
             // Create new token
             const deviceToken = yield notifications_model_1.UserDeviceToken.create({
                 userId: data.userId,
@@ -243,6 +249,7 @@ class NotificationService {
                 isActive: true,
                 lastUsed: new Date()
             });
+            console.log('✅ [Service] New token created successfully:', deviceToken._id);
             return deviceToken;
         });
     }

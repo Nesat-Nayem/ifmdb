@@ -76,8 +76,7 @@ const userDeviceTokenSchema = new mongoose_1.Schema({
     userId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
-        index: true
+        required: true
     },
     deviceToken: {
         type: String,
@@ -103,13 +102,12 @@ const userDeviceTokenSchema = new mongoose_1.Schema({
         default: Date.now
     }
 }, { timestamps: true });
-// Indexes
+// Indexes - removed duplicates
 notificationSchema.index({ userId: 1, createdAt: -1 });
 notificationSchema.index({ userId: 1, isRead: 1 });
 notificationSchema.index({ type: 1 });
 notificationSchema.index({ createdAt: -1 });
 userDeviceTokenSchema.index({ userId: 1, isActive: 1 });
-userDeviceTokenSchema.index({ deviceToken: 1 });
 // Export models
 exports.Notification = mongoose_1.default.model('Notification', notificationSchema);
 exports.UserDeviceToken = mongoose_1.default.model('UserDeviceToken', userDeviceTokenSchema);

@@ -185,7 +185,7 @@ const withdrawalRequestSchema = new mongoose_1.Schema({
     },
     paymentGateway: {
         type: String,
-        default: 'cashfree'
+        default: 'razorpay'
     },
     gatewayTransactionId: {
         type: String

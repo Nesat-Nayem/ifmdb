@@ -5,11 +5,31 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const watch_videos_controller_1 = require("./watch-videos.controller");
-const watch_videos_payment_controller_1 = require("./watch-videos-payment.controller");
+const razorpay_payment_controller_1 = require("./razorpay-payment.controller");
 const validateRequest_1 = __importDefault(require("../../middlewares/validateRequest"));
 const watch_videos_validation_1 = require("./watch-videos.validation");
 const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const router = express_1.default.Router();
+// ==================== DEEP LINK ROUTES ====================
+/**
+ * @swagger
+ * /v1/api/watch-videos/redirect:
+ *   get:
+ *     summary: Handle deep link redirects
+ *     description: Smart redirect for mobile app deep linking - redirects to app if installed, otherwise to store
+ *     tags: [Watch Videos - Deep Links]
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Video ID to redirect to
+ *     responses:
+ *       302:
+ *         description: Redirect to appropriate destination
+ */
+router.get('/redirect', watch_videos_controller_1.WatchVideoController.handleDeepLinkRedirect);
 // ==================== CHANNEL ROUTES ====================
 /**
  * @swagger
@@ -1076,7 +1096,7 @@ router.get('/recommended', watch_videos_controller_1.WatchVideoController.getRec
  *                     pagination:
  *                       type: object
  */
-router.get('/purchases', watch_videos_payment_controller_1.WatchVideoPaymentController.getAllPurchases);
+router.get('/purchases', razorpay_payment_controller_1.RazorpayVideoPaymentController.getAllPurchases);
 /**
  * @swagger
  * /v1/api/watch-videos/{id}:
@@ -1851,14 +1871,14 @@ router.get('/user/:userId/purchases', watch_videos_controller_1.WatchVideoContro
  *                       nullable: true
  */
 router.get('/:videoId/access/:userId', watch_videos_controller_1.WatchVideoController.checkVideoAccess);
-// ==================== PAYMENT ROUTES ====================
+// ==================== RAZORPAY PAYMENT ROUTES ====================
 /**
  * @swagger
  * /v1/api/watch-videos/{videoId}/payment/create-order:
  *   post:
- *     summary: Create payment order for video purchase
- *     description: Create a payment order to purchase or rent a video
- *     tags: [Watch Videos - Payment]
+ *     summary: Create Razorpay payment order for video purchase
+ *     description: Create a Razorpay payment order to purchase or rent a video
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: videoId
@@ -1899,14 +1919,14 @@ router.get('/:videoId/access/:userId', watch_videos_controller_1.WatchVideoContr
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/:videoId/payment/create-order', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.createPaymentOrderValidation), watch_videos_payment_controller_1.WatchVideoPaymentController.createVideoPaymentOrder);
+router.post('/:videoId/payment/create-order', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.createPaymentOrderValidation), razorpay_payment_controller_1.RazorpayVideoPaymentController.createVideoPaymentOrder);
 /**
  * @swagger
- * /v1/api/watch-videos/payment/verify/{orderId}:
- *   get:
- *     summary: Verify payment status
- *     description: Verify the payment status after payment completion
- *     tags: [Watch Videos - Payment]
+ * /v1/api/watch-videos/payment/verify:
+ *   post:
+ *     summary: Verify Razorpay payment
+ *     description: Verify the Razorpay payment signature after payment completion
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -1948,14 +1968,14 @@ router.post('/:videoId/payment/create-order', (0, validateRequest_1.default)(wat
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/payment/verify/:orderId', watch_videos_payment_controller_1.WatchVideoPaymentController.verifyVideoPayment);
+router.post('/payment/verify', razorpay_payment_controller_1.RazorpayVideoPaymentController.verifyVideoPayment);
 /**
  * @swagger
  * /v1/api/watch-videos/payment/status/{orderId}:
  *   get:
  *     summary: Get payment status
  *     description: Get the current status of a payment order
- *     tags: [Watch Videos - Payment]
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: orderId
@@ -2004,14 +2024,14 @@ router.get('/payment/verify/:orderId', watch_videos_payment_controller_1.WatchVi
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/payment/status/:orderId', watch_videos_payment_controller_1.WatchVideoPaymentController.getVideoPaymentStatus);
+router.get('/payment/status/:orderId', razorpay_payment_controller_1.RazorpayVideoPaymentController.getVideoPaymentStatus);
 /**
  * @swagger
  * /v1/api/watch-videos/payment/webhook:
  *   post:
- *     summary: Cashfree webhook handler
- *     description: Handle payment gateway webhooks (internal use)
- *     tags: [Watch Videos - Payment]
+ *     summary: Razorpay webhook handler
+ *     description: Handle Razorpay payment webhooks (internal use)
+ *     tags: [Watch Videos - Razorpay Payment]
  *     requestBody:
  *       required: true
  *       content:
@@ -2034,14 +2054,14 @@ router.get('/payment/status/:orderId', watch_videos_payment_controller_1.WatchVi
  *                   type: string
  *                   example: Webhook processed successfully
  */
-router.post('/payment/webhook', watch_videos_payment_controller_1.WatchVideoPaymentController.handleVideoPaymentWebhook);
+router.post('/payment/webhook', razorpay_payment_controller_1.RazorpayVideoPaymentController.handleVideoPaymentWebhook);
 /**
  * @swagger
  * /v1/api/watch-videos/payment/refund/{purchaseId}:
  *   post:
  *     summary: Initiate refund
  *     description: Initiate a refund for a video purchase
- *     tags: [Watch Videos - Payment]
+ *     tags: [Watch Videos - Razorpay Payment]
  *     parameters:
  *       - in: path
  *         name: purchaseId
@@ -2096,7 +2116,7 @@ router.post('/payment/webhook', watch_videos_payment_controller_1.WatchVideoPaym
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.post('/payment/refund/:purchaseId', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.initiateRefundValidation), watch_videos_payment_controller_1.WatchVideoPaymentController.initiateVideoRefund);
+router.post('/payment/refund/:purchaseId', (0, validateRequest_1.default)(watch_videos_validation_1.WatchVideoValidation.initiateRefundValidation), razorpay_payment_controller_1.RazorpayVideoPaymentController.initiateVideoRefund);
 /**
  * @swagger
  * /v1/api/watch-videos/vendor/{vendorId}/purchases:
@@ -2172,5 +2192,61 @@ router.post('/payment/refund/:purchaseId', (0, validateRequest_1.default)(watch_
  *                     pagination:
  *                       type: object
  */
-router.get('/vendor/:vendorId/purchases', watch_videos_payment_controller_1.WatchVideoPaymentController.getVendorPurchases);
+router.get('/vendor/:vendorId/purchases', razorpay_payment_controller_1.RazorpayVideoPaymentController.getVendorPurchases);
+// ==================== VIDEO EXPIRY MANAGEMENT (Admin) ====================
+/**
+ * @swagger
+ * /v1/api/watch-videos/admin/scheduled-videos:
+ *   get:
+ *     summary: Get scheduled/expiring videos
+ *     description: Get videos with visibility schedule (admin only)
+ *     tags: [Watch Videos - Admin]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, expiring, expired]
+ *         description: Filter by schedule status
+ *       - in: query
+ *         name: daysAhead
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *         description: Days ahead for expiring filter
+ *     responses:
+ *       200:
+ *         description: Scheduled videos retrieved
+ */
+router.get('/admin/scheduled-videos', (0, authMiddleware_1.auth)('admin'), watch_videos_controller_1.WatchVideoController.getScheduledVideos);
+/**
+ * @swagger
+ * /v1/api/watch-videos/admin/process-expired:
+ *   post:
+ *     summary: Process expired videos manually
+ *     description: Manually trigger processing of expired videos (admin only)
+ *     tags: [Watch Videos - Admin]
+ *     responses:
+ *       200:
+ *         description: Expired videos processed
+ */
+router.post('/admin/process-expired', (0, authMiddleware_1.auth)('admin'), watch_videos_controller_1.WatchVideoController.processExpiredVideosManually);
+/**
+ * @swagger
+ * /v1/api/watch-videos/admin/expiring-soon:
+ *   get:
+ *     summary: Get videos expiring soon
+ *     description: Get videos that will expire in the next N days (admin only)
+ *     tags: [Watch Videos - Admin]
+ *     parameters:
+ *       - in: query
+ *         name: daysAhead
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *     responses:
+ *       200:
+ *         description: Expiring videos retrieved
+ */
+router.get('/admin/expiring-soon', (0, authMiddleware_1.auth)('admin'), watch_videos_controller_1.WatchVideoController.getUpcomingExpiringVideos);
 exports.default = router;

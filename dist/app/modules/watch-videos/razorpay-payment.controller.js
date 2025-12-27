@@ -12,39 +12,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.WatchVideoPaymentController = void 0;
+exports.RazorpayVideoPaymentController = void 0;
 const http_status_1 = __importDefault(require("http-status"));
-const axios_1 = __importDefault(require("axios"));
-const crypto_1 = __importDefault(require("crypto"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const watch_videos_model_1 = require("./watch-videos.model");
 const wallet_controller_1 = require("../wallet/wallet.controller");
-const ccavenueService_1 = __importDefault(require("../../services/ccavenueService"));
-// Cashfree API Configuration
-const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production'
-    ? 'https://api.cashfree.com/pg'
-    : 'https://sandbox.cashfree.com/pg';
-const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
-const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
+const razorpayService_1 = __importDefault(require("../../services/razorpayService"));
 // Generate unique purchase reference
 const generatePurchaseReference = () => {
     const timestamp = Date.now().toString(36);
     const randomStr = Math.random().toString(36).substring(2, 8);
     return `VPR${timestamp}${randomStr}`.toUpperCase();
 };
-// Generate unique order ID for Cashfree
-const generateOrderId = () => {
-    const timestamp = Date.now().toString(36);
-    const randomStr = Math.random().toString(36).substring(2, 10);
-    return `VORD${timestamp}${randomStr}`.toUpperCase();
-};
-// Create Cashfree payment order for video purchase
+// Create Razorpay payment order for video purchase
 const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
     const { videoId } = req.params;
-    const { userId, purchaseType = 'buy', countryCode = 'IN', customerDetails, returnUrl } = req.body;
+    const { userId, purchaseType = 'buy', countryCode = 'IN', customerDetails, } = req.body;
     // Validate video
     const video = yield watch_videos_model_1.WatchVideo.findById(videoId).populate('channelId');
     if (!video || !video.isActive || video.status !== 'published') {
@@ -84,7 +69,7 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
     }
     // Get price based on country
     let price = video.defaultPrice;
-    let currency = 'INR';
+    let currency = razorpayService_1.default.getCurrencyForCountry(countryCode);
     if (countryCode && video.countryPricing && video.countryPricing.length > 0) {
         const countryPrice = video.countryPricing.find((cp) => cp.countryCode === countryCode && cp.isActive);
         if (countryPrice) {
@@ -95,112 +80,26 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
     // Calculate amounts (no GST for video purchases)
     const totalAmount = price;
     const finalAmount = totalAmount;
-    // Check if user is from India (use Cashfree) or international (use CCAvenue)
-    const isIndianUser = countryCode.toUpperCase() === 'IN';
     const purchaseReference = generatePurchaseReference();
-    const orderId = generateOrderId();
     // Calculate expiry for rental (7 days)
     let expiresAt = null;
     if (purchaseType === 'rent') {
         expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
     try {
-        // Route to appropriate payment gateway based on country
-        if (!isIndianUser) {
-            // Use CCAvenue for international users
-            const ccOrderId = ccavenueService_1.default.generateCCOrderId();
-            const ccOrderParams = {
-                orderId: ccOrderId,
-                amount: finalAmount,
-                currency: currency,
+        // Create Razorpay order
+        const razorpayOrder = yield razorpayService_1.default.createOrder({
+            amount: finalAmount,
+            currency: currency,
+            receipt: purchaseReference,
+            notes: {
+                videoId: videoId,
+                userId: userId,
+                purchaseType: purchaseType,
                 customerName: customerDetails.name,
                 customerEmail: customerDetails.email,
-                customerPhone: customerDetails.phone || '0000000000',
-                billingCountry: countryCode,
-                redirectUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/callback`,
-                cancelUrl: `${process.env.FRONTEND_URL}/payment/ccavenue/cancel`,
-                merchantParam1: userId,
-                merchantParam2: videoId,
-                merchantParam3: 'video',
-                merchantParam4: purchaseType,
-                merchantParam5: purchaseReference,
-            };
-            const ccavenueData = ccavenueService_1.default.createEncryptedRequest(ccOrderParams);
-            // Create purchase record with pending status
-            const purchaseData = {
-                userId: new mongoose_1.default.Types.ObjectId(userId),
-                videoId: new mongoose_1.default.Types.ObjectId(videoId),
-                purchaseType,
-                amount: totalAmount,
-                currency,
-                countryCode,
-                paymentStatus: 'pending',
-                paymentMethod: 'ccavenue',
-                transactionId: ccOrderId,
-                purchaseReference,
-                expiresAt,
-                customerDetails,
-                purchasedAt: new Date(),
-            };
-            const newPurchase = yield watch_videos_model_1.VideoPurchase.create(purchaseData);
-            // Record initial transaction
-            yield watch_videos_model_1.VideoPaymentTransaction.create({
-                purchaseId: newPurchase._id,
-                paymentGateway: 'ccavenue',
-                gatewayTransactionId: ccOrderId,
-                amount: finalAmount,
-                currency,
-                status: 'pending',
-                paymentMethod: 'ccavenue',
-                gatewayResponse: { orderId: ccOrderId },
-            });
-            return (0, sendResponse_1.sendResponse)(res, {
-                statusCode: http_status_1.default.CREATED,
-                success: true,
-                message: 'CCAvenue payment order created successfully',
-                data: {
-                    purchase: newPurchase,
-                    paymentGateway: 'ccavenue',
-                    ccavenueOrder: {
-                        orderId: ccOrderId,
-                        encRequest: ccavenueData.encRequest,
-                        accessCode: ccavenueData.accessCode,
-                        ccavenueUrl: ccavenueData.ccavenueUrl,
-                    },
-                    video: {
-                        id: video._id,
-                        title: video.title,
-                        thumbnailUrl: video.thumbnailUrl
-                    }
-                },
-            });
-        }
-        // Use Cashfree for Indian users
-        // Create Cashfree order
-        const cashfreeResponse = yield axios_1.default.post(`${CASHFREE_API_URL}/orders`, {
-            order_id: orderId,
-            order_amount: finalAmount,
-            order_currency: currency,
-            customer_details: {
-                customer_id: userId,
-                customer_name: customerDetails.name,
-                customer_email: customerDetails.email,
-                customer_phone: customerDetails.phone,
-            },
-            order_meta: {
-                return_url: returnUrl || `${process.env.FRONTEND_URL}/watch-movie-deatils?id=${videoId}&order_id={order_id}`,
-                notify_url: `${process.env.BACKEND_URL}/v1/api/watch-videos/payment/webhook`,
-            },
-            order_note: `Video: ${video.title} | Type: ${purchaseType}`,
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'x-client-id': CASHFREE_APP_ID,
-                'x-client-secret': CASHFREE_SECRET_KEY,
-                'x-api-version': '2023-08-01',
             },
         });
-        const cashfreeOrder = cashfreeResponse.data;
         // Create purchase record with pending status
         const purchaseData = {
             userId: new mongoose_1.default.Types.ObjectId(userId),
@@ -210,8 +109,8 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
             currency,
             countryCode,
             paymentStatus: 'pending',
-            paymentMethod: 'cashfree',
-            transactionId: orderId,
+            paymentMethod: 'razorpay',
+            transactionId: razorpayOrder.id,
             purchaseReference,
             expiresAt,
             customerDetails,
@@ -221,28 +120,27 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
         // Record initial transaction
         yield watch_videos_model_1.VideoPaymentTransaction.create({
             purchaseId: newPurchase._id,
-            paymentGateway: 'cashfree',
-            gatewayTransactionId: orderId,
+            paymentGateway: 'razorpay',
+            gatewayTransactionId: razorpayOrder.id,
             amount: finalAmount,
             currency,
             status: 'pending',
-            paymentMethod: 'cashfree',
-            gatewayResponse: cashfreeOrder,
+            paymentMethod: 'razorpay',
+            gatewayResponse: razorpayOrder,
         });
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.CREATED,
             success: true,
-            message: 'Payment order created successfully',
+            message: 'Razorpay payment order created successfully',
             data: {
                 purchase: newPurchase,
-                cashfreeOrder: {
-                    orderId: cashfreeOrder.order_id,
-                    orderToken: cashfreeOrder.order_token,
-                    paymentSessionId: cashfreeOrder.payment_session_id,
-                    orderStatus: cashfreeOrder.order_status,
-                    cfOrderId: cashfreeOrder.cf_order_id,
+                paymentGateway: 'razorpay',
+                razorpayOrder: {
+                    orderId: razorpayOrder.id,
+                    amount: razorpayOrder.amount,
+                    currency: razorpayOrder.currency,
+                    keyId: razorpayService_1.default.getRazorpayKeyId(),
                 },
-                paymentLink: cashfreeOrder.payment_link,
                 video: {
                     id: video._id,
                     title: video.title,
@@ -252,29 +150,32 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
         });
     }
     catch (error) {
-        console.error('Cashfree order creation error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        console.error('Razorpay order creation error:', error);
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.BAD_REQUEST,
             success: false,
             message: 'Failed to create payment order',
-            data: ((_b = error.response) === null || _b === void 0 ? void 0 : _b.data) || null,
+            data: error.message || null,
         });
     }
 }));
-// Verify Cashfree payment for video
+// Verify Razorpay payment for video
 const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
-    const { orderId } = req.params;
-    try {
-        // Fetch order status from Cashfree
-        const cashfreeResponse = yield axios_1.default.get(`${CASHFREE_API_URL}/orders/${orderId}`, {
-            headers: {
-                'x-client-id': CASHFREE_APP_ID,
-                'x-client-secret': CASHFREE_SECRET_KEY,
-                'x-api-version': '2023-08-01',
-            },
+    var _a, _b;
+    const { orderId, paymentId, signature } = req.body;
+    // Verify signature
+    const isValid = razorpayService_1.default.verifyPaymentSignature(orderId, paymentId, signature);
+    if (!isValid) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.BAD_REQUEST,
+            success: false,
+            message: 'Invalid payment signature',
+            data: null,
         });
-        const orderDetails = cashfreeResponse.data;
+    }
+    try {
+        // Fetch payment details from Razorpay
+        const payment = yield razorpayService_1.default.fetchPayment(paymentId);
         // Find purchase by transaction ID (order ID)
         const purchase = yield watch_videos_model_1.VideoPurchase.findOne({ transactionId: orderId });
         if (!purchase) {
@@ -287,11 +188,11 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
         }
         // Update transaction record
         yield watch_videos_model_1.VideoPaymentTransaction.findOneAndUpdate({ gatewayTransactionId: orderId }, {
-            status: orderDetails.order_status === 'PAID' ? 'success' : orderDetails.order_status.toLowerCase(),
-            gatewayResponse: orderDetails,
+            status: payment.status === 'captured' ? 'completed' : payment.status,
+            gatewayResponse: payment,
             processedAt: new Date(),
         });
-        if (orderDetails.order_status === 'PAID') {
+        if (payment.status === 'captured') {
             // Update purchase to completed
             purchase.paymentStatus = 'completed';
             yield purchase.save();
@@ -333,34 +234,19 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
                 },
             });
         }
-        else if (orderDetails.order_status === 'ACTIVE') {
+        else {
             return (0, sendResponse_1.sendResponse)(res, {
                 statusCode: http_status_1.default.OK,
                 success: true,
-                message: 'Payment is still pending',
+                message: 'Payment is being processed',
                 data: {
-                    paymentStatus: 'pending',
-                    orderStatus: orderDetails.order_status,
-                },
-            });
-        }
-        else {
-            // Payment failed
-            purchase.paymentStatus = 'failed';
-            yield purchase.save();
-            return (0, sendResponse_1.sendResponse)(res, {
-                statusCode: http_status_1.default.OK,
-                success: false,
-                message: 'Payment failed',
-                data: {
-                    paymentStatus: 'failed',
-                    orderStatus: orderDetails.order_status,
+                    paymentStatus: payment.status,
                 },
             });
         }
     }
     catch (error) {
-        console.error('Payment verification error:', ((_c = error.response) === null || _c === void 0 ? void 0 : _c.data) || error.message);
+        console.error('Payment verification error:', error);
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.BAD_REQUEST,
             success: false,
@@ -369,24 +255,20 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
         });
     }
 }));
-// Cashfree Webhook handler for video payments
+// Razorpay Webhook handler for video payments
 const handleVideoPaymentWebhook = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const signature = req.headers['x-webhook-signature'];
-    const timestamp = req.headers['x-webhook-timestamp'];
+    const signature = req.headers['x-razorpay-signature'];
     const rawBody = JSON.stringify(req.body);
     // Verify webhook signature
-    const signatureData = timestamp + rawBody;
-    const expectedSignature = crypto_1.default
-        .createHmac('sha256', CASHFREE_SECRET_KEY)
-        .update(signatureData)
-        .digest('base64');
-    if (signature !== expectedSignature) {
+    const isValid = razorpayService_1.default.verifyWebhookSignature(rawBody, signature);
+    if (!isValid) {
         console.error('Invalid webhook signature');
         return res.status(401).json({ message: 'Invalid signature' });
     }
-    const { data, type } = req.body;
-    if (type === 'PAYMENT_SUCCESS_WEBHOOK') {
-        const orderId = data.order.order_id;
+    const { event, payload } = req.body;
+    if (event === 'payment.captured') {
+        const payment = payload.payment.entity;
+        const orderId = payment.order_id;
         // Find and update purchase
         const purchase = yield watch_videos_model_1.VideoPurchase.findOne({ transactionId: orderId });
         if (purchase && purchase.paymentStatus !== 'completed') {
@@ -394,18 +276,19 @@ const handleVideoPaymentWebhook = (0, catchAsync_1.catchAsync)((req, res) => __a
             yield purchase.save();
             // Update transaction
             yield watch_videos_model_1.VideoPaymentTransaction.findOneAndUpdate({ gatewayTransactionId: orderId }, {
-                status: 'success',
-                gatewayResponse: data,
+                status: 'completed',
+                gatewayResponse: payment,
                 processedAt: new Date(),
             });
         }
     }
-    else if (type === 'PAYMENT_FAILED_WEBHOOK') {
-        const orderId = data.order.order_id;
+    else if (event === 'payment.failed') {
+        const payment = payload.payment.entity;
+        const orderId = payment.order_id;
         yield watch_videos_model_1.VideoPurchase.findOneAndUpdate({ transactionId: orderId }, { paymentStatus: 'failed' });
         yield watch_videos_model_1.VideoPaymentTransaction.findOneAndUpdate({ gatewayTransactionId: orderId }, {
             status: 'failed',
-            gatewayResponse: data,
+            gatewayResponse: payment,
             processedAt: new Date(),
         });
     }
@@ -437,7 +320,6 @@ const getVideoPaymentStatus = (0, catchAsync_1.catchAsync)((req, res) => __await
 }));
 // Initiate refund
 const initiateVideoRefund = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
     const { purchaseId } = req.params;
     const { reason } = req.body;
     const purchase = yield watch_videos_model_1.VideoPurchase.findById(purchaseId);
@@ -468,19 +350,22 @@ const initiateVideoRefund = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         });
     }
     try {
-        const refundId = `VREF${Date.now().toString(36)}${Math.random().toString(36).substring(2, 6)}`.toUpperCase();
-        const refundResponse = yield axios_1.default.post(`${CASHFREE_API_URL}/orders/${purchase.transactionId}/refunds`, {
-            refund_id: refundId,
-            refund_amount: purchase.amount,
-            refund_note: reason || 'Customer requested refund',
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'x-client-id': CASHFREE_APP_ID,
-                'x-client-secret': CASHFREE_SECRET_KEY,
-                'x-api-version': '2023-08-01',
-            },
+        // Get the payment ID from transaction
+        const transaction = yield watch_videos_model_1.VideoPaymentTransaction.findOne({
+            purchaseId: purchase._id,
+            status: 'completed'
         });
+        if (!transaction || !transaction.gatewayResponse) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.BAD_REQUEST,
+                success: false,
+                message: 'Payment transaction not found',
+                data: null,
+            });
+        }
+        // Get payment ID from gateway response
+        const paymentId = transaction.gatewayResponse.id;
+        const refund = yield razorpayService_1.default.refundPayment(paymentId, purchase.amount, { reason: reason || 'Customer requested refund' });
         // Update purchase status
         purchase.paymentStatus = 'refunded';
         yield purchase.save();
@@ -488,16 +373,16 @@ const initiateVideoRefund = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             statusCode: http_status_1.default.OK,
             success: true,
             message: 'Refund initiated successfully',
-            data: refundResponse.data,
+            data: refund,
         });
     }
     catch (error) {
-        console.error('Refund error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        console.error('Refund error:', error);
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.BAD_REQUEST,
             success: false,
             message: 'Failed to initiate refund',
-            data: ((_b = error.response) === null || _b === void 0 ? void 0 : _b.data) || null,
+            data: error.message || null,
         });
     }
 }));
@@ -597,7 +482,7 @@ const getVendorPurchases = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
         }
     });
 }));
-exports.WatchVideoPaymentController = {
+exports.RazorpayVideoPaymentController = {
     createVideoPaymentOrder,
     verifyVideoPayment,
     handleVideoPaymentWebhook,
