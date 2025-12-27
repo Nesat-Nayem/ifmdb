@@ -1,5 +1,69 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+// Subtitle/Caption Schema - for multi-language subtitles
+const SubtitleSchema = new Schema({
+  language: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  languageCode: {
+    type: String,
+    required: true,
+    trim: true,
+    lowercase: true
+  },
+  label: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  url: {
+    type: String,
+    required: true
+  },
+  isDefault: {
+    type: Boolean,
+    default: false
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+});
+
+// Audio Track Schema - for multi-language audio
+const AudioTrackSchema = new Schema({
+  language: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  languageCode: {
+    type: String,
+    required: true,
+    trim: true,
+    lowercase: true
+  },
+  label: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  url: {
+    type: String,
+    required: true
+  },
+  isDefault: {
+    type: Boolean,
+    default: false
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  }
+});
+
 // Country Pricing Schema - for country-wise pricing
 const CountryPricingSchema = new Schema({
   countryCode: {
@@ -316,6 +380,18 @@ const watchVideoSchema: Schema = new Schema(
     trailerUrl: {
       type: String,
       default: ''
+    },
+    
+    // Multi-language support
+    subtitles: [SubtitleSchema],
+    audioTracks: [AudioTrackSchema],
+    defaultSubtitleLanguage: {
+      type: String,
+      default: ''
+    },
+    defaultAudioLanguage: {
+      type: String,
+      default: 'en'
     },
     
     // For series
