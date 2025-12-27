@@ -401,9 +401,9 @@ router.post('/payment/create-order', createVendorPaymentOrder);
  *       200:
  *         description: Payment status
  */
-router.get('/payment/verify/:orderId', verifyVendorPayment);
+router.post('/payment/verify/:orderId', verifyVendorPayment);
 
-// Cashfree webhook
+// Razorpay webhook
 router.post('/payment/webhook', handleVendorPaymentWebhook);
 
 export const vendorRouter = router;
