@@ -2314,4 +2314,64 @@ router.post(
  */
 router.get('/vendor/:vendorId/purchases', RazorpayVideoPaymentController.getVendorPurchases);
 
+// ==================== VIDEO EXPIRY MANAGEMENT (Admin) ====================
+
+/**
+ * @swagger
+ * /v1/api/watch-videos/admin/scheduled-videos:
+ *   get:
+ *     summary: Get scheduled/expiring videos
+ *     description: Get videos with visibility schedule (admin only)
+ *     tags: [Watch Videos - Admin]
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [upcoming, expiring, expired]
+ *         description: Filter by schedule status
+ *       - in: query
+ *         name: daysAhead
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *         description: Days ahead for expiring filter
+ *     responses:
+ *       200:
+ *         description: Scheduled videos retrieved
+ */
+router.get('/admin/scheduled-videos', auth('admin'), WatchVideoController.getScheduledVideos);
+
+/**
+ * @swagger
+ * /v1/api/watch-videos/admin/process-expired:
+ *   post:
+ *     summary: Process expired videos manually
+ *     description: Manually trigger processing of expired videos (admin only)
+ *     tags: [Watch Videos - Admin]
+ *     responses:
+ *       200:
+ *         description: Expired videos processed
+ */
+router.post('/admin/process-expired', auth('admin'), WatchVideoController.processExpiredVideosManually);
+
+/**
+ * @swagger
+ * /v1/api/watch-videos/admin/expiring-soon:
+ *   get:
+ *     summary: Get videos expiring soon
+ *     description: Get videos that will expire in the next N days (admin only)
+ *     tags: [Watch Videos - Admin]
+ *     parameters:
+ *       - in: query
+ *         name: daysAhead
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *     responses:
+ *       200:
+ *         description: Expiring videos retrieved
+ */
+router.get('/admin/expiring-soon', auth('admin'), WatchVideoController.getUpcomingExpiringVideos);
+
 export default router;

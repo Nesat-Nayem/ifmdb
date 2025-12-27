@@ -15,6 +15,7 @@ import {
   VideoLike
 } from './watch-videos.model';
 import notificationService from '../notifications/notifications.service';
+import videoExpiryScheduler from '../../schedulers/videoExpiryScheduler';
 
 // ==================== DEEP LINK REDIRECT ====================
 
@@ -561,6 +562,25 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
     query.uploadedBy = user._id;
   }
 
+  // Visibility schedule filter - only for non-admin/vendor panel requests
+  // Admin and vendors can see all their videos regardless of schedule
+  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+  if (!isAdminOrVendor) {
+    const now = new Date();
+    query.$or = [
+      // Not scheduled videos
+      { isScheduled: { $ne: true } },
+      // Scheduled videos within visibility window
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ];
+  }
+
   if (search) {
     query.$text = { $search: search as string };
   }
@@ -630,6 +650,34 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
       message: 'Video not found',
       data: null,
     });
+  }
+
+  // Check visibility schedule for public access
+  const videoData = video as any;
+  if (videoData.isScheduled) {
+    const now = new Date();
+    const visibleFrom = videoData.visibleFrom ? new Date(videoData.visibleFrom) : null;
+    const visibleUntil = videoData.visibleUntil ? new Date(videoData.visibleUntil) : null;
+
+    // Check if video is not yet visible
+    if (visibleFrom && now < visibleFrom) {
+      return sendResponse(res, {
+        statusCode: httpStatus.FORBIDDEN,
+        success: false,
+        message: `This video will be available from ${visibleFrom.toLocaleDateString()}`,
+        data: { availableFrom: visibleFrom },
+      });
+    }
+
+    // Check if video has expired
+    if (visibleUntil && now > visibleUntil) {
+      return sendResponse(res, {
+        statusCode: httpStatus.GONE,
+        success: false,
+        message: 'This video is no longer available',
+        data: { expiredAt: visibleUntil },
+      });
+    }
   }
 
   // Get price based on country
@@ -1367,6 +1415,65 @@ const checkVideoAccess = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// ==================== VIDEO EXPIRY MANAGEMENT (Admin) ====================
+
+// Get scheduled/expiring videos
+const getScheduledVideos = catchAsync(async (req: Request, res: Response) => {
+  const { status, daysAhead = 7 } = req.query;
+  const now = new Date();
+
+  let query: any = { isScheduled: true, isActive: true };
+
+  if (status === 'upcoming') {
+    // Videos that will become visible in the future
+    query.visibleFrom = { $gt: now };
+  } else if (status === 'expiring') {
+    // Videos expiring soon
+    const futureDate = new Date(now.getTime() + Number(daysAhead) * 24 * 60 * 60 * 1000);
+    query.visibleUntil = { $gte: now, $lte: futureDate };
+  } else if (status === 'expired') {
+    // Already expired videos
+    query.visibleUntil = { $lt: now };
+  }
+
+  const videos = await WatchVideo.find(query)
+    .select('title thumbnailUrl visibleFrom visibleUntil autoDeleteOnExpiry status createdAt')
+    .sort({ visibleUntil: 1 });
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Scheduled videos retrieved',
+    data: videos,
+  });
+});
+
+// Manually process expired videos
+const processExpiredVideosManually = catchAsync(async (req: Request, res: Response) => {
+  const result = await videoExpiryScheduler.processExpiredVideos();
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Expired videos processed',
+    data: result,
+  });
+});
+
+// Get upcoming expiring videos for dashboard
+const getUpcomingExpiringVideos = catchAsync(async (req: Request, res: Response) => {
+  const { daysAhead = 7 } = req.query;
+
+  const videos = await videoExpiryScheduler.getUpcomingExpiringVideos(Number(daysAhead));
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Upcoming expiring videos retrieved',
+    data: videos,
+  });
+});
+
 export const WatchVideoController = {
   // Channel
   createChannel,
@@ -1420,4 +1527,9 @@ export const WatchVideoController = {
   
   // Deep Link Redirect
   handleDeepLinkRedirect,
+  
+  // Video Expiry Management (Admin)
+  getScheduledVideos,
+  processExpiredVideosManually,
+  getUpcomingExpiringVideos,
 };

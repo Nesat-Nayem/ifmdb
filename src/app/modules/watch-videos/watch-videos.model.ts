@@ -134,6 +134,23 @@ const EpisodeSchema = new Schema({
   viewCount: {
     type: Number,
     default: 0
+  },
+  // Visibility Schedule - for time-limited episodes
+  isScheduled: {
+    type: Boolean,
+    default: false
+  },
+  visibleFrom: {
+    type: Date,
+    default: null
+  },
+  visibleUntil: {
+    type: Date,
+    default: null
+  },
+  autoDeleteOnExpiry: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
@@ -518,6 +535,24 @@ const watchVideoSchema: Schema = new Schema(
       enum: ['', 'trending_now', 'most_popular', 'exclusive_on_moviemart', 'new_release'],
       default: '',
     },
+    
+    // Visibility Schedule - for time-limited videos
+    isScheduled: {
+      type: Boolean,
+      default: false
+    },
+    visibleFrom: {
+      type: Date,
+      default: null
+    },
+    visibleUntil: {
+      type: Date,
+      default: null
+    },
+    autoDeleteOnExpiry: {
+      type: Boolean,
+      default: false
+    },
   },
   { timestamps: true }
 );
@@ -787,6 +822,7 @@ watchVideoSchema.index({ viewCount: -1 });
 watchVideoSchema.index({ averageRating: -1 });
 watchVideoSchema.index({ uploadedBy: 1 });
 watchVideoSchema.index({ homeSection: 1 });
+watchVideoSchema.index({ isScheduled: 1, visibleFrom: 1, visibleUntil: 1 });
 
 channelSchema.index({ name: 'text', description: 'text' });
 channelSchema.index({ ownerId: 1 });

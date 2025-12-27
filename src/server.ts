@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import app from './app'; 
 import config from './app/config';
+import { startVideoExpiryScheduler } from './app/schedulers/videoExpiryScheduler';
 
 async function main(){
     try{
@@ -8,6 +9,9 @@ async function main(){
 
         app.listen(config.port, ()=>{
             console.log(`movie mart server is running on ports ${config.port}`)
+            
+            // Start video expiry scheduler (runs every hour)
+            startVideoExpiryScheduler(60 * 60 * 1000);
         })
 
     }catch(err){
