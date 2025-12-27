@@ -16,6 +16,39 @@ import {
 } from './watch-videos.model';
 import notificationService from '../notifications/notifications.service';
 
+// ==================== DEEP LINK REDIRECT ====================
+
+/**
+ * Handle deep link redirects for mobile app
+ * Redirects users to appropriate platform (Play Store/App Store) or web fallback
+ */
+const handleDeepLinkRedirect = catchAsync(async (req: Request, res: Response) => {
+  const { id: videoId } = req.query;
+  const userAgent = req.headers['user-agent'] || '';
+
+  if (!videoId) {
+    return res.redirect('/');
+  }
+
+  // Detect platform
+  const isAndroid = /android/i.test(userAgent);
+  const isIOS = /iphone|ipad|ipod/i.test(userAgent);
+
+  // Check if video exists
+  const video = await WatchVideo.findById(videoId);
+  if (!video) {
+    return res.redirect('/');
+  }
+
+  // For mobile platforms, redirect to smart redirect page
+  if (isAndroid || isIOS) {
+    return res.redirect(`/watch-movie-deatils/redirect?id=${videoId}`);
+  }
+
+  // For desktop/web, show video directly
+  return res.redirect(`/watch-movie-deatils?id=${videoId}`);
+});
+
 // ==================== CHANNEL CONTROLLERS ====================
 
 // Create Channel
@@ -1384,4 +1417,7 @@ export const WatchVideoController = {
   // Purchases
   getUserPurchases,
   checkVideoAccess,
+  
+  // Deep Link Redirect
+  handleDeepLinkRedirect,
 };

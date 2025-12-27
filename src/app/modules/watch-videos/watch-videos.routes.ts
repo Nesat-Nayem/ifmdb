@@ -7,6 +7,28 @@ import { auth, optionalAuth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
 
+// ==================== DEEP LINK ROUTES ====================
+
+/**
+ * @swagger
+ * /v1/api/watch-videos/redirect:
+ *   get:
+ *     summary: Handle deep link redirects
+ *     description: Smart redirect for mobile app deep linking - redirects to app if installed, otherwise to store
+ *     tags: [Watch Videos - Deep Links]
+ *     parameters:
+ *       - in: query
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Video ID to redirect to
+ *     responses:
+ *       302:
+ *         description: Redirect to appropriate destination
+ */
+router.get('/redirect', WatchVideoController.handleDeepLinkRedirect);
+
 // ==================== CHANNEL ROUTES ====================
 
 /**
