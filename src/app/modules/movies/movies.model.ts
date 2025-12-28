@@ -156,6 +156,11 @@ export interface IMovie extends Document {
     notes?: string;
   }>;
   tradeStatus?: string;
+  // Visibility Schedule - for time-limited trade movies
+  isScheduled: boolean;
+  visibleFrom: Date | null;
+  visibleUntil: Date | null;
+  autoDeleteOnExpiry: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -310,6 +315,23 @@ const movieSchema: Schema = new Schema(
       type: String,
       enum: ['get_it_now', 'sold_out', 'out_of_stock', 'coming_soon', 'limited_offer', 'negotiating'],
       default: 'get_it_now',
+    },
+    // Visibility Schedule - for time-limited trade movies
+    isScheduled: {
+      type: Boolean,
+      default: false
+    },
+    visibleFrom: {
+      type: Date,
+      default: null
+    },
+    visibleUntil: {
+      type: Date,
+      default: null
+    },
+    autoDeleteOnExpiry: {
+      type: Boolean,
+      default: false
     },
   },
   {

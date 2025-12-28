@@ -11,7 +11,7 @@ import { sendEmail, generatePassword, emailTemplates } from '../../services/emai
 // ============ VENDOR PACKAGES ============
 export const createVendorPackage = async (req: userInterface, res: Response, next: NextFunction) => {
   try {
-    const { name, description, price, duration, durationType, features, isPopular, sortOrder } = req.body;
+    const { name, description, price, duration, durationType, features, isPopular, sortOrder, isActive, countryPricing } = req.body;
     
     const existing = await VendorPackage.findOne({ name });
     if (existing) return next(new appError('Package with this name already exists', 400));
@@ -24,7 +24,9 @@ export const createVendorPackage = async (req: userInterface, res: Response, nex
       durationType,
       features: features || [],
       isPopular: isPopular || false,
+      isActive: isActive !== undefined ? isActive : true,
       sortOrder: sortOrder || 0,
+      countryPricing: countryPricing || [],
     });
 
     res.status(201).json({ success: true, statusCode: 201, message: 'Package created successfully', data: doc });

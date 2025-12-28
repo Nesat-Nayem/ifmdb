@@ -64,7 +64,11 @@ const createEventValidation = z.object({
     organizers: z.array(organizerSchema).optional(),
     tags: z.array(z.string()).optional(),
     status: z.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
-    isActive: z.boolean().optional()
+    isActive: z.boolean().optional(),
+    isScheduled: z.boolean().optional(),
+    visibleFrom: z.string().nullable().optional(),
+    visibleUntil: z.string().nullable().optional(),
+    autoDeleteOnExpiry: z.boolean().optional()
   })
 });
 
@@ -97,7 +101,11 @@ const updateEventValidation = z.object({
     organizers: z.array(organizerSchema).optional(),
     tags: z.array(z.string()).optional(),
     status: z.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
-    isActive: z.boolean().optional()
+    isActive: z.boolean().optional(),
+    isScheduled: z.boolean().optional(),
+    visibleFrom: z.string().nullable().optional(),
+    visibleUntil: z.string().nullable().optional(),
+    autoDeleteOnExpiry: z.boolean().optional()
   })
 });
 

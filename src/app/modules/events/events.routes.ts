@@ -728,6 +728,7 @@ router.get('/language/:eventLanguage', EventController.getEventsByLanguage);
  */
 router.get(
   '/bookings',
+  auth('admin', 'vendor'),
   validateRequest(EventBookingValidation.getEventBookingsValidation),
   EventBookingController.getAllEventBookings
 );
@@ -923,6 +924,7 @@ router.post(
  */
 router.get(
   '/bookings',
+  auth('admin', 'vendor'),
   validateRequest(EventBookingValidation.getEventBookingsValidation),
   EventBookingController.getAllEventBookings
 );

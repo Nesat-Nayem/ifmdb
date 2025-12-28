@@ -111,6 +111,22 @@ const getAllMovies = catchAsync(async (req: Request, res: Response) => {
   // Build filter query
   const filter: any = { isActive: true };
 
+  // Visibility schedule filter - only for non-admin/vendor panel requests
+  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+  if (!isAdminOrVendor) {
+    const now = new Date();
+    filter.$or = [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ];
+  }
+
   // If user is a vendor, only show their own movies
   if (user && user.role === 'vendor') {
     filter.vendorId = user._id;
@@ -176,17 +192,40 @@ const getAllMovies = catchAsync(async (req: Request, res: Response) => {
 
 // Get single movie by ID
 const getMovieById = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const { id } = req.params;
   
   const movie = await Movie.findById(id);
   
-  if (!movie) {
+  if (!movie || !movie.isActive) {
     return sendResponse(res, {
       statusCode: httpStatus.NOT_FOUND,
       success: false,
       message: 'Movie not found',
       data: null
     });
+  }
+
+  // Check visibility schedule for public access
+  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+  if (!isAdminOrVendor && movie.isScheduled) {
+    const now = new Date();
+    if (movie.visibleFrom && now < movie.visibleFrom) {
+      return sendResponse(res, {
+        statusCode: httpStatus.FORBIDDEN,
+        success: false,
+        message: `This movie will be visible from ${movie.visibleFrom.toLocaleString()}`,
+        data: { visibleFrom: movie.visibleFrom }
+      });
+    }
+    if (movie.visibleUntil && now > movie.visibleUntil) {
+      return sendResponse(res, {
+        statusCode: httpStatus.GONE,
+        success: false,
+        message: 'This movie is no longer available',
+        data: { expiredAt: movie.visibleUntil }
+      });
+    }
   }
 
   sendResponse(res, {

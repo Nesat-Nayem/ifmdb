@@ -53,6 +53,22 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
   // Build filter query
   const filter: any = { isActive: true };
 
+  // Visibility schedule filter - only for non-admin/vendor panel requests
+  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+  if (!isAdminOrVendor) {
+    const now = new Date();
+    filter.$or = [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ];
+  }
+
   // If user is a vendor, only show their own events
   if (user && user.role === 'vendor') {
     filter.vendorId = user._id;
@@ -115,17 +131,40 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
 
 // Get single event by ID
 const getEventById = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const { id } = req.params;
   
   const event = await Event.findById(id);
   
-  if (!event) {
+  if (!event || !event.isActive) {
     return sendResponse(res, {
       statusCode: httpStatus.NOT_FOUND,
       success: false,
       message: 'Event not found',
       data: null
     });
+  }
+
+  // Check visibility schedule for public access
+  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+  if (!isAdminOrVendor && event.isScheduled) {
+    const now = new Date();
+    if (event.visibleFrom && now < event.visibleFrom) {
+      return sendResponse(res, {
+        statusCode: httpStatus.FORBIDDEN,
+        success: false,
+        message: `This event will be visible from ${event.visibleFrom.toLocaleString()}`,
+        data: { visibleFrom: event.visibleFrom }
+      });
+    }
+    if (event.visibleUntil && now > event.visibleUntil) {
+      return sendResponse(res, {
+        statusCode: httpStatus.GONE,
+        success: false,
+        message: 'This event is no longer available',
+        data: { expiredAt: event.visibleUntil }
+      });
+    }
   }
 
   sendResponse(res, {
@@ -200,21 +239,34 @@ const getEventsByType = catchAsync(async (req: Request, res: Response) => {
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
-  const events = await Event.find({ 
+  const now = new Date();
+  const visibilityFilter = {
+    $or: [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ]
+  };
+
+  const filter = { 
     eventType: type, 
     isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  })
+    status: { $in: ['upcoming', 'ongoing'] },
+    ...visibilityFilter
+  };
+
+  const events = await Event.find(filter)
     .sort({ startDate: 1 })
     .skip(skip)
     .limit(limitNum)
     .lean();
 
-  const total = await Event.countDocuments({ 
-    eventType: type, 
-    isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  });
+  const total = await Event.countDocuments(filter);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -238,23 +290,34 @@ const getUpcomingEvents = catchAsync(async (req: Request, res: Response) => {
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
-  const currentDate = new Date();
+  const now = new Date();
+  const visibilityFilter = {
+    $or: [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ]
+  };
 
-  const events = await Event.find({
-    startDate: { $gte: currentDate },
+  const filter = {
+    startDate: { $gte: now },
     status: 'upcoming',
-    isActive: true
-  })
+    isActive: true,
+    ...visibilityFilter
+  };
+
+  const events = await Event.find(filter)
     .sort({ startDate: 1 })
     .skip(skip)
     .limit(limitNum)
     .lean();
 
-  const total = await Event.countDocuments({
-    startDate: { $gte: currentDate },
-    status: 'upcoming',
-    isActive: true
-  });
+  const total = await Event.countDocuments(filter);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -279,21 +342,34 @@ const getEventsByLocation = catchAsync(async (req: Request, res: Response) => {
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
-  const events = await Event.find({
+  const now = new Date();
+  const visibilityFilter = {
+    $or: [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ]
+  };
+
+  const filter = {
     'location.city': { $regex: city, $options: 'i' },
     isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  })
+    status: { $in: ['upcoming', 'ongoing'] },
+    ...visibilityFilter
+  };
+
+  const events = await Event.find(filter)
     .sort({ startDate: 1 })
     .skip(skip)
     .limit(limitNum)
     .lean();
 
-  const total = await Event.countDocuments({
-    'location.city': { $regex: city, $options: 'i' },
-    isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  });
+  const total = await Event.countDocuments(filter);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -317,29 +393,40 @@ const getBestEventsThisWeek = catchAsync(async (req: Request, res: Response) => 
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
-  // Get start and end of current week
   const now = new Date();
   const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
   startOfWeek.setHours(0, 0, 0, 0);
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(endOfWeek.getDate() + 7);
 
-  const events = await Event.find({
+  const visibilityFilter = {
+    $or: [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ]
+  };
+
+  const filter = {
     isActive: true,
     status: { $in: ['upcoming', 'ongoing'] },
-    startDate: { $gte: new Date(), $lte: endOfWeek }
-  })
+    startDate: { $gte: new Date(), $lte: endOfWeek },
+    ...visibilityFilter
+  };
+
+  const events = await Event.find(filter)
     .sort({ totalTicketsSold: -1 })
     .skip(skip)
     .limit(limitNum)
     .populate('categoryId', 'name image')
     .lean();
 
-  const total = await Event.countDocuments({
-    isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] },
-    startDate: { $gte: new Date(), $lte: endOfWeek }
-  });
+  const total = await Event.countDocuments(filter);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -364,22 +451,35 @@ const getEventsByCategory = catchAsync(async (req: Request, res: Response) => {
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
-  const events = await Event.find({
+  const now = new Date();
+  const visibilityFilter = {
+    $or: [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ]
+  };
+
+  const filter = {
     categoryId,
     isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  })
+    status: { $in: ['upcoming', 'ongoing'] },
+    ...visibilityFilter
+  };
+
+  const events = await Event.find(filter)
     .sort({ startDate: 1 })
     .skip(skip)
     .limit(limitNum)
     .populate('categoryId', 'name image')
     .lean();
 
-  const total = await Event.countDocuments({
-    categoryId,
-    isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  });
+  const total = await Event.countDocuments(filter);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -404,22 +504,35 @@ const getEventsByLanguage = catchAsync(async (req: Request, res: Response) => {
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
-  const events = await Event.find({
+  const now = new Date();
+  const visibilityFilter = {
+    $or: [
+      { isScheduled: { $ne: true } },
+      {
+        isScheduled: true,
+        $and: [
+          { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+          { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+        ]
+      }
+    ]
+  };
+
+  const filter = {
     eventLanguage: { $regex: eventLanguage, $options: 'i' },
     isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  })
+    status: { $in: ['upcoming', 'ongoing'] },
+    ...visibilityFilter
+  };
+
+  const events = await Event.find(filter)
     .sort({ startDate: 1 })
     .skip(skip)
     .limit(limitNum)
     .populate('categoryId', 'name image')
     .lean();
 
-  const total = await Event.countDocuments({
-    eventLanguage: { $regex: eventLanguage, $options: 'i' },
-    isActive: true,
-    status: { $in: ['upcoming', 'ongoing'] }
-  });
+  const total = await Event.countDocuments(filter);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

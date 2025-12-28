@@ -6,6 +6,7 @@ import Event from './events.model';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import { EventBooking, EventETicket, EventPaymentTransaction } from './event-booking.model';
+import { userInterface } from '../../middlewares/userInterface';
 
 // Generate unique booking reference
 const generateBookingReference = (): string => {
@@ -168,6 +169,7 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllEventBookings = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as userInterface).user;
   const {
     page = 1,
     limit = 10,
@@ -190,6 +192,13 @@ const getAllEventBookings = catchAsync(async (req: Request, res: Response) => {
   if (eventId) filter.eventId = eventId;
   if (paymentStatus) filter.paymentStatus = paymentStatus;
   if (bookingStatus) filter.bookingStatus = bookingStatus;
+
+  // Role-based filtering: Vendors only see bookings for their own events
+  if (user && user.role === 'vendor') {
+    const vendorEvents = await Event.find({ vendorId: user._id }).select('_id');
+    const eventIds = vendorEvents.map(e => e._id);
+    filter.eventId = { $in: eventIds };
+  }
 
   if (startDate || endDate) {
     filter.bookedAt = {};

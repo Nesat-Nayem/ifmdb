@@ -75,6 +75,10 @@ const createMovieValidation = z.object({
     formats: z.union([z.string(), z.array(z.string())]).optional(),
     status: z.enum(['upcoming', 'released', 'in_production']).optional(),
     isActive: z.boolean().optional(),
+    isScheduled: z.boolean().optional(),
+    visibleFrom: z.string().nullable().optional(),
+    visibleUntil: z.string().nullable().optional(),
+    autoDeleteOnExpiry: z.boolean().optional(),
     tags: z.array(z.string()).optional(),
     awards: z.array(z.string()).optional(),
     // Admin-panel additional fields
@@ -117,6 +121,10 @@ const updateMovieValidation = z.object({
     formats: z.union([z.string(), z.array(z.string())]).optional(),
     status: z.enum(['upcoming', 'released', 'in_production']).optional(),
     isActive: z.boolean().optional(),
+    isScheduled: z.boolean().optional(),
+    visibleFrom: z.string().nullable().optional(),
+    visibleUntil: z.string().nullable().optional(),
+    autoDeleteOnExpiry: z.boolean().optional(),
     tags: z.array(z.string()).optional(),
     awards: z.array(z.string()).optional(),
     // Admin-panel additional fields

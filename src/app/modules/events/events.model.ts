@@ -133,6 +133,11 @@ export interface IEvent extends Document {
   totalTicketsSold: number;
   status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   isActive: boolean;
+  // Visibility Schedule - for time-limited events
+  isScheduled: boolean;
+  visibleFrom: Date | null;
+  visibleUntil: Date | null;
+  autoDeleteOnExpiry: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -253,6 +258,23 @@ const eventSchema: Schema = new Schema(
       type: String,
       enum: ['', 'trending_events', 'celebrity_events', 'exclusive_invite_only', 'near_you'],
       default: '',
+    },
+    // Visibility Schedule - for time-limited events
+    isScheduled: {
+      type: Boolean,
+      default: false
+    },
+    visibleFrom: {
+      type: Date,
+      default: null
+    },
+    visibleUntil: {
+      type: Date,
+      default: null
+    },
+    autoDeleteOnExpiry: {
+      type: Boolean,
+      default: false
     },
   },
   {
