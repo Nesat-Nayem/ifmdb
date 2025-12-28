@@ -370,7 +370,7 @@ router.post('/payment/create-order', vendor_payment_controller_1.createVendorPay
  *       200:
  *         description: Payment status
  */
-router.get('/payment/verify/:orderId', vendor_payment_controller_1.verifyVendorPayment);
-// Cashfree webhook
+router.post('/payment/verify/:orderId', vendor_payment_controller_1.verifyVendorPayment);
+// Razorpay webhook
 router.post('/payment/webhook', vendor_payment_controller_1.handleVendorPaymentWebhook);
 exports.vendorRouter = router;

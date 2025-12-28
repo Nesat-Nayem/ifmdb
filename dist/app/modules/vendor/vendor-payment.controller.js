@@ -13,26 +13,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VendorPaymentController = exports.handleVendorPaymentWebhook = exports.verifyVendorPayment = exports.createVendorPaymentOrder = void 0;
-const axios_1 = __importDefault(require("axios"));
+const razorpay_1 = __importDefault(require("razorpay"));
+const crypto_1 = __importDefault(require("crypto"));
 const vendorPackage_model_1 = require("./vendorPackage.model");
 const appError_1 = require("../../errors/appError");
-// Cashfree API Configuration
-const CASHFREE_API_URL = process.env.CASHFREE_ENV === 'production'
-    ? 'https://api.cashfree.com/pg'
-    : 'https://sandbox.cashfree.com/pg';
-const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
-const CASHFREE_SECRET_KEY = process.env.CASHFREE_SECRET_KEY;
-// Generate unique order ID for Cashfree
-const generateOrderId = () => {
+// Razorpay Configuration
+const razorpay = new razorpay_1.default({
+    key_id: process.env.RAZORPAY_KEY_ID || '',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || '',
+});
+// Generate unique receipt ID for Razorpay
+const generateReceiptId = () => {
     const timestamp = Date.now().toString(36);
     const randomStr = Math.random().toString(36).substring(2, 10);
-    return `VND${timestamp}${randomStr}`.toUpperCase();
+    return `VND_${timestamp}_${randomStr}`.toUpperCase();
 };
-// Create Cashfree order for vendor package payment
+// Create Razorpay order for vendor package payment
 const createVendorPaymentOrder = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
     try {
-        const { packageId, customerDetails, returnUrl } = req.body;
+        const { packageId, customerDetails } = req.body;
         if (!packageId || !customerDetails) {
             return next(new appError_1.appError('Package ID and customer details are required', 400));
         }
@@ -41,99 +40,99 @@ const createVendorPaymentOrder = (req, res, next) => __awaiter(void 0, void 0, v
         if (!pkg || !pkg.isActive) {
             return next(new appError_1.appError('Package not found or inactive', 404));
         }
-        const orderId = generateOrderId();
+        const receiptId = generateReceiptId();
         const amount = pkg.price;
-        // Create Cashfree order
-        const cashfreeResponse = yield axios_1.default.post(`${CASHFREE_API_URL}/orders`, {
-            order_id: orderId,
-            order_amount: amount,
-            order_currency: 'INR',
-            customer_details: {
-                customer_id: customerDetails.email.replace(/[^a-zA-Z0-9]/g, '').substring(0, 20),
-                customer_name: customerDetails.name,
-                customer_email: customerDetails.email,
-                customer_phone: customerDetails.phone,
-            },
-            order_meta: {
-                return_url: returnUrl || `${process.env.FRONTEND_URL}/become-vendor/payment-success?order_id={order_id}`,
-                notify_url: `${process.env.BACKEND_URL}/v1/api/vendors/payment/webhook`,
-            },
-            order_note: `Vendor Package: ${pkg.name}`,
-        }, {
-            headers: {
-                'Content-Type': 'application/json',
-                'x-client-id': CASHFREE_APP_ID,
-                'x-client-secret': CASHFREE_SECRET_KEY,
-                'x-api-version': '2023-08-01',
+        // Create Razorpay order
+        const razorpayOrder = yield razorpay.orders.create({
+            amount: amount * 100, // Razorpay expects amount in paise
+            currency: 'INR',
+            receipt: receiptId,
+            notes: {
+                packageId: String(pkg._id),
+                packageName: pkg.name,
+                customerName: customerDetails.name,
+                customerEmail: customerDetails.email,
+                customerPhone: customerDetails.phone,
             },
         });
-        const cashfreeOrder = cashfreeResponse.data;
         res.status(201).json({
             success: true,
             statusCode: 201,
             message: 'Payment order created successfully',
             data: {
-                orderId: cashfreeOrder.order_id,
-                sessionId: cashfreeOrder.payment_session_id,
-                orderAmount: amount,
+                orderId: receiptId,
+                razorpayOrderId: razorpayOrder.id,
+                amount: amount,
+                currency: razorpayOrder.currency,
                 packageId: pkg._id,
                 packageName: pkg.name,
+                keyId: process.env.RAZORPAY_KEY_ID,
             },
         });
     }
     catch (error) {
-        console.error('Cashfree order error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
-        return next(new appError_1.appError(((_c = (_b = error.response) === null || _b === void 0 ? void 0 : _b.data) === null || _c === void 0 ? void 0 : _c.message) || 'Failed to create payment order', 500));
+        console.error('Razorpay order error:', error.message);
+        return next(new appError_1.appError(error.message || 'Failed to create payment order', 500));
     }
 });
 exports.createVendorPaymentOrder = createVendorPaymentOrder;
-// Verify Cashfree payment status
+// Verify Razorpay payment signature
 const verifyVendorPayment = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
     try {
         const { orderId } = req.params;
-        if (!orderId) {
-            return next(new appError_1.appError('Order ID is required', 400));
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+            return next(new appError_1.appError('Payment details are required', 400));
         }
-        // Get payment status from Cashfree
-        const cashfreeResponse = yield axios_1.default.get(`${CASHFREE_API_URL}/orders/${orderId}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                'x-client-id': CASHFREE_APP_ID,
-                'x-client-secret': CASHFREE_SECRET_KEY,
-                'x-api-version': '2023-08-01',
-            },
-        });
-        const orderData = cashfreeResponse.data;
-        const isPaid = orderData.order_status === 'PAID';
+        // Verify signature
+        const generatedSignature = crypto_1.default
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+            .digest('hex');
+        const isValid = generatedSignature === razorpay_signature;
+        if (!isValid) {
+            return next(new appError_1.appError('Invalid payment signature', 400));
+        }
+        // Fetch payment details from Razorpay
+        const payment = yield razorpay.payments.fetch(razorpay_payment_id);
         res.json({
             success: true,
             statusCode: 200,
-            message: isPaid ? 'Payment successful' : 'Payment not completed',
+            message: 'Payment verified successfully',
             data: {
-                orderId: orderData.order_id,
-                orderStatus: orderData.order_status,
-                orderAmount: orderData.order_amount,
-                isPaid,
-                transactionId: orderData.cf_order_id,
+                verified: true,
+                orderId: orderId,
+                razorpayOrderId: razorpay_order_id,
+                paymentId: razorpay_payment_id,
+                amount: Number(payment.amount) / 100, // Convert from paise to rupees
+                status: payment.status,
             },
         });
     }
     catch (error) {
-        console.error('Payment verification error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        console.error('Payment verification error:', error.message);
         return next(new appError_1.appError('Failed to verify payment', 500));
     }
 });
 exports.verifyVendorPayment = verifyVendorPayment;
-// Webhook handler for Cashfree
+// Webhook handler for Razorpay
 const handleVendorPaymentWebhook = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
     try {
-        const { data } = req.body;
-        if (((_a = data === null || data === void 0 ? void 0 : data.order) === null || _a === void 0 ? void 0 : _a.order_status) === 'PAID') {
-            console.log('Vendor payment webhook received:', data.order.order_id);
-            // Payment confirmed via webhook
-            // The actual form submission happens from frontend after verifyVendorPayment
+        const webhookSignature = req.headers['x-razorpay-signature'];
+        const webhookBody = JSON.stringify(req.body);
+        // Verify webhook signature
+        const expectedSignature = crypto_1.default
+            .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET || '')
+            .update(webhookBody)
+            .digest('hex');
+        if (webhookSignature === expectedSignature) {
+            const event = req.body.event;
+            const payload = req.body.payload;
+            if (event === 'payment.captured') {
+                console.log('Vendor payment webhook received:', payload.payment.entity.id);
+                // Payment confirmed via webhook
+                // The actual form submission happens from frontend after verifyVendorPayment
+            }
         }
         res.status(200).json({ success: true });
     }
