@@ -243,6 +243,23 @@ const eventSchema = new mongoose_1.Schema({
         enum: ['', 'trending_events', 'celebrity_events', 'exclusive_invite_only', 'near_you'],
         default: '',
     },
+    // Visibility Schedule - for time-limited events
+    isScheduled: {
+        type: Boolean,
+        default: false
+    },
+    visibleFrom: {
+        type: Date,
+        default: null
+    },
+    visibleUntil: {
+        type: Date,
+        default: null
+    },
+    autoDeleteOnExpiry: {
+        type: Boolean,
+        default: false
+    },
 }, {
     timestamps: true
 });

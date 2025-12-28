@@ -62,7 +62,11 @@ const createEventValidation = zod_1.z.object({
         organizers: zod_1.z.array(organizerSchema).optional(),
         tags: zod_1.z.array(zod_1.z.string()).optional(),
         status: zod_1.z.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
-        isActive: zod_1.z.boolean().optional()
+        isActive: zod_1.z.boolean().optional(),
+        isScheduled: zod_1.z.boolean().optional(),
+        visibleFrom: zod_1.z.string().nullable().optional(),
+        visibleUntil: zod_1.z.string().nullable().optional(),
+        autoDeleteOnExpiry: zod_1.z.boolean().optional()
     })
 });
 // Update event validation
@@ -94,7 +98,11 @@ const updateEventValidation = zod_1.z.object({
         organizers: zod_1.z.array(organizerSchema).optional(),
         tags: zod_1.z.array(zod_1.z.string()).optional(),
         status: zod_1.z.enum(['upcoming', 'ongoing', 'completed', 'cancelled']).optional(),
-        isActive: zod_1.z.boolean().optional()
+        isActive: zod_1.z.boolean().optional(),
+        isScheduled: zod_1.z.boolean().optional(),
+        visibleFrom: zod_1.z.string().nullable().optional(),
+        visibleUntil: zod_1.z.string().nullable().optional(),
+        autoDeleteOnExpiry: zod_1.z.boolean().optional()
     })
 });
 // Get events query validation

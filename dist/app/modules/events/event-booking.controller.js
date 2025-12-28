@@ -147,6 +147,7 @@ const createEventBooking = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
     });
 }));
 const getAllEventBookings = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { page = 1, limit = 10, userId, eventId, paymentStatus, bookingStatus, startDate, endDate, sortBy = 'bookedAt', sortOrder = 'desc', } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
@@ -160,6 +161,12 @@ const getAllEventBookings = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         filter.paymentStatus = paymentStatus;
     if (bookingStatus)
         filter.bookingStatus = bookingStatus;
+    // Role-based filtering: Vendors only see bookings for their own events
+    if (user && user.role === 'vendor') {
+        const vendorEvents = yield events_model_1.default.find({ vendorId: user._id }).select('_id');
+        const eventIds = vendorEvents.map(e => e._id);
+        filter.eventId = { $in: eventIds };
+    }
     if (startDate || endDate) {
         filter.bookedAt = {};
         if (startDate)

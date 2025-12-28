@@ -278,6 +278,23 @@ const movieSchema = new mongoose_1.Schema({
         enum: ['get_it_now', 'sold_out', 'out_of_stock', 'coming_soon', 'limited_offer', 'negotiating'],
         default: 'get_it_now',
     },
+    // Visibility Schedule - for time-limited trade movies
+    isScheduled: {
+        type: Boolean,
+        default: false
+    },
+    visibleFrom: {
+        type: Date,
+        default: null
+    },
+    visibleUntil: {
+        type: Date,
+        default: null
+    },
+    autoDeleteOnExpiry: {
+        type: Boolean,
+        default: false
+    },
 }, {
     timestamps: true
 });

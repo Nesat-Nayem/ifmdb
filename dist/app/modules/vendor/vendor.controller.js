@@ -20,7 +20,7 @@ const emailService_1 = require("../../services/emailService");
 // ============ VENDOR PACKAGES ============
 const createVendorPackage = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { name, description, price, duration, durationType, features, isPopular, sortOrder } = req.body;
+        const { name, description, price, duration, durationType, features, isPopular, sortOrder, isActive, countryPricing } = req.body;
         const existing = yield vendorPackage_model_1.VendorPackage.findOne({ name });
         if (existing)
             return next(new appError_1.appError('Package with this name already exists', 400));
@@ -32,7 +32,9 @@ const createVendorPackage = (req, res, next) => __awaiter(void 0, void 0, void 0
             durationType,
             features: features || [],
             isPopular: isPopular || false,
+            isActive: isActive !== undefined ? isActive : true,
             sortOrder: sortOrder || 0,
+            countryPricing: countryPricing || [],
         });
         res.status(201).json({ success: true, statusCode: 201, message: 'Package created successfully', data: doc });
     }

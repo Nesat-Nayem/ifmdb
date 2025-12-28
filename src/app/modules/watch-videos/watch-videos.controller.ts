@@ -1450,7 +1450,7 @@ const getScheduledVideos = catchAsync(async (req: Request, res: Response) => {
 
 // Manually process expired videos
 const processExpiredVideosManually = catchAsync(async (req: Request, res: Response) => {
-  const result = await videoExpiryScheduler.processExpiredVideos();
+  const result = await videoExpiryScheduler.processExpiredContent();
 
   return sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -1464,7 +1464,7 @@ const processExpiredVideosManually = catchAsync(async (req: Request, res: Respon
 const getUpcomingExpiringVideos = catchAsync(async (req: Request, res: Response) => {
   const { daysAhead = 7 } = req.query;
 
-  const videos = await videoExpiryScheduler.getUpcomingExpiringVideos(Number(daysAhead));
+  const videos = await videoExpiryScheduler.getUpcomingExpiringContent(Number(daysAhead));
 
   return sendResponse(res, {
     statusCode: httpStatus.OK,

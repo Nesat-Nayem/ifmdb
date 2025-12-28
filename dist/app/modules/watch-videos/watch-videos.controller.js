@@ -1183,7 +1183,7 @@ const getScheduledVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
 }));
 // Manually process expired videos
 const processExpiredVideosManually = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield videoExpiryScheduler_1.default.processExpiredVideos();
+    const result = yield videoExpiryScheduler_1.default.processExpiredContent();
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -1194,7 +1194,7 @@ const processExpiredVideosManually = (0, catchAsync_1.catchAsync)((req, res) => 
 // Get upcoming expiring videos for dashboard
 const getUpcomingExpiringVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { daysAhead = 7 } = req.query;
-    const videos = yield videoExpiryScheduler_1.default.getUpcomingExpiringVideos(Number(daysAhead));
+    const videos = yield videoExpiryScheduler_1.default.getUpcomingExpiringContent(Number(daysAhead));
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
         success: true,

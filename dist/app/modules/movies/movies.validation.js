@@ -72,6 +72,10 @@ const createMovieValidation = zod_1.z.object({
         formats: zod_1.z.union([zod_1.z.string(), zod_1.z.array(zod_1.z.string())]).optional(),
         status: zod_1.z.enum(['upcoming', 'released', 'in_production']).optional(),
         isActive: zod_1.z.boolean().optional(),
+        isScheduled: zod_1.z.boolean().optional(),
+        visibleFrom: zod_1.z.string().nullable().optional(),
+        visibleUntil: zod_1.z.string().nullable().optional(),
+        autoDeleteOnExpiry: zod_1.z.boolean().optional(),
         tags: zod_1.z.array(zod_1.z.string()).optional(),
         awards: zod_1.z.array(zod_1.z.string()).optional(),
         // Admin-panel additional fields
@@ -113,6 +117,10 @@ const updateMovieValidation = zod_1.z.object({
         formats: zod_1.z.union([zod_1.z.string(), zod_1.z.array(zod_1.z.string())]).optional(),
         status: zod_1.z.enum(['upcoming', 'released', 'in_production']).optional(),
         isActive: zod_1.z.boolean().optional(),
+        isScheduled: zod_1.z.boolean().optional(),
+        visibleFrom: zod_1.z.string().nullable().optional(),
+        visibleUntil: zod_1.z.string().nullable().optional(),
+        autoDeleteOnExpiry: zod_1.z.boolean().optional(),
         tags: zod_1.z.array(zod_1.z.string()).optional(),
         awards: zod_1.z.array(zod_1.z.string()).optional(),
         // Admin-panel additional fields

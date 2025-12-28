@@ -42,6 +42,13 @@ const VendorPackageSchema = new mongoose_1.Schema({
     duration: { type: Number, required: true, default: 30 },
     durationType: { type: String, enum: ['days', 'months', 'years'], default: 'days' },
     features: [{ type: String }],
+    countryPricing: [{
+            countryCode: { type: String, required: true },
+            countryName: { type: String, required: true },
+            currency: { type: String, required: true },
+            price: { type: Number, required: true, min: 0 },
+            isActive: { type: Boolean, default: true }
+        }],
     serviceType: { type: String, enum: ['film_trade'], default: 'film_trade' },
     isPopular: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true, index: true },

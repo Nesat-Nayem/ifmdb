@@ -100,6 +100,21 @@ const getAllMovies = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
     const skip = (pageNum - 1) * limitNum;
     // Build filter query
     const filter = { isActive: true };
+    // Visibility schedule filter - only for non-admin/vendor panel requests
+    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+    if (!isAdminOrVendor) {
+        const now = new Date();
+        filter.$or = [
+            { isScheduled: { $ne: true } },
+            {
+                isScheduled: true,
+                $and: [
+                    { $or: [{ visibleFrom: null }, { visibleFrom: { $lte: now } }] },
+                    { $or: [{ visibleUntil: null }, { visibleUntil: { $gt: now } }] }
+                ]
+            }
+        ];
+    }
     // If user is a vendor, only show their own movies
     if (user && user.role === 'vendor') {
         filter.vendorId = user._id;
@@ -164,15 +179,37 @@ const getAllMovies = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
 }));
 // Get single movie by ID
 const getMovieById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
     const { id } = req.params;
     const movie = yield movies_model_1.default.findById(id);
-    if (!movie) {
+    if (!movie || !movie.isActive) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,
             message: 'Movie not found',
             data: null
         });
+    }
+    // Check visibility schedule for public access
+    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+    if (!isAdminOrVendor && movie.isScheduled) {
+        const now = new Date();
+        if (movie.visibleFrom && now < movie.visibleFrom) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.FORBIDDEN,
+                success: false,
+                message: `This movie will be visible from ${movie.visibleFrom.toLocaleString()}`,
+                data: { visibleFrom: movie.visibleFrom }
+            });
+        }
+        if (movie.visibleUntil && now > movie.visibleUntil) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.GONE,
+                success: false,
+                message: 'This movie is no longer available',
+                data: { expiredAt: movie.visibleUntil }
+            });
+        }
     }
     (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,

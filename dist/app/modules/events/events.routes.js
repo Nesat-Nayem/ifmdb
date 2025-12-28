@@ -711,7 +711,7 @@ router.get('/language/:eventLanguage', events_controller_1.EventController.getEv
  *       200:
  *         description: Event bookings retrieved successfully
  */
-router.get('/bookings', (0, validateRequest_1.default)(event_booking_validation_1.EventBookingValidation.getEventBookingsValidation), event_booking_controller_1.EventBookingController.getAllEventBookings);
+router.get('/bookings', (0, authMiddleware_1.auth)('admin', 'vendor'), (0, validateRequest_1.default)(event_booking_validation_1.EventBookingValidation.getEventBookingsValidation), event_booking_controller_1.EventBookingController.getAllEventBookings);
 /**
  * @swagger
  * /v1/api/events/{id}:
@@ -889,7 +889,7 @@ router.post('/:id/book', (0, validateRequest_1.default)(event_booking_validation
  *       200:
  *         description: Event bookings retrieved successfully
  */
-router.get('/bookings', (0, validateRequest_1.default)(event_booking_validation_1.EventBookingValidation.getEventBookingsValidation), event_booking_controller_1.EventBookingController.getAllEventBookings);
+router.get('/bookings', (0, authMiddleware_1.auth)('admin', 'vendor'), (0, validateRequest_1.default)(event_booking_validation_1.EventBookingValidation.getEventBookingsValidation), event_booking_controller_1.EventBookingController.getAllEventBookings);
 /**
  * @swagger
  * /v1/api/events/bookings/{id}:
