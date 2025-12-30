@@ -6,6 +6,9 @@ import { EventBookingController } from './event-booking.controller';
 import { EventBookingValidation } from './event-booking.validation';
 import { RazorpayPaymentController } from './razorpay-payment.controller';
 import { auth, optionalAuth } from '../../middlewares/authMiddleware';
+import * as TicketScannerController from './ticket-scanner.controller';
+import * as TicketScannerValidation from './ticket-scanner.validation';
+import { authenticateScanner } from './ticket-scanner.middleware';
 
 const router = express.Router();
 
@@ -736,38 +739,6 @@ router.get(
 /**
  * @swagger
  * /v1/api/events/{id}:
- *   get:
- *     summary: Get event by ID
- *     tags: [Events]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: Event ID
- *     responses:
- *       200:
- *         description: Event retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   $ref: '#/components/schemas/Event'
- *       404:
- *         description: Event not found
- */
-router.get('/:id', EventController.getEventById);
-
-/**
- * @swagger
- * /v1/api/events/{id}:
  *   put:
  *     summary: Update event
  *     tags: [Events]
@@ -1323,5 +1294,416 @@ router.post('/payment/webhook', RazorpayPaymentController.handleRazorpayWebhook)
  *         description: Booking not found
  */
 router.post('/payment/refund/:bookingId', RazorpayPaymentController.initiateRefund);
+
+// ============ TICKET SCANNER ROUTES ============
+
+/**
+ * @swagger
+ * /v1/api/events/scanner/login:
+ *   post:
+ *     summary: Scanner login (for Flutter app)
+ *     tags: [Events - Ticket Scanner]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               deviceInfo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ */
+router.post(
+  '/scanner/login',
+  validateRequest(TicketScannerValidation.scannerLoginSchema),
+  TicketScannerController.scannerLogin
+);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner/logout:
+ *   post:
+ *     summary: Scanner logout
+ *     tags: [Events - Ticket Scanner]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ */
+router.post('/scanner/logout', authenticateScanner, TicketScannerController.scannerLogout);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner/validate:
+ *   post:
+ *     summary: Validate a ticket by barcode/QR code
+ *     tags: [Events - Ticket Scanner]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - bookingReference
+ *             properties:
+ *               bookingReference:
+ *                 type: string
+ *                 description: The barcode/QR code value (booking reference)
+ *               deviceInfo:
+ *                 type: string
+ *               location:
+ *                 type: object
+ *                 properties:
+ *                   latitude:
+ *                     type: number
+ *                   longitude:
+ *                     type: number
+ *                   address:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: Ticket validated successfully
+ *       400:
+ *         description: Invalid or already used ticket
+ *       403:
+ *         description: Not authorized for this event
+ *       404:
+ *         description: Ticket not found
+ */
+router.post(
+  '/scanner/validate',
+  authenticateScanner,
+  validateRequest(TicketScannerValidation.validateTicketSchema),
+  TicketScannerController.validateTicket
+);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner/history:
+ *   get:
+ *     summary: Get scan history for scanner
+ *     tags: [Events - Ticket Scanner]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: eventId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: scanResult
+ *         schema:
+ *           type: string
+ *           enum: [valid, invalid, already_used, expired, wrong_event, not_found]
+ *     responses:
+ *       200:
+ *         description: Scan history retrieved
+ */
+router.get('/scanner/history', authenticateScanner, TicketScannerController.getScanHistory);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner/stats:
+ *   get:
+ *     summary: Get scan statistics
+ *     tags: [Events - Ticket Scanner]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: eventId
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Statistics retrieved
+ */
+router.get('/scanner/stats', authenticateScanner, TicketScannerController.getScanStats);
+
+// ============ VENDOR SCANNER MANAGEMENT ROUTES ============
+
+/**
+ * @swagger
+ * /v1/api/events/scanner-access:
+ *   post:
+ *     summary: Create a new scanner access account (Vendor only)
+ *     tags: [Events - Scanner Management]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               allowedEvents:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Scanner access created
+ *       400:
+ *         description: Validation error
+ */
+router.post(
+  '/scanner-access',
+  auth('vendor', 'admin'),
+  validateRequest(TicketScannerValidation.createScannerAccessSchema),
+  TicketScannerController.createScannerAccess
+);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner-access:
+ *   get:
+ *     summary: Get all scanner access accounts for vendor
+ *     tags: [Events - Scanner Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: isActive
+ *         schema:
+ *           type: boolean
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Scanner accounts retrieved
+ */
+/**
+ * @swagger
+ * /v1/api/events/scanner-access/logs:
+ *   get:
+ *     summary: Get all scan logs for vendor's scanners
+ *     tags: [Events - Scanner Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: scannerId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: eventId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: scanResult
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Scan logs retrieved
+ */
+router.get('/scanner-access/logs', auth('vendor', 'admin'), TicketScannerController.getVendorScanLogs);
+
+router.get('/scanner-access', auth('vendor', 'admin'), TicketScannerController.getVendorScannerAccounts);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner-access/{id}/toggle:
+ *   patch:
+ *     summary: Toggle scanner access status (activate/deactivate)
+ *     tags: [Events - Scanner Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Status toggled
+ *       404:
+ *         description: Not found
+ */
+router.patch('/scanner-access/:id/toggle', auth('vendor', 'admin'), TicketScannerController.toggleScannerStatus);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner-access/{id}:
+ *   get:
+ *     summary: Get scanner access by ID
+ *     tags: [Events - Scanner Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Scanner access retrieved
+ *       404:
+ *         description: Not found
+ */
+router.get('/scanner-access/:id', auth('vendor', 'admin'), TicketScannerController.getScannerAccessById);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner-access/{id}:
+ *   put:
+ *     summary: Update scanner access
+ *     tags: [Events - Scanner Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               allowedEvents:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               notes:
+ *                 type: string
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Scanner access updated
+ *       404:
+ *         description: Not found
+ */
+router.put(
+  '/scanner-access/:id',
+  auth('vendor', 'admin'),
+  validateRequest(TicketScannerValidation.updateScannerAccessSchema),
+  TicketScannerController.updateScannerAccess
+);
+
+/**
+ * @swagger
+ * /v1/api/events/scanner-access/{id}:
+ *   delete:
+ *     summary: Delete scanner access
+ *     tags: [Events - Scanner Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Scanner access deleted
+ *       404:
+ *         description: Not found
+ */
+router.delete('/scanner-access/:id', auth('vendor', 'admin'), TicketScannerController.deleteScannerAccess);
+
+// ============ GENERIC EVENT ROUTES (MUST BE LAST) ============
+// These catch-all routes must be defined AFTER all specific routes to avoid conflicts
+
+/**
+ * @swagger
+ * /v1/api/events/{id}:
+ *   get:
+ *     summary: Get event by ID
+ *     tags: [Events]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Event ID
+ *     responses:
+ *       200:
+ *         description: Event retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Event'
+ *       404:
+ *         description: Event not found
+ */
+router.get('/:id', EventController.getEventById);
 
 export const eventRouter = router;
