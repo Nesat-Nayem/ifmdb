@@ -12,6 +12,7 @@ import {
   requestOtp,
   verifyOtp,
   googleAuth,
+  appleAuth,
   updateProfile,
   changePassword,
   getProfile
@@ -572,6 +573,83 @@ router.post("/verify-otp", verifyOtp);
  *         description: Bad request - Email not provided
  */
 router.post("/google", googleAuth);
+
+/**
+ * @swagger
+ * /v1/api/auth/apple:
+ *   post:
+ *     summary: Login/Register with Apple (Firebase)
+ *     description: |
+ *       Authenticate user using Apple Sign-In through Firebase.
+ *       Frontend should use sign_in_with_apple package and then link with Firebase to get the ID token.
+ *       If user doesn't exist, a new account will be created automatically.
+ *       Note: Apple only provides name and email on first sign-in.
+ *     tags: [Apple Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - idToken
+ *             properties:
+ *               idToken:
+ *                 type: string
+ *                 description: Firebase ID token obtained from Apple Sign-In
+ *                 example: "eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+ *               fullName:
+ *                 type: object
+ *                 properties:
+ *                   givenName:
+ *                     type: string
+ *                     example: "John"
+ *                   familyName:
+ *                     type: string
+ *                     example: "Doe"
+ *               email:
+ *                 type: string
+ *                 example: "john@privaterelay.appleid.com"
+ *     responses:
+ *       200:
+ *         description: Apple authentication successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Apple authentication successful"
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     email:
+ *                       type: string
+ *                     appleId:
+ *                       type: string
+ *                     authProvider:
+ *                       type: string
+ *                       example: "apple"
+ *       401:
+ *         description: Invalid or expired Firebase token
+ *       400:
+ *         description: Bad request
+ */
+router.post("/apple", appleAuth);
 
 /**
  * @swagger

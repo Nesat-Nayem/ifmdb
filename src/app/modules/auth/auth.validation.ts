@@ -90,3 +90,14 @@ export const googleAuthValidation = z.object({
   idToken: z.string().min(1, "Firebase ID token is required")
 });
 
+// Apple Auth validation
+export const appleAuthValidation = z.object({
+  idToken: z.string().min(1, "Apple ID token is required"),
+  authorizationCode: z.string().optional(),
+  fullName: z.object({
+    givenName: z.string().nullable().optional(),
+    familyName: z.string().nullable().optional()
+  }).optional(),
+  email: z.string().email().nullable().optional()
+});
+

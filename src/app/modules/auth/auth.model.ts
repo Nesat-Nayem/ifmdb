@@ -49,7 +49,8 @@ export interface IUser extends Document {
   otp?: string;
   otpExpires?: Date;
   googleId?: string;
-  authProvider: 'local' | 'google' | 'phone';
+  appleId?: string;
+  authProvider: 'local' | 'google' | 'phone' | 'apple';
   packageFeatures?: string[];
   vendorServices?: VendorServiceType[];
   vendorApplicationId?: mongoose.Types.ObjectId;
@@ -72,7 +73,8 @@ const userSchema: Schema = new Schema(
     otp: { type: String },
     otpExpires: { type: Date },
     googleId: { type: String, sparse: true, unique: true },
-    authProvider: { type: String, enum: ['local', 'google', 'phone'], default: 'local' },
+    appleId: { type: String, sparse: true, unique: true },
+    authProvider: { type: String, enum: ['local', 'google', 'phone', 'apple'], default: 'local' },
 
     packageFeatures: {
         type: [String],

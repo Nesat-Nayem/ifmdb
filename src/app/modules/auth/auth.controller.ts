@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { User } from "./auth.model";
 import { RequestHandler } from 'express';
-import { activateUserValidation, authValidation, emailCheckValidation, googleAuthValidation, loginValidation, phoneCheckValidation, requestOtpValidation, resetPasswordValidation, updateUserValidation, verifyOtpValidation } from "./auth.validation";
+import { activateUserValidation, authValidation, emailCheckValidation, googleAuthValidation, appleAuthValidation, loginValidation, phoneCheckValidation, requestOtpValidation, resetPasswordValidation, updateUserValidation, verifyOtpValidation } from "./auth.validation";
 import { generateToken } from "../../config/generateToken";
 import admin from "firebase-admin";
 // import { AdminStaff } from "../admin-staff/admin-staff.model";
@@ -795,6 +795,93 @@ export const getProfile: RequestHandler = async (req, res, next): Promise<void> 
     res.status(500).json({
       success: false,
       statusCode: 500,
+      message: error.message
+    });
+    return;
+  }
+};
+
+// Apple Authentication - verify Firebase token from Apple Sign-In and create/login user
+export const appleAuth: RequestHandler = async (req, res, next): Promise<void> => {
+  try {
+    const { idToken, fullName, email: providedEmail } = appleAuthValidation.parse(req.body);
+
+    // Verify Firebase ID token (Apple Sign-In through Firebase)
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+    } catch (firebaseError: any) {
+      res.status(401).json({
+        success: false,
+        statusCode: 401,
+        message: "Invalid or expired Firebase token"
+      });
+      return;
+    }
+
+    const { uid, email: tokenEmail } = decodedToken;
+    
+    // Apple may not provide email after first sign-in, use from token or provided
+    const email = tokenEmail || providedEmail;
+    
+    // Build name from fullName if provided (Apple only sends name on first sign-in)
+    let name = '';
+    if (fullName) {
+      const parts = [fullName.givenName, fullName.familyName].filter(Boolean);
+      name = parts.join(' ');
+    }
+
+    // Check if user already exists with this appleId or email
+    let user = await User.findOne({ 
+      $or: [
+        { appleId: uid },
+        ...(email ? [{ email: email }] : [])
+      ]
+    });
+
+    if (user) {
+      // User exists - update Apple info if needed
+      if (!user.appleId) {
+        user.appleId = uid;
+        user.authProvider = 'apple';
+        await user.save();
+      }
+      // Update name if we have it and user doesn't have one
+      if (name && !user.name) {
+        user.name = name;
+        await user.save();
+      }
+    } else {
+      // Create new user
+      user = new User({
+        name: name || (email ? email.split('@')[0] : `Apple User ${uid.substring(0, 6)}`),
+        email: email || undefined,
+        appleId: uid,
+        authProvider: 'apple',
+        role: 'user',
+        status: 'active'
+      });
+      await user.save();
+    }
+
+    // Generate JWT token
+    const token = generateToken(user);
+
+    // Remove password from response
+    const { password: _, ...userObject } = user.toObject();
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: "Apple authentication successful",
+      token,
+      data: userObject
+    });
+    return;
+  } catch (error: any) {
+    res.status(400).json({
+      success: false,
+      statusCode: 400,
       message: error.message
     });
     return;
