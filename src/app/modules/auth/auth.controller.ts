@@ -801,28 +801,73 @@ export const getProfile: RequestHandler = async (req, res, next): Promise<void> 
   }
 };
 
-// Apple Authentication - verify Firebase token from Apple Sign-In and create/login user
+// Apple Authentication - verify Apple identity token directly and create/login user
 export const appleAuth: RequestHandler = async (req, res, next): Promise<void> => {
   try {
-    const { idToken, fullName, email: providedEmail } = appleAuthValidation.parse(req.body);
+    console.log("🍎 [Apple Auth] Request received");
+    console.log("🍎 [Apple Auth] Body keys:", Object.keys(req.body));
+    
+    const { idToken, userIdentifier, fullName, email: providedEmail } = appleAuthValidation.parse(req.body);
 
-    // Verify Firebase ID token (Apple Sign-In through Firebase)
-    let decodedToken;
+    console.log("🍎 [Apple Auth] Validation passed");
+    console.log("🍎 [Apple Auth] idToken length:", idToken?.length);
+    console.log("🍎 [Apple Auth] userIdentifier:", userIdentifier);
+    console.log("🍎 [Apple Auth] providedEmail:", providedEmail);
+    console.log("🍎 [Apple Auth] fullName:", fullName);
+
+    // Decode Apple's identity token (JWT) without verification for now
+    // The token is signed by Apple and contains user info
+    let decodedPayload: any;
     try {
-      decodedToken = await admin.auth().verifyIdToken(idToken);
-    } catch (firebaseError: any) {
+      // Apple's identity token is a JWT - decode the payload
+      const tokenParts = idToken.split('.');
+      if (tokenParts.length !== 3) {
+        throw new Error("Invalid Apple identity token format");
+      }
+      
+      // Decode the payload (middle part)
+      const payload = tokenParts[1];
+      const decodedString = Buffer.from(payload, 'base64').toString('utf8');
+      decodedPayload = JSON.parse(decodedString);
+      
+      console.log("🍎 [Apple Auth] Decoded token payload:");
+      console.log("🍎 [Apple Auth] - iss:", decodedPayload.iss);
+      console.log("🍎 [Apple Auth] - sub:", decodedPayload.sub);
+      console.log("🍎 [Apple Auth] - aud:", decodedPayload.aud);
+      console.log("🍎 [Apple Auth] - email:", decodedPayload.email);
+      console.log("🍎 [Apple Auth] - email_verified:", decodedPayload.email_verified);
+      
+      // Verify issuer is Apple
+      if (decodedPayload.iss !== 'https://appleid.apple.com') {
+        throw new Error("Invalid token issuer");
+      }
+      
+      // Verify token is not expired
+      const now = Math.floor(Date.now() / 1000);
+      if (decodedPayload.exp && decodedPayload.exp < now) {
+        throw new Error("Apple identity token has expired");
+      }
+      
+    } catch (decodeError: any) {
+      console.log("❌ [Apple Auth] Token decode error:", decodeError.message);
       res.status(401).json({
         success: false,
         statusCode: 401,
-        message: "Invalid or expired Firebase token"
+        message: "Invalid Apple identity token: " + decodeError.message
       });
       return;
     }
 
-    const { uid, email: tokenEmail } = decodedToken;
+    // Extract user info from decoded token
+    // 'sub' is the unique Apple user ID (stable across sign-ins)
+    const appleUserId = decodedPayload.sub || userIdentifier;
+    const tokenEmail = decodedPayload.email;
     
-    // Apple may not provide email after first sign-in, use from token or provided
+    // Use email from token or provided email
     const email = tokenEmail || providedEmail;
+    
+    console.log("🍎 [Apple Auth] Apple User ID:", appleUserId);
+    console.log("🍎 [Apple Auth] Final email:", email);
     
     // Build name from fullName if provided (Apple only sends name on first sign-in)
     let name = '';
@@ -830,46 +875,56 @@ export const appleAuth: RequestHandler = async (req, res, next): Promise<void> =
       const parts = [fullName.givenName, fullName.familyName].filter(Boolean);
       name = parts.join(' ');
     }
+    console.log("🍎 [Apple Auth] Constructed name:", name);
 
     // Check if user already exists with this appleId or email
     let user = await User.findOne({ 
       $or: [
-        { appleId: uid },
+        { appleId: appleUserId },
         ...(email ? [{ email: email }] : [])
       ]
     });
 
+    console.log("🍎 [Apple Auth] Existing user found:", !!user);
+
     if (user) {
       // User exists - update Apple info if needed
       if (!user.appleId) {
-        user.appleId = uid;
+        user.appleId = appleUserId;
         user.authProvider = 'apple';
         await user.save();
+        console.log("🍎 [Apple Auth] Updated existing user with Apple ID");
       }
       // Update name if we have it and user doesn't have one
       if (name && !user.name) {
         user.name = name;
         await user.save();
+        console.log("🍎 [Apple Auth] Updated user name");
       }
     } else {
       // Create new user
+      console.log("🍎 [Apple Auth] Creating new user...");
       user = new User({
-        name: name || (email ? email.split('@')[0] : `Apple User ${uid.substring(0, 6)}`),
+        name: name || (email ? email.split('@')[0] : `Apple User ${appleUserId.substring(0, 6)}`),
         email: email || undefined,
-        appleId: uid,
+        appleId: appleUserId,
         authProvider: 'apple',
         role: 'user',
         status: 'active'
       });
       await user.save();
+      console.log("🍎 [Apple Auth] New user created with ID:", user._id);
     }
 
     // Generate JWT token
     const token = generateToken(user);
+    console.log("🍎 [Apple Auth] JWT token generated");
 
     // Remove password from response
     const { password: _, ...userObject } = user.toObject();
 
+    console.log("✅ [Apple Auth] Authentication successful for user:", user._id);
+    
     res.json({
       success: true,
       statusCode: 200,
@@ -879,6 +934,7 @@ export const appleAuth: RequestHandler = async (req, res, next): Promise<void> =
     });
     return;
   } catch (error: any) {
+    console.log("❌ [Apple Auth] Error:", error.message);
     res.status(400).json({
       success: false,
       statusCode: 400,

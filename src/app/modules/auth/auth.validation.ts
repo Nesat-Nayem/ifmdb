@@ -93,6 +93,7 @@ export const googleAuthValidation = z.object({
 // Apple Auth validation
 export const appleAuthValidation = z.object({
   idToken: z.string().min(1, "Apple ID token is required"),
+  userIdentifier: z.string().nullable().optional(),
   authorizationCode: z.string().optional(),
   fullName: z.object({
     givenName: z.string().nullable().optional(),
