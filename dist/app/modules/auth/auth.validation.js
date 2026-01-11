@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.googleAuthValidation = exports.verifyOtpValidation = exports.requestOtpValidation = exports.updateUserValidation = exports.emailCheckValidation = exports.phoneCheckValidation = exports.activateUserValidation = exports.resetPasswordValidation = exports.loginValidation = exports.authValidation = void 0;
+exports.appleAuthValidation = exports.googleAuthValidation = exports.verifyOtpValidation = exports.requestOtpValidation = exports.updateUserValidation = exports.emailCheckValidation = exports.phoneCheckValidation = exports.activateUserValidation = exports.resetPasswordValidation = exports.loginValidation = exports.authValidation = void 0;
 const zod_1 = require("zod");
 // Regex for Indian mobile numbers
 // Must start with 6, 7, 8, or 9 and be followed by 9 digits
@@ -73,4 +73,15 @@ exports.verifyOtpValidation = zod_1.z.object({
 // Google Auth validation
 exports.googleAuthValidation = zod_1.z.object({
     idToken: zod_1.z.string().min(1, "Firebase ID token is required")
+});
+// Apple Auth validation
+exports.appleAuthValidation = zod_1.z.object({
+    idToken: zod_1.z.string().min(1, "Apple ID token is required"),
+    userIdentifier: zod_1.z.string().nullable().optional(),
+    authorizationCode: zod_1.z.string().optional(),
+    fullName: zod_1.z.object({
+        givenName: zod_1.z.string().nullable().optional(),
+        familyName: zod_1.z.string().nullable().optional()
+    }).optional(),
+    email: zod_1.z.string().email().nullable().optional()
 });

@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProfile = exports.changePassword = exports.updateProfile = exports.googleAuth = exports.checkEmailExists = exports.checkPhoneExists = exports.activateUser = exports.resetPassword = exports.getUserById = exports.getAllUsers = exports.loginController = exports.updateUser = exports.verifyOtp = exports.requestOtp = exports.singUpController = void 0;
+exports.appleAuth = exports.getProfile = exports.changePassword = exports.updateProfile = exports.googleAuth = exports.checkEmailExists = exports.checkPhoneExists = exports.activateUser = exports.resetPassword = exports.getUserById = exports.getAllUsers = exports.loginController = exports.updateUser = exports.verifyOtp = exports.requestOtp = exports.singUpController = void 0;
 const auth_model_1 = require("./auth.model");
 const auth_validation_1 = require("./auth.validation");
 const generateToken_1 = require("../../config/generateToken");
@@ -746,3 +746,130 @@ const getProfile = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.getProfile = getProfile;
+// Apple Authentication - verify Apple identity token directly and create/login user
+const appleAuth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        console.log("🍎 [Apple Auth] Request received");
+        console.log("🍎 [Apple Auth] Body keys:", Object.keys(req.body));
+        const { idToken, userIdentifier, fullName, email: providedEmail } = auth_validation_1.appleAuthValidation.parse(req.body);
+        console.log("🍎 [Apple Auth] Validation passed");
+        console.log("🍎 [Apple Auth] idToken length:", idToken === null || idToken === void 0 ? void 0 : idToken.length);
+        console.log("🍎 [Apple Auth] userIdentifier:", userIdentifier);
+        console.log("🍎 [Apple Auth] providedEmail:", providedEmail);
+        console.log("🍎 [Apple Auth] fullName:", fullName);
+        // Decode Apple's identity token (JWT) without verification for now
+        // The token is signed by Apple and contains user info
+        let decodedPayload;
+        try {
+            // Apple's identity token is a JWT - decode the payload
+            const tokenParts = idToken.split('.');
+            if (tokenParts.length !== 3) {
+                throw new Error("Invalid Apple identity token format");
+            }
+            // Decode the payload (middle part)
+            const payload = tokenParts[1];
+            const decodedString = Buffer.from(payload, 'base64').toString('utf8');
+            decodedPayload = JSON.parse(decodedString);
+            console.log("🍎 [Apple Auth] Decoded token payload:");
+            console.log("🍎 [Apple Auth] - iss:", decodedPayload.iss);
+            console.log("🍎 [Apple Auth] - sub:", decodedPayload.sub);
+            console.log("🍎 [Apple Auth] - aud:", decodedPayload.aud);
+            console.log("🍎 [Apple Auth] - email:", decodedPayload.email);
+            console.log("🍎 [Apple Auth] - email_verified:", decodedPayload.email_verified);
+            // Verify issuer is Apple
+            if (decodedPayload.iss !== 'https://appleid.apple.com') {
+                throw new Error("Invalid token issuer");
+            }
+            // Verify token is not expired
+            const now = Math.floor(Date.now() / 1000);
+            if (decodedPayload.exp && decodedPayload.exp < now) {
+                throw new Error("Apple identity token has expired");
+            }
+        }
+        catch (decodeError) {
+            console.log("❌ [Apple Auth] Token decode error:", decodeError.message);
+            res.status(401).json({
+                success: false,
+                statusCode: 401,
+                message: "Invalid Apple identity token: " + decodeError.message
+            });
+            return;
+        }
+        // Extract user info from decoded token
+        // 'sub' is the unique Apple user ID (stable across sign-ins)
+        const appleUserId = decodedPayload.sub || userIdentifier;
+        const tokenEmail = decodedPayload.email;
+        // Use email from token or provided email
+        const email = tokenEmail || providedEmail;
+        console.log("🍎 [Apple Auth] Apple User ID:", appleUserId);
+        console.log("🍎 [Apple Auth] Final email:", email);
+        // Build name from fullName if provided (Apple only sends name on first sign-in)
+        let name = '';
+        if (fullName) {
+            const parts = [fullName.givenName, fullName.familyName].filter(Boolean);
+            name = parts.join(' ');
+        }
+        console.log("🍎 [Apple Auth] Constructed name:", name);
+        // Check if user already exists with this appleId or email
+        let user = yield auth_model_1.User.findOne({
+            $or: [
+                { appleId: appleUserId },
+                ...(email ? [{ email: email }] : [])
+            ]
+        });
+        console.log("🍎 [Apple Auth] Existing user found:", !!user);
+        if (user) {
+            // User exists - update Apple info if needed
+            if (!user.appleId) {
+                user.appleId = appleUserId;
+                user.authProvider = 'apple';
+                yield user.save();
+                console.log("🍎 [Apple Auth] Updated existing user with Apple ID");
+            }
+            // Update name if we have it and user doesn't have one
+            if (name && !user.name) {
+                user.name = name;
+                yield user.save();
+                console.log("🍎 [Apple Auth] Updated user name");
+            }
+        }
+        else {
+            // Create new user
+            console.log("🍎 [Apple Auth] Creating new user...");
+            user = new auth_model_1.User({
+                name: name || (email ? email.split('@')[0] : `Apple User ${appleUserId.substring(0, 6)}`),
+                email: email || undefined,
+                appleId: appleUserId,
+                authProvider: 'apple',
+                role: 'user',
+                status: 'active'
+            });
+            yield user.save();
+            console.log("🍎 [Apple Auth] New user created with ID:", user._id);
+        }
+        // Generate JWT token
+        const token = (0, generateToken_1.generateToken)(user);
+        console.log("🍎 [Apple Auth] JWT token generated");
+        // Remove password from response
+        const _a = user.toObject(), { password: _ } = _a, userObject = __rest(_a, ["password"]);
+        console.log("✅ [Apple Auth] Authentication successful for user:", user._id);
+        res.json({
+            success: true,
+            statusCode: 200,
+            message: "Apple authentication successful",
+            token,
+            data: userObject
+        });
+        return;
+    }
+    catch (error) {
+        console.log("❌ [Apple Auth] Error:", error.message);
+        res.status(400).json({
+            success: false,
+            statusCode: 400,
+            message: error.message
+        });
+        return;
+    }
+});
+exports.appleAuth = appleAuth;

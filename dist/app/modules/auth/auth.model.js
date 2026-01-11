@@ -59,7 +59,8 @@ const userSchema = new mongoose_1.Schema({
     otp: { type: String },
     otpExpires: { type: Date },
     googleId: { type: String, sparse: true, unique: true },
-    authProvider: { type: String, enum: ['local', 'google', 'phone'], default: 'local' },
+    appleId: { type: String, sparse: true, unique: true },
+    authProvider: { type: String, enum: ['local', 'google', 'phone', 'apple'], default: 'local' },
     packageFeatures: {
         type: [String],
         default: []

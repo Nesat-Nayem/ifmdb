@@ -26,6 +26,7 @@ app.use((0, cors_1.default)({
         'http://localhost:3000',
         'http://localhost:3001',
         'https://moviemart.org',
+        'https://www.moviemart.org',
         'https://panel.moviemart.org',
         'http://localhost:3002'
     ],
