@@ -88,8 +88,10 @@ const getAllChannels = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void
     const user = req.user;
     const { page = 1, limit = 10, search, isActive, isVerified, sortBy = 'subscriberCount', sortOrder = 'desc' } = req.query;
     const query = {};
-    // If user is a vendor, only show their own channels
-    if (user && user.role === 'vendor') {
+    // Only filter by vendor when explicitly requested (e.g., from admin panel)
+    // Frontend should show all channels to everyone including vendors
+    const { vendorOnly } = req.query;
+    if (vendorOnly === 'true' && user && user.role === 'vendor') {
         query.ownerId = user._id;
     }
     if (search) {
@@ -445,8 +447,10 @@ const getAllWatchVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     const user = req.user;
     const { page = 1, limit = 10, search, category, categoryId, channelId, videoType, genre, language, status, isFree, isFeatured, minPrice, maxPrice, sortBy = 'createdAt', sortOrder = 'desc', uploadedBy } = req.query;
     const query = { isActive: true };
-    // If user is a vendor, only show their own videos
-    if (user && user.role === 'vendor') {
+    // Only filter by vendor when explicitly requested (e.g., from admin panel)
+    // Frontend should show all videos to everyone including vendors
+    const { vendorOnly } = req.query;
+    if (vendorOnly === 'true' && user && user.role === 'vendor') {
         query.uploadedBy = user._id;
     }
     // Visibility schedule filter - only for non-admin/vendor panel requests

@@ -139,6 +139,35 @@ const router = express_1.default.Router();
  *                 data:
  *                   $ref: '#/components/schemas/VendorApplication'
  */
+/**
+ * @swagger
+ * /v1/api/vendors/applications/validate:
+ *   post:
+ *     summary: Validate vendor application data before payment
+ *     description: Check if email, phone, and GST are unique before processing payment
+ *     tags: [Vendors]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, phone]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phone:
+ *                 type: string
+ *               gstNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Validation passed
+ *       400:
+ *         description: Validation failed - duplicate data found
+ */
+router.post('/applications/validate', vendor_controller_1.validateVendorApplication);
 router.post('/applications', cloudinary_1.upload.fields([
     { name: 'aadharFrontUrl', maxCount: 1 },
     { name: 'aadharBackUrl', maxCount: 1 },

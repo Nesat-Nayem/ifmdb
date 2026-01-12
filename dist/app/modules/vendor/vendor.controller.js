@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteVendorApplication = exports.decideVendorApplication = exports.getVendorApplicationById = exports.listVendorApplications = exports.createVendorApplication = exports.updatePlatformSetting = exports.getPlatformSettings = exports.deleteVendorPackage = exports.updateVendorPackage = exports.getVendorPackageById = exports.listVendorPackages = exports.createVendorPackage = void 0;
+exports.deleteVendorApplication = exports.decideVendorApplication = exports.getVendorApplicationById = exports.listVendorApplications = exports.createVendorApplication = exports.validateVendorApplication = exports.updatePlatformSetting = exports.getPlatformSettings = exports.deleteVendorPackage = exports.updateVendorPackage = exports.getVendorPackageById = exports.listVendorPackages = exports.createVendorPackage = void 0;
 const vendor_model_1 = require("./vendor.model");
 const vendorPackage_model_1 = require("./vendorPackage.model");
 const platformSettings_model_1 = require("./platformSettings.model");
@@ -122,6 +122,70 @@ const updatePlatformSetting = (req, res, next) => __awaiter(void 0, void 0, void
 });
 exports.updatePlatformSetting = updatePlatformSetting;
 // ============ VENDOR APPLICATIONS ============
+// Pre-payment validation - check unique fields before payment
+const validateVendorApplication = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { email, phone, gstNumber } = req.body;
+        const errors = [];
+        // Check email uniqueness
+        if (email) {
+            const existingAppByEmail = yield vendor_model_1.VendorApplication.findOne({
+                email,
+                status: { $in: ['pending', 'approved'] }
+            });
+            if (existingAppByEmail) {
+                errors.push('An application with this email already exists');
+            }
+            const existingUserByEmail = yield auth_model_1.User.findOne({ email, role: 'vendor' });
+            if (existingUserByEmail) {
+                errors.push('A vendor account with this email already exists');
+            }
+        }
+        // Check phone uniqueness
+        if (phone) {
+            const existingAppByPhone = yield vendor_model_1.VendorApplication.findOne({
+                phone,
+                status: { $in: ['pending', 'approved'] }
+            });
+            if (existingAppByPhone) {
+                errors.push('An application with this phone number already exists');
+            }
+            const existingUserByPhone = yield auth_model_1.User.findOne({ phone, role: 'vendor' });
+            if (existingUserByPhone) {
+                errors.push('A vendor account with this phone number already exists');
+            }
+        }
+        // Check GST number uniqueness (if provided)
+        if (gstNumber && gstNumber.trim()) {
+            const existingAppByGst = yield vendor_model_1.VendorApplication.findOne({
+                gstNumber,
+                status: { $in: ['pending', 'approved'] }
+            });
+            if (existingAppByGst) {
+                errors.push('An application with this GST number already exists');
+            }
+        }
+        if (errors.length > 0) {
+            return res.status(400).json({
+                success: false,
+                statusCode: 400,
+                message: errors[0], // Return first error as main message
+                errors: errors,
+                isValid: false,
+            });
+        }
+        res.json({
+            success: true,
+            statusCode: 200,
+            message: 'Validation passed',
+            isValid: true,
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.validateVendorApplication = validateVendorApplication;
 const createVendorApplication = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d, _e, _f, _g;
     try {
@@ -263,12 +327,23 @@ const decideVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
         if (decision === 'approve') {
             // Generate password and create vendor user
             const password = (0, emailService_1.generatePassword)();
-            // Check if user already exists
-            let vendorUser = yield auth_model_1.User.findOne({ email: item.email });
+            // Check if user already exists by email or phone
+            let vendorUser = yield auth_model_1.User.findOne({
+                $or: [
+                    { email: item.email },
+                    { phone: item.phone }
+                ]
+            });
             if (vendorUser) {
                 // Update existing user to vendor
                 vendorUser.role = 'vendor';
                 vendorUser.password = password;
+                // Update email/phone if different
+                if (vendorUser.email !== item.email)
+                    vendorUser.email = item.email;
+                if (vendorUser.phone !== item.phone)
+                    vendorUser.phone = item.phone;
+                vendorUser.name = item.vendorName;
                 // Add vendor services to user
                 const serviceTypes = item.selectedServices.map(s => s.serviceType);
                 vendorUser.vendorServices = serviceTypes;
