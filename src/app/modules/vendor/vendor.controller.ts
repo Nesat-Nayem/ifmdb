@@ -106,6 +106,78 @@ export const updatePlatformSetting = async (req: userInterface, res: Response, n
 };
 
 // ============ VENDOR APPLICATIONS ============
+
+// Pre-payment validation - check unique fields before payment
+export const validateVendorApplication = async (req: userInterface, res: Response, next: NextFunction) => {
+  try {
+    const { email, phone, gstNumber } = req.body;
+
+    const errors: string[] = [];
+
+    // Check email uniqueness
+    if (email) {
+      const existingAppByEmail = await VendorApplication.findOne({ 
+        email, 
+        status: { $in: ['pending', 'approved'] } 
+      });
+      if (existingAppByEmail) {
+        errors.push('An application with this email already exists');
+      }
+
+      const existingUserByEmail = await User.findOne({ email, role: 'vendor' });
+      if (existingUserByEmail) {
+        errors.push('A vendor account with this email already exists');
+      }
+    }
+
+    // Check phone uniqueness
+    if (phone) {
+      const existingAppByPhone = await VendorApplication.findOne({ 
+        phone, 
+        status: { $in: ['pending', 'approved'] } 
+      });
+      if (existingAppByPhone) {
+        errors.push('An application with this phone number already exists');
+      }
+
+      const existingUserByPhone = await User.findOne({ phone, role: 'vendor' });
+      if (existingUserByPhone) {
+        errors.push('A vendor account with this phone number already exists');
+      }
+    }
+
+    // Check GST number uniqueness (if provided)
+    if (gstNumber && gstNumber.trim()) {
+      const existingAppByGst = await VendorApplication.findOne({ 
+        gstNumber, 
+        status: { $in: ['pending', 'approved'] } 
+      });
+      if (existingAppByGst) {
+        errors.push('An application with this GST number already exists');
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: errors[0], // Return first error as main message
+        errors: errors,
+        isValid: false,
+      });
+    }
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: 'Validation passed',
+      isValid: true,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const createVendorApplication = async (req: userInterface, res: Response, next: NextFunction) => {
   try {
     const { vendorName, businessType, gstNumber, panNumber, address, email, phone, selectedServices, paymentInfo } = req.body;

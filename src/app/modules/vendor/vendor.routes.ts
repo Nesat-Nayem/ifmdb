@@ -2,7 +2,8 @@ import express from 'express';
 import { auth } from '../../middlewares/authMiddleware';
 import { upload } from '../../config/cloudinary';
 import { 
-  createVendorApplication, 
+  createVendorApplication,
+  validateVendorApplication,
   decideVendorApplication, 
   getVendorApplicationById, 
   listVendorApplications,
@@ -156,6 +157,36 @@ const router = express.Router();
  *                 data:
  *                   $ref: '#/components/schemas/VendorApplication'
  */
+/**
+ * @swagger
+ * /v1/api/vendors/applications/validate:
+ *   post:
+ *     summary: Validate vendor application data before payment
+ *     description: Check if email, phone, and GST are unique before processing payment
+ *     tags: [Vendors]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, phone]
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *               phone:
+ *                 type: string
+ *               gstNumber:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Validation passed
+ *       400:
+ *         description: Validation failed - duplicate data found
+ */
+router.post('/applications/validate', validateVendorApplication);
+
 router.post(
   '/applications',
   upload.fields([
