@@ -6,6 +6,35 @@ import { generateToken } from "../../config/generateToken";
 import admin from "firebase-admin";
 // import { AdminStaff } from "../admin-staff/admin-staff.model";
 
+// Helper function to parse MongoDB duplicate key errors into user-friendly messages
+const parseDuplicateKeyError = (error: any): string => {
+  // Check if it's a MongoDB duplicate key error (code 11000)
+  if (error.code === 11000 || error.message?.includes('E11000')) {
+    const keyPattern = error.keyPattern || {};
+    const keyValue = error.keyValue || {};
+    
+    // Determine which field caused the duplicate
+    if (keyPattern.email || error.message?.includes('email')) {
+      return 'An account with this email already exists. Please use a different email or try logging in.';
+    }
+    if (keyPattern.phone || error.message?.includes('phone')) {
+      return 'An account with this phone number already exists. Please use a different phone number or try logging in.';
+    }
+    if (keyPattern.googleId || error.message?.includes('googleId')) {
+      return 'This Google account is already linked to another user.';
+    }
+    if (keyPattern.appleId || error.message?.includes('appleId')) {
+      return 'This Apple account is already linked to another user.';
+    }
+    
+    // Generic duplicate error
+    return 'An account with these details already exists. Please try logging in instead.';
+  }
+  
+  // Return original message for non-duplicate errors
+  return error.message || 'An unexpected error occurred';
+};
+
 export const singUpController: RequestHandler = async (req, res, next): Promise<void> => {
   try {
     const { name, password, img, phone, email, role } = authValidation.parse(req.body);
@@ -52,10 +81,11 @@ export const singUpController: RequestHandler = async (req, res, next): Promise<
     });
     return;
   } catch (error: any) {
+    const userFriendlyMessage = parseDuplicateKeyError(error);
     res.status(400).json({ 
       success: false, 
-      statusCode: 500, 
-      message: error.message 
+      statusCode: 400, 
+      message: userFriendlyMessage 
     });
   }
 };
@@ -127,10 +157,11 @@ export const requestOtp: RequestHandler = async (req, res, next): Promise<void> 
     });
     return;
   } catch (error: any) {
+    const userFriendlyMessage = parseDuplicateKeyError(error);
     res.status(400).json({
       success: false,
       statusCode: 400,
-      message: error.message
+      message: userFriendlyMessage
     });
   }
 };
@@ -247,10 +278,11 @@ export const updateUser: RequestHandler = async (req, res, next): Promise<void> 
     });
     return;
   } catch (error: any) {
+    const userFriendlyMessage = parseDuplicateKeyError(error);
     res.status(400).json({
       success: false,
       statusCode: 400,
-      message: error.message
+      message: userFriendlyMessage
     });
   }
 };
@@ -584,10 +616,11 @@ export const googleAuth: RequestHandler = async (req, res, next): Promise<void> 
     });
     return;
   } catch (error: any) {
+    const userFriendlyMessage = parseDuplicateKeyError(error);
     res.status(400).json({
       success: false,
       statusCode: 400,
-      message: error.message
+      message: userFriendlyMessage
     });
     return;
   }
@@ -631,7 +664,7 @@ export const updateProfile: RequestHandler = async (req, res, next): Promise<voi
             res.status(400).json({
               success: false,
               statusCode: 400,
-              message: "Phone number already exists"
+              message: "This phone number is already registered with another account"
             });
             return;
           }
@@ -653,7 +686,7 @@ export const updateProfile: RequestHandler = async (req, res, next): Promise<voi
             res.status(400).json({
               success: false,
               statusCode: 400,
-              message: "Email already exists"
+              message: "This email is already registered with another account"
             });
             return;
           }
@@ -682,10 +715,11 @@ export const updateProfile: RequestHandler = async (req, res, next): Promise<voi
     });
     return;
   } catch (error: any) {
+    const userFriendlyMessage = parseDuplicateKeyError(error);
     res.status(400).json({
       success: false,
       statusCode: 400,
-      message: error.message
+      message: userFriendlyMessage
     });
     return;
   }
@@ -935,10 +969,11 @@ export const appleAuth: RequestHandler = async (req, res, next): Promise<void> =
     return;
   } catch (error: any) {
     console.log("❌ [Apple Auth] Error:", error.message);
+    const userFriendlyMessage = parseDuplicateKeyError(error);
     res.status(400).json({
       success: false,
       statusCode: 400,
-      message: error.message
+      message: userFriendlyMessage
     });
     return;
   }
