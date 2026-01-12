@@ -22,7 +22,7 @@ const options = {
         },
         servers: [
             {
-                url: 'http://localhost:8080',
+                url: 'https://api.moviemart.org',
                 description: 'Development server',
             },
         ],
@@ -83,7 +83,7 @@ const setupScalarSwagger = (app) => {
         res.setHeader('Content-Type', 'application/json');
         res.send(specs);
     });
-    console.log('📚 Scalar API documentation available at: http://localhost:8080/api-docs');
+    console.log('📚 Scalar API documentation available at: https://api.moviemart.org/api-docs');
 };
 exports.setupScalarSwagger = setupScalarSwagger;
 exports.default = specs;
