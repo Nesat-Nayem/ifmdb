@@ -261,13 +261,22 @@ export const decideVendorApplication = async (req: userInterface, res: Response,
       // Generate password and create vendor user
       const password = generatePassword();
       
-      // Check if user already exists
-      let vendorUser = await User.findOne({ email: item.email });
+      // Check if user already exists by email or phone
+      let vendorUser = await User.findOne({ 
+        $or: [
+          { email: item.email },
+          { phone: item.phone }
+        ]
+      });
       
       if (vendorUser) {
         // Update existing user to vendor
         vendorUser.role = 'vendor';
         vendorUser.password = password;
+        // Update email/phone if different
+        if (vendorUser.email !== item.email) vendorUser.email = item.email;
+        if (vendorUser.phone !== item.phone) vendorUser.phone = item.phone;
+        vendorUser.name = item.vendorName;
         // Add vendor services to user
         const serviceTypes = item.selectedServices.map(s => s.serviceType);
         (vendorUser as any).vendorServices = serviceTypes;

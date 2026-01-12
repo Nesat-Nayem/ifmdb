@@ -111,8 +111,10 @@ const getAllChannels = catchAsync(async (req: Request, res: Response) => {
 
   const query: any = {};
 
-  // If user is a vendor, only show their own channels
-  if (user && user.role === 'vendor') {
+  // Only filter by vendor when explicitly requested (e.g., from admin panel)
+  // Frontend should show all channels to everyone including vendors
+  const { vendorOnly } = req.query;
+  if (vendorOnly === 'true' && user && user.role === 'vendor') {
     query.ownerId = user._id;
   }
 
@@ -557,8 +559,10 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
 
   const query: any = { isActive: true };
 
-  // If user is a vendor, only show their own videos
-  if (user && user.role === 'vendor') {
+  // Only filter by vendor when explicitly requested (e.g., from admin panel)
+  // Frontend should show all videos to everyone including vendors
+  const { vendorOnly } = req.query;
+  if (vendorOnly === 'true' && user && user.role === 'vendor') {
     query.uploadedBy = user._id;
   }
 

@@ -69,8 +69,10 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
     ];
   }
 
-  // If user is a vendor, only show their own events
-  if (user && user.role === 'vendor') {
+  // Only filter by vendor when explicitly requested (e.g., from admin panel)
+  // Frontend should show all events to everyone including vendors
+  const { vendorOnly } = req.query;
+  if (vendorOnly === 'true' && user && user.role === 'vendor') {
     filter.vendorId = user._id;
   }
 
