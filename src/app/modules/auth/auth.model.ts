@@ -65,7 +65,7 @@ const userSchema: Schema = new Schema(
   {
     name: { type: String }, 
     password: { type: String }, 
-    phone: { type: String, sparse: true, unique: true },
+    phone: { type: String, sparse: true }, // Removed unique - only email should be unique
     email: { type: String, sparse: true, unique: true }, 
     img: { type: String },
     role: { type: String, enum: ['admin','vendor', 'user'], default: 'user' },

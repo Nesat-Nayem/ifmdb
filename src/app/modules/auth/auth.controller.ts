@@ -11,14 +11,10 @@ const parseDuplicateKeyError = (error: any): string => {
   // Check if it's a MongoDB duplicate key error (code 11000)
   if (error.code === 11000 || error.message?.includes('E11000')) {
     const keyPattern = error.keyPattern || {};
-    const keyValue = error.keyValue || {};
     
     // Determine which field caused the duplicate
     if (keyPattern.email || error.message?.includes('email')) {
       return 'An account with this email already exists. Please use a different email or try logging in.';
-    }
-    if (keyPattern.phone || error.message?.includes('phone')) {
-      return 'An account with this phone number already exists. Please use a different phone number or try logging in.';
     }
     if (keyPattern.googleId || error.message?.includes('googleId')) {
       return 'This Google account is already linked to another user.';
@@ -39,7 +35,7 @@ export const singUpController: RequestHandler = async (req, res, next): Promise<
   try {
     const { name, password, img, phone, email, role } = authValidation.parse(req.body);
 
-    // Check for existing email
+    // Check for existing email (only email should be unique)
     const existingEmail = await User.findOne({ email });
     if (existingEmail) {
       res.status(400).json({
@@ -49,24 +45,6 @@ export const singUpController: RequestHandler = async (req, res, next): Promise<
       });
       return;
     }
-    
-    
-    
-    
-    
-    
-
-    // Check for existing phone
-    const existingPhone = await User.findOne({ phone });
-    if (existingPhone) {
-      res.status(400).json({
-        success: false,
-        statusCode: 400,
-        message: "Phone number already exists",
-      });
-      return;
-    }
-
 
     const user = new User({ name, password, img, phone, email, role, authProvider: 'local' });
     await user.save();

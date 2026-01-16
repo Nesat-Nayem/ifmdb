@@ -31,22 +31,18 @@ const firebase_admin_1 = __importDefault(require("firebase-admin"));
 // import { AdminStaff } from "../admin-staff/admin-staff.model";
 // Helper function to parse MongoDB duplicate key errors into user-friendly messages
 const parseDuplicateKeyError = (error) => {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d;
     // Check if it's a MongoDB duplicate key error (code 11000)
     if (error.code === 11000 || ((_a = error.message) === null || _a === void 0 ? void 0 : _a.includes('E11000'))) {
         const keyPattern = error.keyPattern || {};
-        const keyValue = error.keyValue || {};
         // Determine which field caused the duplicate
         if (keyPattern.email || ((_b = error.message) === null || _b === void 0 ? void 0 : _b.includes('email'))) {
             return 'An account with this email already exists. Please use a different email or try logging in.';
         }
-        if (keyPattern.phone || ((_c = error.message) === null || _c === void 0 ? void 0 : _c.includes('phone'))) {
-            return 'An account with this phone number already exists. Please use a different phone number or try logging in.';
-        }
-        if (keyPattern.googleId || ((_d = error.message) === null || _d === void 0 ? void 0 : _d.includes('googleId'))) {
+        if (keyPattern.googleId || ((_c = error.message) === null || _c === void 0 ? void 0 : _c.includes('googleId'))) {
             return 'This Google account is already linked to another user.';
         }
-        if (keyPattern.appleId || ((_e = error.message) === null || _e === void 0 ? void 0 : _e.includes('appleId'))) {
+        if (keyPattern.appleId || ((_d = error.message) === null || _d === void 0 ? void 0 : _d.includes('appleId'))) {
             return 'This Apple account is already linked to another user.';
         }
         // Generic duplicate error
@@ -58,23 +54,13 @@ const parseDuplicateKeyError = (error) => {
 const singUpController = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { name, password, img, phone, email, role } = auth_validation_1.authValidation.parse(req.body);
-        // Check for existing email
+        // Check for existing email (only email should be unique)
         const existingEmail = yield auth_model_1.User.findOne({ email });
         if (existingEmail) {
             res.status(400).json({
                 success: false,
                 statusCode: 400,
                 message: "Email already exists",
-            });
-            return;
-        }
-        // Check for existing phone
-        const existingPhone = yield auth_model_1.User.findOne({ phone });
-        if (existingPhone) {
-            res.status(400).json({
-                success: false,
-                statusCode: 400,
-                message: "Phone number already exists",
             });
             return;
         }
