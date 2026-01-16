@@ -240,7 +240,7 @@ const createPaymentOrderValidation = zod_1.z.object({
         customerDetails: zod_1.z.object({
             name: zod_1.z.string().min(1, 'Customer name is required'),
             email: zod_1.z.string().email('Valid email is required'),
-            phone: zod_1.z.string().min(10, 'Valid phone number is required'),
+            phone: zod_1.z.string().optional().default(''), // Phone is optional - Razorpay will collect if needed
         }),
         returnUrl: zod_1.z.string().optional(),
     }),
