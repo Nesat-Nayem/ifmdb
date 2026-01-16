@@ -835,6 +835,81 @@ export const getProfile: RequestHandler = async (req, res, next): Promise<void> 
   }
 };
 
+// Delete Account - permanently delete user account and all associated data
+export const deleteAccount: RequestHandler = async (req, res, next): Promise<void> => {
+  try {
+    const userId = req.params.id;
+    const { password, confirmDelete } = req.body;
+
+    // Validate confirmation
+    if (confirmDelete !== 'DELETE') {
+      res.status(400).json({
+        success: false,
+        statusCode: 400,
+        message: "Please type 'DELETE' to confirm account deletion"
+      });
+      return;
+    }
+
+    // Get user
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: "User not found"
+      });
+      return;
+    }
+
+    // For local (email/password) users, verify password
+    if (user.authProvider === 'local') {
+      if (!password) {
+        res.status(400).json({
+          success: false,
+          statusCode: 400,
+          message: "Password is required to delete account"
+        });
+        return;
+      }
+
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        res.status(401).json({
+          success: false,
+          statusCode: 401,
+          message: "Incorrect password"
+        });
+        return;
+      }
+    }
+
+    // Delete the user account
+    await User.findByIdAndDelete(userId);
+
+    // TODO: Add cleanup for related data (bookings, watchlist, etc.) if needed
+    // await Booking.deleteMany({ userId });
+    // await Watchlist.deleteMany({ userId });
+
+    console.log(`🗑️ Account deleted: ${userId} (${user.email || user.phone})`);
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: "Account deleted successfully. We're sorry to see you go."
+    });
+    return;
+  } catch (error: any) {
+    console.error("Delete account error:", error);
+    res.status(500).json({
+      success: false,
+      statusCode: 500,
+      message: "Failed to delete account. Please try again later."
+    });
+    return;
+  }
+};
+
 // Apple Authentication - verify Apple identity token directly and create/login user
 export const appleAuth: RequestHandler = async (req, res, next): Promise<void> => {
   try {

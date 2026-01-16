@@ -381,7 +381,7 @@ export const decideVendorApplication = async (req: userInterface, res: Response,
         return s.serviceType;
       });
 
-      const panelUrl = process.env.VENDOR_PANEL_URL || 'http://localhost:3001';
+      const panelUrl = 'https://panel.moviemart.org';
       
       try {
         const template = emailTemplates.vendorApproved(item.vendorName, item.email, password, serviceNames, panelUrl);

@@ -377,7 +377,7 @@ const decideVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
                     return `Movie Watch (${s.platformFee}% platform fee)`;
                 return s.serviceType;
             });
-            const panelUrl = process.env.VENDOR_PANEL_URL || 'http://localhost:3001';
+            const panelUrl = 'https://panel.moviemart.org';
             try {
                 const template = emailService_1.emailTemplates.vendorApproved(item.vendorName, item.email, password, serviceNames, panelUrl);
                 yield (0, emailService_1.sendEmail)(Object.assign({ to: item.email }, template));

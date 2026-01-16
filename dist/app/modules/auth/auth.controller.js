@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appleAuth = exports.getProfile = exports.changePassword = exports.updateProfile = exports.googleAuth = exports.checkEmailExists = exports.checkPhoneExists = exports.activateUser = exports.resetPassword = exports.getUserById = exports.getAllUsers = exports.loginController = exports.updateUser = exports.verifyOtp = exports.requestOtp = exports.singUpController = void 0;
+exports.appleAuth = exports.deleteAccount = exports.getProfile = exports.changePassword = exports.updateProfile = exports.googleAuth = exports.checkEmailExists = exports.checkPhoneExists = exports.activateUser = exports.resetPassword = exports.getUserById = exports.getAllUsers = exports.loginController = exports.updateUser = exports.verifyOtp = exports.requestOtp = exports.singUpController = void 0;
 const auth_model_1 = require("./auth.model");
 const auth_validation_1 = require("./auth.validation");
 const generateToken_1 = require("../../config/generateToken");
@@ -777,6 +777,74 @@ const getProfile = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
     }
 });
 exports.getProfile = getProfile;
+// Delete Account - permanently delete user account and all associated data
+const deleteAccount = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.params.id;
+        const { password, confirmDelete } = req.body;
+        // Validate confirmation
+        if (confirmDelete !== 'DELETE') {
+            res.status(400).json({
+                success: false,
+                statusCode: 400,
+                message: "Please type 'DELETE' to confirm account deletion"
+            });
+            return;
+        }
+        // Get user
+        const user = yield auth_model_1.User.findById(userId);
+        if (!user) {
+            res.status(404).json({
+                success: false,
+                statusCode: 404,
+                message: "User not found"
+            });
+            return;
+        }
+        // For local (email/password) users, verify password
+        if (user.authProvider === 'local') {
+            if (!password) {
+                res.status(400).json({
+                    success: false,
+                    statusCode: 400,
+                    message: "Password is required to delete account"
+                });
+                return;
+            }
+            const isMatch = yield user.comparePassword(password);
+            if (!isMatch) {
+                res.status(401).json({
+                    success: false,
+                    statusCode: 401,
+                    message: "Incorrect password"
+                });
+                return;
+            }
+        }
+        // Delete the user account
+        yield auth_model_1.User.findByIdAndDelete(userId);
+        // TODO: Add cleanup for related data (bookings, watchlist, etc.) if needed
+        // await Booking.deleteMany({ userId });
+        // await Watchlist.deleteMany({ userId });
+        console.log(`🗑️ Account deleted: ${userId} (${user.email || user.phone})`);
+        res.json({
+            success: true,
+            statusCode: 200,
+            message: "Account deleted successfully. We're sorry to see you go."
+        });
+        return;
+    }
+    catch (error) {
+        console.error("Delete account error:", error);
+        res.status(500).json({
+            success: false,
+            statusCode: 500,
+            message: "Failed to delete account. Please try again later."
+        });
+        return;
+    }
+});
+exports.deleteAccount = deleteAccount;
 // Apple Authentication - verify Apple identity token directly and create/login user
 const appleAuth = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {

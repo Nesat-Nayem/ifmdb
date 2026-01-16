@@ -801,4 +801,63 @@ router.put("/profile/:id", cloudinary_1.upload.single('img'), auth_controller_1.
  *         description: User not found
  */
 router.post("/change-password/:id", auth_controller_1.changePassword);
+/**
+ * @swagger
+ * /v1/api/auth/delete-account/{id}:
+ *   delete:
+ *     summary: Delete user account permanently
+ *     description: |
+ *       Permanently delete user account and all associated data.
+ *       - **Email/password users**: Must provide current password
+ *       - **Google/Apple/Phone users**: No password required
+ *       - All users must confirm by sending confirmDelete: "DELETE"
+ *     tags: [Profile Management]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - confirmDelete
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 description: Current password (required only for email/password users)
+ *               confirmDelete:
+ *                 type: string
+ *                 enum: [DELETE]
+ *                 description: Must be exactly "DELETE" to confirm
+ *     responses:
+ *       200:
+ *         description: Account deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 statusCode:
+ *                   type: integer
+ *                   example: 200
+ *                 message:
+ *                   type: string
+ *                   example: "Account deleted successfully. We're sorry to see you go."
+ *       400:
+ *         description: Missing confirmation or password
+ *       401:
+ *         description: Incorrect password
+ *       404:
+ *         description: User not found
+ */
+router.delete("/delete-account/:id", auth_controller_1.deleteAccount);
 exports.authRouter = router;
