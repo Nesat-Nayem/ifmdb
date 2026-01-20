@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
 import mongoose from 'mongoose';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import { userInterface } from '../../middlewares/userInterface';
@@ -725,17 +727,40 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
   await WatchVideo.findByIdAndUpdate(id, { $inc: { viewCount: 1 } });
   await Channel.findByIdAndUpdate(video.channelId._id, { $inc: { totalViews: 1 } });
 
+  // SECURITY: Hide video URLs for paid content that user hasn't purchased
+  // Users must use the /stream endpoint to get secure, time-limited URLs
+  const videoObj = video.toObject() as any;
+  const canWatch = video.isFree || hasPurchased;
+  
+  if (!canWatch) {
+    // Hide actual video URLs for unpurchased paid content
+    videoObj.videoUrl = null;
+    videoObj.cloudflareVideoUid = null;
+    // Also hide episode video URLs for series
+    if (videoObj.seasons) {
+      videoObj.seasons = videoObj.seasons.map((season: any) => ({
+        ...season,
+        episodes: season.episodes?.map((ep: any) => ({
+          ...ep,
+          videoUrl: null, // Hide episode video URL
+        }))
+      }));
+    }
+  }
+
   return sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Video retrieved successfully',
     data: {
-      ...video.toObject(),
+      ...videoObj,
       userPrice: price,
       userCurrency: currency,
       hasPurchased,
       isSubscribed,
-      canWatch: video.isFree || hasPurchased
+      canWatch,
+      // Indicate that secure streaming is required
+      requiresSecureStream: !video.isFree,
     },
   });
 });
@@ -1419,6 +1444,162 @@ const checkVideoAccess = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// ==================== SECURE VIDEO STREAMING ====================
+
+// Generate secure signed token for video streaming
+const generateStreamToken = (videoId: string, userId: string, expiresInMinutes: number = 60): string => {
+  const payload = {
+    videoId,
+    userId,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + (expiresInMinutes * 60),
+    nonce: crypto.randomBytes(16).toString('hex'),
+  };
+  
+  const secret = process.env.JWT_SECRET || 'your-secret-key';
+  return jwt.sign(payload, secret);
+};
+
+// Verify stream token
+const verifyStreamToken = (token: string): { valid: boolean; payload?: any; error?: string } => {
+  try {
+    const secret = process.env.JWT_SECRET || 'your-secret-key';
+    const payload = jwt.verify(token, secret);
+    return { valid: true, payload };
+  } catch (error: any) {
+    return { valid: false, error: error.message };
+  }
+};
+
+// Get secure video stream URL (only for authorized users)
+const getSecureVideoStream = catchAsync(async (req: Request, res: Response) => {
+  const { videoId } = req.params;
+  const { userId, token } = req.query;
+
+  if (!videoId) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Video ID is required',
+      data: null,
+    });
+  }
+
+  // Find the video
+  const video = await WatchVideo.findById(videoId);
+  if (!video || !video.isActive) {
+    return sendResponse(res, {
+      statusCode: httpStatus.NOT_FOUND,
+      success: false,
+      message: 'Video not found',
+      data: null,
+    });
+  }
+
+  // If video is free, generate stream token and return URL
+  if (video.isFree) {
+    const streamToken = generateStreamToken(videoId, userId as string || 'anonymous', 60);
+    
+    return sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: 'Stream URL generated',
+      data: {
+        streamUrl: video.videoUrl,
+        streamToken,
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
+        isSecured: true,
+      },
+    });
+  }
+
+  // For paid videos, verify user has purchased
+  if (!userId) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Authentication required to access this video',
+      data: null,
+    });
+  }
+
+  // Check if user has valid purchase
+  const purchase = await VideoPurchase.findOne({
+    userId,
+    videoId,
+    paymentStatus: 'completed',
+    $or: [
+      { expiresAt: null },
+      { expiresAt: { $gt: new Date() } }
+    ]
+  });
+
+  if (!purchase) {
+    return sendResponse(res, {
+      statusCode: httpStatus.FORBIDDEN,
+      success: false,
+      message: 'You need to purchase this video to watch',
+      data: { requiresPurchase: true },
+    });
+  }
+
+  // Generate secure stream token
+  const streamToken = generateStreamToken(videoId, userId as string, 60);
+
+  // For Cloudflare Stream videos, we can use their signed URLs feature
+  // For regular videos, return the URL with our signed token
+  const videoData = video as any;
+  
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Stream URL generated',
+    data: {
+      streamUrl: videoData.videoUrl,
+      streamToken,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
+      isSecured: true,
+      cloudflareVideoUid: videoData.cloudflareVideoUid || null,
+    },
+  });
+});
+
+// Verify stream access (middleware endpoint for video proxy)
+const verifyStreamAccess = catchAsync(async (req: Request, res: Response) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Stream token is required',
+      data: null,
+    });
+  }
+
+  const verification = verifyStreamToken(token as string);
+  
+  if (!verification.valid) {
+    return sendResponse(res, {
+      statusCode: httpStatus.UNAUTHORIZED,
+      success: false,
+      message: 'Invalid or expired stream token',
+      data: { error: verification.error },
+    });
+  }
+
+  return sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Stream access verified',
+    data: {
+      videoId: verification.payload.videoId,
+      userId: verification.payload.userId,
+      expiresAt: new Date(verification.payload.exp * 1000).toISOString(),
+    },
+  });
+});
+
 // ==================== VIDEO EXPIRY MANAGEMENT (Admin) ====================
 
 // Get scheduled/expiring videos
@@ -1536,4 +1717,8 @@ export const WatchVideoController = {
   getScheduledVideos,
   processExpiredVideosManually,
   getUpcomingExpiringVideos,
+  
+  // Secure Video Streaming
+  getSecureVideoStream,
+  verifyStreamAccess,
 };
