@@ -1,14 +1,38 @@
 import nodemailer from 'nodemailer';
 
-// Create transporter with Gmail SMTP
+// Create transporter with flexible SMTP configuration
 const createTransporter = () => {
-  return nodemailer.createTransport({
+  // Check if using Gmail or GoDaddy
+  const isGmail = process.env.SMTP_HOST?.includes('gmail') || !process.env.SMTP_HOST;
+  
+  const config = isGmail ? {
     service: 'gmail',
     auth: {
       user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASSWORD, // Use App Password for Gmail
+      pass: process.env.SMTP_PASSWORD,
     },
+  } : {
+    host: process.env.SMTP_HOST || 'smtpout.secureserver.net',
+    port: parseInt(process.env.SMTP_PORT || '465'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_EMAIL,
+      pass: process.env.SMTP_PASSWORD,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  };
+
+  console.log('SMTP Configuration:', {
+    type: isGmail ? 'Gmail' : 'GoDaddy',
+    host: config.host || 'gmail',
+    port: config.port || 'default',
+    user: config.auth.user,
+    passwordSet: !!config.auth.pass,
   });
+
+  return nodemailer.createTransport(config);
 };
 
 interface EmailOptions {
@@ -23,7 +47,8 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
     const transporter = createTransporter();
     
     const mailOptions = {
-      from: `"MovieMart" <${process.env.SMTP_EMAIL}>`,
+      from: `"MovieMart" <info@moviemart.org>`, // Always show MovieMart email
+      replyTo: process.env.SMTP_EMAIL, // Replies go to configured email
       to: options.to,
       subject: options.subject,
       html: options.html,
