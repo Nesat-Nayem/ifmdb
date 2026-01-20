@@ -214,8 +214,15 @@ export const createVendorApplication = async (req: userInterface, res: Response,
             requiresPayment = true;
           }
         } else if (svc.serviceType === 'events') {
-          const setting = await PlatformSettings.findOne({ key: 'event_platform_fee' });
-          serviceData.platformFee = setting?.value || 20;
+          // Check if it's a government event (fixed 10% fee) or regular event (admin-defined fee)
+          if (svc.isGovernmentEvent) {
+            serviceData.isGovernmentEvent = true;
+            serviceData.platformFee = 10; // Fixed 10% for government events
+          } else {
+            serviceData.isGovernmentEvent = false;
+            const setting = await PlatformSettings.findOne({ key: 'event_platform_fee' });
+            serviceData.platformFee = setting?.value || 20;
+          }
         } else if (svc.serviceType === 'movie_watch') {
           const setting = await PlatformSettings.findOne({ key: 'movie_watch_platform_fee' });
           serviceData.platformFee = setting?.value || 50;

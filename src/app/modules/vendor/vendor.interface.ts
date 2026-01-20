@@ -8,6 +8,7 @@ export interface ISelectedService {
   packageName?: string;
   packagePrice?: number;
   platformFee?: number; // For events/movie_watch
+  isGovernmentEvent?: boolean; // For events - government events have fixed 10% fee
 }
 
 export interface IPaymentInfo {

@@ -295,6 +295,7 @@ const verifyRazorpayPayment = catchAsync(async (req: Request, res: Response) => 
             serviceType: 'events',
             referenceType: 'event_booking',
             referenceId: (booking._id as mongoose.Types.ObjectId).toString(),
+            isGovernmentEvent: eventData.isGovernmentEvent || false, // Government events have fixed 10% fee
             metadata: {
               bookingId: (booking._id as mongoose.Types.ObjectId).toString(),
               customerName: booking.customerDetails?.name,

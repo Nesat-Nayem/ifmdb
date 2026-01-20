@@ -138,6 +138,7 @@ export interface IEvent extends Document {
   visibleFrom: Date | null;
   visibleUntil: Date | null;
   autoDeleteOnExpiry: boolean;
+  isGovernmentEvent: boolean; // Government events have fixed 10% platform fee
   createdAt: Date;
   updatedAt: Date;
 }
@@ -252,6 +253,11 @@ const eventSchema: Schema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
+    },
+    // Government Event - fixed 10% platform fee
+    isGovernmentEvent: {
+      type: Boolean,
+      default: false,
     },
     // Home page section for Events
     homeSection: {
