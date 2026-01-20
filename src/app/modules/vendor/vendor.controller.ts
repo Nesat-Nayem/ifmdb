@@ -7,6 +7,7 @@ import { vendorCreateValidation, vendorDecisionValidation } from './vendor.valid
 import { appError } from '../../errors/appError';
 import { userInterface } from '../../middlewares/userInterface';
 import { sendEmail, generatePassword, emailTemplates } from '../../services/emailService';
+import { sendWhatsAppMessage, whatsappTemplates } from '../../services/whatsappService';
 
 // ============ VENDOR PACKAGES ============
 export const createVendorPackage = async (req: userInterface, res: Response, next: NextFunction) => {
@@ -16,6 +17,7 @@ export const createVendorPackage = async (req: userInterface, res: Response, nex
     const existing = await VendorPackage.findOne({ name });
     if (existing) return next(new appError('Package with this name already exists', 400));
 
+    
     const doc = await VendorPackage.create({
       name,
       description,
@@ -262,6 +264,14 @@ export const createVendorApplication = async (req: userInterface, res: Response,
       console.error('Failed to send confirmation email:', emailErr);
     }
 
+    // Send WhatsApp confirmation message
+    try {
+      const whatsappMessage = whatsappTemplates.vendorApplicationReceived(vendorName);
+      await sendWhatsAppMessage({ phone, message: whatsappMessage });
+    } catch (whatsappErr) {
+      console.error('Failed to send WhatsApp confirmation:', whatsappErr);
+    }
+
     res.status(201).json({
       success: true,
       statusCode: 201,
@@ -390,6 +400,14 @@ export const decideVendorApplication = async (req: userInterface, res: Response,
         console.error('Failed to send approval email:', emailErr);
       }
 
+      // Send WhatsApp approval message with credentials
+      try {
+        const whatsappMessage = whatsappTemplates.vendorApproved(item.vendorName, item.email, password, serviceNames, panelUrl);
+        await sendWhatsAppMessage({ phone: item.phone, message: whatsappMessage });
+      } catch (whatsappErr) {
+        console.error('Failed to send WhatsApp approval message:', whatsappErr);
+      }
+
       res.json({ 
         success: true, 
         statusCode: 200, 
@@ -407,6 +425,14 @@ export const decideVendorApplication = async (req: userInterface, res: Response,
         await sendEmail({ to: item.email, ...template });
       } catch (emailErr) {
         console.error('Failed to send rejection email:', emailErr);
+      }
+
+      // Send WhatsApp rejection message
+      try {
+        const whatsappMessage = whatsappTemplates.vendorRejected(item.vendorName, item.rejectionReason);
+        await sendWhatsAppMessage({ phone: item.phone, message: whatsappMessage });
+      } catch (whatsappErr) {
+        console.error('Failed to send WhatsApp rejection message:', whatsappErr);
       }
 
       res.json({ success: true, statusCode: 200, message: 'Application rejected', data: item });
