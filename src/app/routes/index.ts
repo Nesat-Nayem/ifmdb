@@ -31,6 +31,7 @@ import walletRouter from "../modules/wallet/wallet.routes";
 import notificationRouter from "../modules/notifications/notifications.routes";
 import sectionSettingsRouter from "../modules/section-settings/section-settings.routes";
 import ccavenuePaymentRouter from "../modules/payment/ccavenue-payment.routes";
+import iapPaymentRouter from "../modules/payment/iap-payment.routes";
 import watchlistRouter from "../modules/watchlist/watchlist.routes";
 import dashboardRouter from "../modules/dashboard/dashboard.routes";
 
@@ -187,6 +188,10 @@ const moduleRoutes = [
   {
     path: "/payment/ccavenue",
     route: ccavenuePaymentRouter,
+  },
+  {
+    path: "/payments",
+    route: iapPaymentRouter,
   },
   {
     path: "/watchlist",

@@ -23,7 +23,7 @@ export const authValidation = z.object({
   password: z.string().min(6),
   phone: z.string().refine(validateIndianMobile, {
     message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
-  }),
+  }).optional().or(z.literal('')),
   email: z.string().email("Invalid email format"),
   img: z.string().optional(),
   role: z.enum(['admin','vendor', 'user']).default('user').optional()
