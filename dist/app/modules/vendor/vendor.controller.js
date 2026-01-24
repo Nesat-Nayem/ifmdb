@@ -17,6 +17,7 @@ const auth_model_1 = require("../auth/auth.model");
 const vendor_validation_1 = require("./vendor.validation");
 const appError_1 = require("../../errors/appError");
 const emailService_1 = require("../../services/emailService");
+const whatsappService_1 = require("../../services/whatsappService");
 // ============ VENDOR PACKAGES ============
 const createVendorPackage = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -216,8 +217,16 @@ const createVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
                     }
                 }
                 else if (svc.serviceType === 'events') {
-                    const setting = yield platformSettings_model_1.PlatformSettings.findOne({ key: 'event_platform_fee' });
-                    serviceData.platformFee = (setting === null || setting === void 0 ? void 0 : setting.value) || 20;
+                    // Check if it's a government event (fixed 10% fee) or regular event (admin-defined fee)
+                    if (svc.isGovernmentEvent) {
+                        serviceData.isGovernmentEvent = true;
+                        serviceData.platformFee = 10; // Fixed 10% for government events
+                    }
+                    else {
+                        serviceData.isGovernmentEvent = false;
+                        const setting = yield platformSettings_model_1.PlatformSettings.findOne({ key: 'event_platform_fee' });
+                        serviceData.platformFee = (setting === null || setting === void 0 ? void 0 : setting.value) || 20;
+                    }
                 }
                 else if (svc.serviceType === 'movie_watch') {
                     const setting = yield platformSettings_model_1.PlatformSettings.findOne({ key: 'movie_watch_platform_fee' });
@@ -253,6 +262,14 @@ const createVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
         }
         catch (emailErr) {
             console.error('Failed to send confirmation email:', emailErr);
+        }
+        // Send WhatsApp confirmation message
+        try {
+            const whatsappMessage = whatsappService_1.whatsappTemplates.vendorApplicationReceived(vendorName);
+            yield (0, whatsappService_1.sendWhatsAppMessage)({ phone, message: whatsappMessage });
+        }
+        catch (whatsappErr) {
+            console.error('Failed to send WhatsApp confirmation:', whatsappErr);
         }
         res.status(201).json({
             success: true,
@@ -385,6 +402,14 @@ const decideVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
             catch (emailErr) {
                 console.error('Failed to send approval email:', emailErr);
             }
+            // Send WhatsApp approval message with credentials
+            try {
+                const whatsappMessage = whatsappService_1.whatsappTemplates.vendorApproved(item.vendorName, item.email, password, serviceNames, panelUrl);
+                yield (0, whatsappService_1.sendWhatsAppMessage)({ phone: item.phone, message: whatsappMessage });
+            }
+            catch (whatsappErr) {
+                console.error('Failed to send WhatsApp approval message:', whatsappErr);
+            }
             res.json({
                 success: true,
                 statusCode: 200,
@@ -403,6 +428,14 @@ const decideVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
             }
             catch (emailErr) {
                 console.error('Failed to send rejection email:', emailErr);
+            }
+            // Send WhatsApp rejection message
+            try {
+                const whatsappMessage = whatsappService_1.whatsappTemplates.vendorRejected(item.vendorName, item.rejectionReason);
+                yield (0, whatsappService_1.sendWhatsAppMessage)({ phone: item.phone, message: whatsappMessage });
+            }
+            catch (whatsappErr) {
+                console.error('Failed to send WhatsApp rejection message:', whatsappErr);
             }
             res.json({ success: true, statusCode: 200, message: 'Application rejected', data: item });
         }

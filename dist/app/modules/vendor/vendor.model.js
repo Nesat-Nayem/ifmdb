@@ -41,6 +41,7 @@ const SelectedServiceSchema = new mongoose_1.Schema({
     packageName: { type: String },
     packagePrice: { type: Number, default: 0 },
     platformFee: { type: Number, default: 0 },
+    isGovernmentEvent: { type: Boolean, default: false }, // Government events have fixed 10% platform fee
 }, { _id: false });
 const PaymentInfoSchema = new mongoose_1.Schema({
     transactionId: { type: String },

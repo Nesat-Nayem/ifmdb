@@ -36,6 +36,7 @@ const wallet_routes_1 = __importDefault(require("../modules/wallet/wallet.routes
 const notifications_routes_1 = __importDefault(require("../modules/notifications/notifications.routes"));
 const section_settings_routes_1 = __importDefault(require("../modules/section-settings/section-settings.routes"));
 const ccavenue_payment_routes_1 = __importDefault(require("../modules/payment/ccavenue-payment.routes"));
+const iap_payment_routes_1 = __importDefault(require("../modules/payment/iap-payment.routes"));
 const watchlist_routes_1 = __importDefault(require("../modules/watchlist/watchlist.routes"));
 const dashboard_routes_1 = __importDefault(require("../modules/dashboard/dashboard.routes"));
 const router = (0, express_1.Router)();
@@ -167,6 +168,10 @@ const moduleRoutes = [
     {
         path: "/payment/ccavenue",
         route: ccavenue_payment_routes_1.default,
+    },
+    {
+        path: "/payments",
+        route: iap_payment_routes_1.default,
     },
     {
         path: "/watchlist",

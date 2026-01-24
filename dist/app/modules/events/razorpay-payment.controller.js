@@ -270,6 +270,7 @@ const verifyRazorpayPayment = (0, catchAsync_1.catchAsync)((req, res) => __await
                         serviceType: 'events',
                         referenceType: 'event_booking',
                         referenceId: booking._id.toString(),
+                        isGovernmentEvent: eventData.isGovernmentEvent || false, // Government events have fixed 10% fee
                         metadata: {
                             bookingId: booking._id.toString(),
                             customerName: (_a = booking.customerDetails) === null || _a === void 0 ? void 0 : _a.name,

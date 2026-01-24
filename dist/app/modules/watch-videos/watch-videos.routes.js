@@ -1871,6 +1871,72 @@ router.get('/user/:userId/purchases', watch_videos_controller_1.WatchVideoContro
  *                       nullable: true
  */
 router.get('/:videoId/access/:userId', watch_videos_controller_1.WatchVideoController.checkVideoAccess);
+// ==================== SECURE VIDEO STREAMING ====================
+/**
+ * @swagger
+ * /watch-videos/{videoId}/stream:
+ *   get:
+ *     summary: Get secure video stream URL
+ *     tags: [Watch Videos]
+ *     description: Get a time-limited secure stream URL for authorized users. Requires purchase for paid videos.
+ *     parameters:
+ *       - in: path
+ *         name: videoId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: User ID (required for paid videos)
+ *     responses:
+ *       200:
+ *         description: Stream URL generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     streamUrl:
+ *                       type: string
+ *                     streamToken:
+ *                       type: string
+ *                     expiresAt:
+ *                       type: string
+ *                       format: date-time
+ *                     isSecured:
+ *                       type: boolean
+ *       403:
+ *         description: Purchase required
+ *       404:
+ *         description: Video not found
+ */
+router.get('/:videoId/stream', watch_videos_controller_1.WatchVideoController.getSecureVideoStream);
+/**
+ * @swagger
+ * /watch-videos/stream/verify:
+ *   get:
+ *     summary: Verify stream access token
+ *     tags: [Watch Videos]
+ *     parameters:
+ *       - in: query
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Token verified successfully
+ *       401:
+ *         description: Invalid or expired token
+ */
+router.get('/stream/verify', watch_videos_controller_1.WatchVideoController.verifyStreamAccess);
 // ==================== RAZORPAY PAYMENT ROUTES ====================
 /**
  * @swagger

@@ -14,21 +14,44 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.emailTemplates = exports.generatePassword = exports.sendEmail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
-// Create transporter with Gmail SMTP
+// Create transporter with flexible SMTP configuration
 const createTransporter = () => {
-    return nodemailer_1.default.createTransport({
+    var _a;
+    // Check if using Gmail or GoDaddy
+    const isGmail = ((_a = process.env.SMTP_HOST) === null || _a === void 0 ? void 0 : _a.includes('gmail')) || !process.env.SMTP_HOST;
+    const config = isGmail ? {
         service: 'gmail',
         auth: {
             user: process.env.SMTP_EMAIL,
-            pass: process.env.SMTP_PASSWORD, // Use App Password for Gmail
+            pass: process.env.SMTP_PASSWORD,
         },
+    } : {
+        host: process.env.SMTP_HOST || 'smtpout.secureserver.net',
+        port: parseInt(process.env.SMTP_PORT || '465'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+            user: process.env.SMTP_EMAIL,
+            pass: process.env.SMTP_PASSWORD,
+        },
+        tls: {
+            rejectUnauthorized: false,
+        },
+    };
+    console.log('SMTP Configuration:', {
+        type: isGmail ? 'Gmail' : 'GoDaddy',
+        host: config.host || 'gmail',
+        port: config.port || 'default',
+        user: config.auth.user,
+        passwordSet: !!config.auth.pass,
     });
+    return nodemailer_1.default.createTransport(config);
 };
 const sendEmail = (options) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const transporter = createTransporter();
         const mailOptions = {
-            from: `"MovieMart" <${process.env.SMTP_EMAIL}>`,
+            from: `"MovieMart" <info@moviemart.org>`, // Always show MovieMart email
+            replyTo: process.env.SMTP_EMAIL, // Replies go to configured email
             to: options.to,
             subject: options.subject,
             html: options.html,

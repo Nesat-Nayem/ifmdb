@@ -681,11 +681,19 @@ const getAdminWalletStats = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
 // ==================== EARNING CREDIT HELPER ====================
 // Credit earnings to vendor wallet (called after successful payment)
 const creditVendorEarnings = (params) => __awaiter(void 0, void 0, void 0, function* () {
-    const { vendorId, amount, serviceType, referenceType, referenceId, metadata } = params;
-    // Get platform fee settings
-    const feeKey = serviceType === 'events' ? 'event_platform_fee' : 'movie_watch_platform_fee';
-    const platformFeeSetting = yield platformSettings_model_1.PlatformSettings.findOne({ key: feeKey });
-    const platformFeePercentage = (platformFeeSetting === null || platformFeeSetting === void 0 ? void 0 : platformFeeSetting.value) || (serviceType === 'events' ? 20 : 50);
+    const { vendorId, amount, serviceType, referenceType, referenceId, metadata, isGovernmentEvent } = params;
+    // Get platform fee - Government events have fixed 10% fee
+    let platformFeePercentage;
+    if (serviceType === 'events' && isGovernmentEvent) {
+        // Government events have fixed 10% platform fee
+        platformFeePercentage = 10;
+    }
+    else {
+        // Get platform fee from settings
+        const feeKey = serviceType === 'events' ? 'event_platform_fee' : 'movie_watch_platform_fee';
+        const platformFeeSetting = yield platformSettings_model_1.PlatformSettings.findOne({ key: feeKey });
+        platformFeePercentage = (platformFeeSetting === null || platformFeeSetting === void 0 ? void 0 : platformFeeSetting.value) || (serviceType === 'events' ? 20 : 50);
+    }
     // Calculate amounts
     const platformFee = (amount * platformFeePercentage) / 100;
     const vendorEarnings = amount - platformFee;
@@ -706,13 +714,13 @@ const creditVendorEarnings = (params) => __awaiter(void 0, void 0, void 0, funct
         amount,
         platformFee,
         netAmount: vendorEarnings,
-        description: `${serviceType === 'events' ? 'Event booking' : 'Video purchase'} earnings (available after 7 days)`,
+        description: `${serviceType === 'events' ? (isGovernmentEvent ? 'Government event booking' : 'Event booking') : 'Video purchase'} earnings (available after 7 days)`,
         referenceType,
         referenceId,
         serviceType,
         status: 'completed',
         availableAt,
-        metadata
+        metadata: Object.assign(Object.assign({}, metadata), { isGovernmentEvent: isGovernmentEvent || false, platformFeePercentage: platformFeePercentage })
     });
     // Create platform fee transaction for admin tracking
     yield wallet_model_1.WalletTransaction.create({
@@ -722,12 +730,12 @@ const creditVendorEarnings = (params) => __awaiter(void 0, void 0, void 0, funct
         amount: platformFee,
         platformFee: 0,
         netAmount: platformFee,
-        description: `Platform fee (${platformFeePercentage}%) from ${serviceType === 'events' ? 'event booking' : 'video purchase'}`,
+        description: `Platform fee (${platformFeePercentage}%) from ${serviceType === 'events' ? (isGovernmentEvent ? 'government event booking' : 'event booking') : 'video purchase'}`,
         referenceType,
         referenceId,
         serviceType,
         status: 'completed',
-        metadata
+        metadata: Object.assign(Object.assign({}, metadata), { isGovernmentEvent: isGovernmentEvent || false, platformFeePercentage: platformFeePercentage })
     });
     return { vendorEarnings, platformFee, availableAt };
 });

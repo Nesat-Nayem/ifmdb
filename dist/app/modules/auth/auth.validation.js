@@ -19,7 +19,7 @@ exports.authValidation = zod_1.z.object({
     password: zod_1.z.string().min(6),
     phone: zod_1.z.string().refine(validateIndianMobile, {
         message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
-    }),
+    }).optional().or(zod_1.z.literal('')),
     email: zod_1.z.string().email("Invalid email format"),
     img: zod_1.z.string().optional(),
     role: zod_1.z.enum(['admin', 'vendor', 'user']).default('user').optional()

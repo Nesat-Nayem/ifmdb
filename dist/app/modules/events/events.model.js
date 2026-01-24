@@ -237,6 +237,11 @@ const eventSchema = new mongoose_1.Schema({
         ref: 'User',
         default: null,
     },
+    // Government Event - fixed 10% platform fee
+    isGovernmentEvent: {
+        type: Boolean,
+        default: false,
+    },
     // Home page section for Events
     homeSection: {
         type: String,
