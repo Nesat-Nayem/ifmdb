@@ -16,14 +16,24 @@ const validateIndianMobile = (phone: string) => {
   return cleanedPhone;
 };
 
-
+// Optional phone validation - only validates if phone is provided and not empty
+const optionalIndianMobile = z.string().optional().transform((val) => {
+  // If empty or undefined, return undefined (skip validation)
+  if (!val || val.trim() === '') {
+    return undefined;
+  }
+  // Clean and validate the phone number
+  const cleanedPhone = val.replace(/^(\+91|0)/, '').trim();
+  if (!indianMobileRegex.test(cleanedPhone)) {
+    throw new Error("Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9");
+  }
+  return cleanedPhone;
+});
 
 export const authValidation = z.object({
   name: z.string(),
   password: z.string().min(6),
-  phone: z.string().refine(validateIndianMobile, {
-    message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
-  }).optional().or(z.literal('')),
+  phone: optionalIndianMobile,
   email: z.string().email("Invalid email format"),
   img: z.string().optional(),
   role: z.enum(['admin','vendor', 'user']).default('user').optional()
@@ -59,9 +69,7 @@ export const emailCheckValidation = z.object({
 
 export const updateUserValidation = z.object({
   name: z.string().optional(),
-  phone: z.string().refine(validateIndianMobile, {
-    message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
-  }).optional(),
+  phone: optionalIndianMobile,
   email: z.union([
     z.string().email("Invalid email format"),
     z.string().length(0) // Allow empty string
