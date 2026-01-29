@@ -14,12 +14,23 @@ const validateIndianMobile = (phone) => {
     }
     return cleanedPhone;
 };
+// Optional phone validation - only validates if phone is provided and not empty
+const optionalIndianMobile = zod_1.z.string().optional().transform((val) => {
+    // If empty or undefined, return undefined (skip validation)
+    if (!val || val.trim() === '') {
+        return undefined;
+    }
+    // Clean and validate the phone number
+    const cleanedPhone = val.replace(/^(\+91|0)/, '').trim();
+    if (!indianMobileRegex.test(cleanedPhone)) {
+        throw new Error("Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9");
+    }
+    return cleanedPhone;
+});
 exports.authValidation = zod_1.z.object({
     name: zod_1.z.string(),
     password: zod_1.z.string().min(6),
-    phone: zod_1.z.string().refine(validateIndianMobile, {
-        message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
-    }).optional().or(zod_1.z.literal('')),
+    phone: optionalIndianMobile,
     email: zod_1.z.string().email("Invalid email format"),
     img: zod_1.z.string().optional(),
     role: zod_1.z.enum(['admin', 'vendor', 'user']).default('user').optional()
@@ -49,9 +60,7 @@ exports.emailCheckValidation = zod_1.z.object({
 });
 exports.updateUserValidation = zod_1.z.object({
     name: zod_1.z.string().optional(),
-    phone: zod_1.z.string().refine(validateIndianMobile, {
-        message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
-    }).optional(),
+    phone: optionalIndianMobile,
     email: zod_1.z.union([
         zod_1.z.string().email("Invalid email format"),
         zod_1.z.string().length(0) // Allow empty string
