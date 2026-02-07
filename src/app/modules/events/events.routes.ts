@@ -731,7 +731,7 @@ router.get('/language/:eventLanguage', EventController.getEventsByLanguage);
  */
 router.get(
   '/bookings',
-  auth(),
+  // auth(),
   validateRequest(EventBookingValidation.getEventBookingsValidation),
   EventBookingController.getAllEventBookings
 );
