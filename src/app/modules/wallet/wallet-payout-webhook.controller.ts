@@ -1,296 +1,196 @@
 /**
- * Razorpay Payout Webhook Handler
+ * Razorpay Route Webhook Handler
  * 
- * Handles webhook notifications from Razorpay Payouts (RazorpayX)
- * Updates withdrawal status automatically when transfer completes
+ * Handles webhook notifications from Razorpay Route (split payments)
+ * Updates transfer/settlement status for vendor payouts
+ * 
+ * Replaces the old RazorpayX Payout webhook handler.
+ * 
+ * Webhook events handled:
+ * - transfer.processed: Route transfer completed
+ * - transfer.settled: Transfer settled to vendor's bank
+ * - transfer.failed: Route transfer failed
+ * - payment.captured: Payment captured (Route transfers auto-created)
  */
 
 import { Request, Response } from 'express';
 import httpStatus from 'http-status';
-import mongoose from 'mongoose';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
-import { Wallet, WalletTransaction, WithdrawalRequest } from './wallet.model';
-import razorpayPayoutService from '../../services/razorpayPayoutService';
+import { Wallet, WalletTransaction } from './wallet.model';
+import razorpayRouteService from '../../services/razorpayRouteService';
 
 /**
- * Handle Razorpay Payout Webhook
- * 
- * Webhook events:
- * - payout.processed: Payout completed successfully
- * - payout.failed: Payout failed
- * - payout.reversed: Payout was reversed
- * - payout.queued: Payout is queued
- * - payout.pending: Payout is pending
+ * Handle Razorpay Route Webhook
  */
-const handlePayoutWebhook = catchAsync(async (req: Request, res: Response) => {
+const handleRouteWebhook = catchAsync(async (req: Request, res: Response) => {
   const signature = req.headers['x-razorpay-signature'] as string;
   const payload = JSON.stringify(req.body);
 
   // Verify webhook signature
-  const isValid = razorpayPayoutService.verifyWebhookSignature(
-    payload,
-    signature
-  );
+  const isValid = razorpayRouteService.verifyWebhookSignature(payload, signature);
 
   if (!isValid) {
-    console.error('Invalid webhook signature');
-    return sendResponse(res, {
-      statusCode: httpStatus.UNAUTHORIZED,
-      success: false,
-      message: 'Invalid signature',
-      data: null,
-    });
+    console.error('Invalid Route webhook signature');
+    return res.status(401).json({ message: 'Invalid signature' });
   }
 
   const { event, payload: webhookPayload } = req.body;
-  const data = webhookPayload?.payout?.entity;
-  
-  console.log('Razorpay Payout Webhook Received:', event, data);
+
+  console.log('Razorpay Route Webhook Received:', event);
 
   try {
-    if (!data) {
-      console.log('No payout data in webhook');
-      return sendResponse(res, {
-        statusCode: httpStatus.OK,
-        success: true,
-        message: 'Webhook received but no payout data',
-        data: null,
-      });
-    }
-
-    const payoutId = data.id;
-    const utr = data.utr;
-    const failureReason = data.failure_reason;
-
-    // Find withdrawal request by gateway transaction ID (payout ID)
-    const withdrawal = await WithdrawalRequest.findOne({
-      gatewayTransactionId: payoutId,
-    });
-
-    if (!withdrawal) {
-      console.error('Withdrawal not found for payoutId:', payoutId);
-      return sendResponse(res, {
-        statusCode: httpStatus.OK,
-        success: true,
-        message: 'Webhook received but withdrawal not found',
-        data: null,
-      });
-    }
-
-    const wallet = await Wallet.findById(withdrawal.walletId);
-    const transaction = await WalletTransaction.findOne({
-      referenceType: 'withdrawal',
-      referenceId: withdrawal._id,
-    });
-
-    if (!wallet) {
-      console.error('Wallet not found for withdrawal:', withdrawal._id);
-      return sendResponse(res, {
-        statusCode: httpStatus.OK,
-        success: true,
-        message: 'Webhook received but wallet not found',
-        data: null,
-      });
-    }
-
-    // Handle different Razorpay webhook events
     switch (event) {
-      case 'payout.processed':
-        // Payout completed successfully
-        withdrawal.status = 'completed';
-        withdrawal.processedAt = new Date();
-        withdrawal.gatewayResponse = {
-          ...withdrawal.gatewayResponse,
-          utr,
-          completedAt: new Date(),
-          razorpayStatus: data.status,
-        };
-        await withdrawal.save();
+      case 'transfer.processed': {
+        // Transfer to linked account was processed
+        const transfer = webhookPayload?.transfer?.entity;
+        if (transfer) {
+          const transferId = transfer.id;
+          const recipientAccountId = transfer.recipient;
 
-        // Update transaction
-        if (transaction) {
-          transaction.status = 'completed';
-          await transaction.save();
+          // Find wallet transaction by Route transfer ID
+          const walletTransaction = await WalletTransaction.findOne({
+            razorpayTransferId: transferId,
+          });
+
+          if (walletTransaction) {
+            console.log(`Route transfer ${transferId} processed for wallet transaction ${walletTransaction._id}`);
+          }
+
+          // Find wallet by linked account ID and log
+          const wallet = await Wallet.findOne({ razorpayLinkedAccountId: recipientAccountId });
+          if (wallet) {
+            console.log(`Route transfer ${transferId} processed for vendor wallet ${wallet._id}`);
+          }
         }
-
-        // Update wallet stats
-        wallet.totalWithdrawn += withdrawal.amount;
-        await wallet.save();
-
-        console.log(`Withdrawal ${withdrawal._id} completed successfully`);
         break;
+      }
 
-      case 'payout.failed':
-      case 'payout.reversed':
-        // Payout failed or reversed - refund to wallet
-        withdrawal.status = 'failed';
-        withdrawal.failureReason = failureReason || 'Transfer failed';
-        withdrawal.gatewayResponse = {
-          ...withdrawal.gatewayResponse,
-          failureReason,
-          failedAt: new Date(),
-          razorpayStatus: data.status,
-        };
-        await withdrawal.save();
+      case 'transfer.settled': {
+        // Transfer settled to vendor's bank account
+        const transfer = webhookPayload?.transfer?.entity;
+        if (transfer) {
+          const transferId = transfer.id;
+          const recipientAccountId = transfer.recipient;
+          const settlementId = transfer.recipient_settlement_id;
 
-        // Refund amount to wallet
-        wallet.balance += withdrawal.amount;
-        await wallet.save();
+          // Find wallet transaction and update
+          const walletTransaction = await WalletTransaction.findOne({
+            razorpayTransferId: transferId,
+          });
 
-        // Update transaction
-        if (transaction) {
-          transaction.status = 'failed';
-          await transaction.save();
+          if (walletTransaction) {
+            // Move from pending to available in vendor wallet
+            const wallet = await Wallet.findById(walletTransaction.walletId);
+            if (wallet) {
+              const amount = walletTransaction.netAmount;
+              wallet.pendingBalance = Math.max(0, wallet.pendingBalance - amount);
+              wallet.balance += amount;
+              await wallet.save();
+
+              console.log(`Route transfer ${transferId} settled. Vendor wallet ${wallet._id} updated: +₹${amount} available`);
+            }
+          }
+
+          // Also try finding by linked account
+          if (!walletTransaction) {
+            const wallet = await Wallet.findOne({ razorpayLinkedAccountId: recipientAccountId });
+            if (wallet) {
+              console.log(`Route transfer ${transferId} settled for linked account ${recipientAccountId}, settlement: ${settlementId}`);
+            }
+          }
         }
-
-        console.log(`Withdrawal ${withdrawal._id} failed and refunded`);
         break;
+      }
 
-      case 'payout.queued':
-      case 'payout.pending':
-        // Payout is pending - update status
-        withdrawal.status = 'processing';
-        withdrawal.gatewayResponse = {
-          ...withdrawal.gatewayResponse,
-          razorpayStatus: data.status,
-        };
-        await withdrawal.save();
-        console.log(`Withdrawal ${withdrawal._id} is ${event}`);
+      case 'transfer.failed': {
+        // Transfer failed
+        const transfer = webhookPayload?.transfer?.entity;
+        if (transfer) {
+          const transferId = transfer.id;
+          const errorDesc = transfer.error?.description || 'Transfer failed';
+
+          // Find wallet transaction and revert
+          const walletTransaction = await WalletTransaction.findOne({
+            razorpayTransferId: transferId,
+          });
+
+          if (walletTransaction) {
+            walletTransaction.status = 'failed';
+            await walletTransaction.save();
+
+            // Revert pending balance
+            const wallet = await Wallet.findById(walletTransaction.walletId);
+            if (wallet) {
+              wallet.pendingBalance = Math.max(0, wallet.pendingBalance - walletTransaction.netAmount);
+              wallet.totalEarnings = Math.max(0, wallet.totalEarnings - walletTransaction.netAmount);
+              await wallet.save();
+
+              console.error(`Route transfer ${transferId} failed: ${errorDesc}. Reverted ₹${walletTransaction.netAmount} from vendor wallet ${wallet._id}`);
+            }
+          }
+        }
         break;
+      }
 
       default:
-        console.log('Unknown webhook event:', event);
+        console.log('Unhandled Route webhook event:', event);
     }
 
-    // Send success response to Razorpay
-    return sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message: 'Webhook processed successfully',
-      data: null,
-    });
+    // Always return 200 to Razorpay
+    return res.status(200).json({ received: true });
   } catch (error: any) {
-    console.error('Webhook processing error:', error);
-    
-    // Still return 200 to Razorpay to prevent retries
-    return sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message: 'Webhook received but processing failed',
-      data: null,
-    });
+    console.error('Route webhook processing error:', error);
+    // Return 200 to prevent retries
+    return res.status(200).json({ received: true });
   }
 });
 
 /**
- * Manual sync transfer status
- * Admin can manually check status from Razorpay
+ * Manual sync Route transfer status
+ * Admin can check transfer status from Razorpay
  */
 const syncTransferStatus = catchAsync(async (req: Request, res: Response) => {
-  const { id } = req.params; // withdrawal ID
+  const { transferId } = req.params;
 
-  const withdrawal = await WithdrawalRequest.findById(id);
-
-  if (!withdrawal) {
-    return sendResponse(res, {
-      statusCode: httpStatus.NOT_FOUND,
-      success: false,
-      message: 'Withdrawal not found',
-      data: null,
-    });
-  }
-
-  if (!withdrawal.gatewayTransactionId) {
+  if (!transferId) {
     return sendResponse(res, {
       statusCode: httpStatus.BAD_REQUEST,
       success: false,
-      message: 'No gateway transaction ID found',
+      message: 'Transfer ID is required',
       data: null,
     });
   }
 
   try {
-    // Get status from Razorpay
-    const statusResponse = await razorpayPayoutService.getTransferStatus(
-      withdrawal.gatewayTransactionId
-    );
+    const result = await razorpayRouteService.fetchTransfer(transferId);
 
-    if (statusResponse.success && statusResponse.data) {
-      const { transfer } = statusResponse.data;
-
-      // Update withdrawal based on Razorpay status
-      if (transfer.status === 'SUCCESS') {
-        withdrawal.status = 'completed';
-        withdrawal.processedAt = new Date();
-        
-        // Update wallet
-        const wallet = await Wallet.findById(withdrawal.walletId);
-        if (wallet) {
-          wallet.totalWithdrawn += withdrawal.amount;
-          await wallet.save();
-        }
-
-        // Update transaction
-        const transaction = await WalletTransaction.findOne({
-          referenceType: 'withdrawal',
-          referenceId: withdrawal._id,
-        });
-        if (transaction) {
-          transaction.status = 'completed';
-          await transaction.save();
-        }
-      } else if (transfer.status === 'FAILED' || transfer.status === 'REVERSED') {
-        withdrawal.status = 'failed';
-        withdrawal.failureReason = transfer.reason || 'Transfer failed';
-        
-        // Refund to wallet
-        const wallet = await Wallet.findById(withdrawal.walletId);
-        if (wallet) {
-          wallet.balance += withdrawal.amount;
-          await wallet.save();
-        }
-
-        // Update transaction
-        const transaction = await WalletTransaction.findOne({
-          referenceType: 'withdrawal',
-          referenceId: withdrawal._id,
-        });
-        if (transaction) {
-          transaction.status = 'failed';
-          await transaction.save();
-        }
-      }
-
-      withdrawal.gatewayResponse = transfer;
-      await withdrawal.save();
-
+    if (result.success) {
       return sendResponse(res, {
         statusCode: httpStatus.OK,
         success: true,
-        message: 'Transfer status synced successfully',
-        data: withdrawal,
+        message: 'Transfer status fetched successfully',
+        data: result.data,
       });
     } else {
       return sendResponse(res, {
         statusCode: httpStatus.BAD_REQUEST,
         success: false,
-        message: statusResponse.message || 'Failed to get transfer status',
+        message: result.message,
         data: null,
       });
     }
   } catch (error: any) {
-    console.error('Sync transfer status error:', error);
     return sendResponse(res, {
       statusCode: httpStatus.INTERNAL_SERVER_ERROR,
       success: false,
-      message: error.message || 'Failed to sync transfer status',
+      message: error.message || 'Failed to fetch transfer status',
       data: null,
     });
   }
 });
 
 export default {
-  handlePayoutWebhook,
+  handleRouteWebhook,
   syncTransferStatus,
 };

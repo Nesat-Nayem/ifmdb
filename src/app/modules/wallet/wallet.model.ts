@@ -18,6 +18,9 @@ export interface IWallet extends Document {
     branchName?: string;
     upiId?: string;
   };
+  razorpayLinkedAccountId?: string;
+  razorpayAccountStatus?: 'created' | 'activated' | 'suspended' | 'failed' | 'pending';
+  razorpayProductId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +74,19 @@ const walletSchema: Schema = new Schema(
       bankName: { type: String, default: '' },
       branchName: { type: String, default: '' },
       upiId: { type: String, default: '' }
+    },
+    razorpayLinkedAccountId: {
+      type: String,
+      default: ''
+    },
+    razorpayAccountStatus: {
+      type: String,
+      enum: ['created', 'activated', 'suspended', 'failed', 'pending', ''],
+      default: ''
+    },
+    razorpayProductId: {
+      type: String,
+      default: ''
     }
   },
   { timestamps: true }
@@ -91,6 +107,8 @@ export interface IWalletTransaction extends Document {
   serviceType?: 'events' | 'movie_watch' | 'film_trade';
   status: 'pending' | 'completed' | 'failed' | 'cancelled';
   availableAt?: Date; // When pending funds become available (7 days after transaction)
+  razorpayTransferId?: string;
+  razorpayPaymentId?: string;
   metadata?: {
     bookingId?: string;
     purchaseId?: string;
@@ -159,6 +177,14 @@ const walletTransactionSchema: Schema = new Schema(
     },
     availableAt: {
       type: Date
+    },
+    razorpayTransferId: {
+      type: String,
+      default: ''
+    },
+    razorpayPaymentId: {
+      type: String,
+      default: ''
     },
     metadata: {
       bookingId: { type: String },

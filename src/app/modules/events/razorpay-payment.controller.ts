@@ -8,6 +8,7 @@ import Event from './events.model';
 import { EventBooking, EventETicket, EventPaymentTransaction } from './event-booking.model';
 import { WalletController } from '../wallet/wallet.controller';
 import razorpayService from '../../services/razorpayService';
+import razorpayRouteService from '../../services/razorpayRouteService';
 
 // Generate unique booking reference
 const generateBookingReference = (): string => {
@@ -109,20 +110,67 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
   const currency = razorpayService.getCurrencyForCountry(countryCode);
 
   try {
-    // Create Razorpay order
-    const razorpayOrder = await razorpayService.createOrder({
-      amount: finalAmount,
-      currency: currency,
-      receipt: bookingReference,
-      notes: {
-        eventId: eventId,
-        userId: userId,
-        quantity: quantity.toString(),
-        seatType: seatType,
-        customerName: customerDetails.name,
-        customerEmail: customerDetails.email,
-      },
-    });
+    // Check if vendor has Razorpay Route linked account for split payment
+    const vendorId = (event as any).vendorId?.toString();
+    let linkedAccountId: string | null = null;
+    if (vendorId) {
+      linkedAccountId = await WalletController.getVendorLinkedAccountId(vendorId);
+    }
+
+    const orderNotes = {
+      eventId: eventId,
+      userId: userId,
+      quantity: quantity.toString(),
+      seatType: seatType,
+      customerName: customerDetails.name,
+      customerEmail: customerDetails.email,
+    };
+
+    let razorpayOrder: any;
+
+    if (linkedAccountId && currency === 'INR') {
+      // Route payment: Create order with transfer to vendor's linked account
+      const platformFeePercentage = await WalletController.getPlatformFeePercentage(
+        'events',
+        (event as any).isGovernmentEvent || false
+      );
+      const amountInPaise = Math.round(finalAmount * 100);
+      const platformFeeInPaise = Math.round((amountInPaise * platformFeePercentage) / 100);
+      const vendorAmountInPaise = amountInPaise - platformFeeInPaise;
+
+      const holdTimestamp = razorpayRouteService.getSettlementHoldTimestamp();
+      const holdDays = razorpayRouteService.getSettlementHoldDays();
+
+      razorpayOrder = await razorpayService.createOrderWithTransfers(
+        {
+          amount: finalAmount,
+          currency: 'INR',
+          receipt: bookingReference,
+          notes: orderNotes,
+        },
+        [{
+          account: linkedAccountId,
+          amount: vendorAmountInPaise,
+          currency: 'INR',
+          notes: {
+            eventId: eventId,
+            vendorId: vendorId,
+            platformFee: platformFeePercentage.toString(),
+          },
+          linked_account_notes: ['eventId', 'vendorId'],
+          on_hold: holdDays > 0,
+          on_hold_until: holdDays > 0 ? holdTimestamp : undefined,
+        }]
+      );
+    } else {
+      // Normal order (no Route transfer)
+      razorpayOrder = await razorpayService.createOrder({
+        amount: finalAmount,
+        currency: currency,
+        receipt: bookingReference,
+        notes: orderNotes,
+      });
+    }
 
     // Create booking with pending status
     const bookingData = {
@@ -289,13 +337,26 @@ const verifyRazorpayPayment = catchAsync(async (req: Request, res: Response) => 
       const eventData = event as any;
       if (eventData && eventData.vendorId) {
         try {
+          // Check if this was a Route transfer order
+          let razorpayTransferId = '';
+          if (payment.order_id) {
+            try {
+              const orderDetails = await razorpayService.fetchOrder(payment.order_id);
+              if (orderDetails.transfers && orderDetails.transfers.length > 0) {
+                razorpayTransferId = orderDetails.transfers[0].id || '';
+              }
+            } catch (e) { /* ignore fetch error */ }
+          }
+
           await WalletController.creditVendorEarnings({
             vendorId: eventData.vendorId.toString(),
             amount: booking.finalAmount,
             serviceType: 'events',
             referenceType: 'event_booking',
             referenceId: (booking._id as mongoose.Types.ObjectId).toString(),
-            isGovernmentEvent: eventData.isGovernmentEvent || false, // Government events have fixed 10% fee
+            isGovernmentEvent: eventData.isGovernmentEvent || false,
+            razorpayTransferId,
+            razorpayPaymentId: paymentId,
             metadata: {
               bookingId: (booking._id as mongoose.Types.ObjectId).toString(),
               customerName: booking.customerDetails?.name,

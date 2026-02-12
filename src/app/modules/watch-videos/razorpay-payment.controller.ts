@@ -10,6 +10,7 @@ import {
 } from './watch-videos.model';
 import { WalletController } from '../wallet/wallet.controller';
 import razorpayService from '../../services/razorpayService';
+import razorpayRouteService from '../../services/razorpayRouteService';
 
 // Generate unique purchase reference
 const generatePurchaseReference = (): string => {
@@ -96,19 +97,66 @@ const createVideoPaymentOrder = catchAsync(async (req: Request, res: Response) =
   }
 
   try {
-    // Create Razorpay order
-    const razorpayOrder = await razorpayService.createOrder({
-      amount: finalAmount,
-      currency: currency,
-      receipt: purchaseReference,
-      notes: {
-        videoId: videoId,
-        userId: userId,
-        purchaseType: purchaseType,
-        customerName: customerDetails.name,
-        customerEmail: customerDetails.email,
-      },
-    });
+    // Check if vendor has Razorpay Route linked account for split payment
+    const videoData = video as any;
+    const vendorId = (videoData.uploadedBy && videoData.uploadedByType === 'vendor')
+      ? videoData.uploadedBy.toString()
+      : null;
+    let linkedAccountId: string | null = null;
+    if (vendorId) {
+      linkedAccountId = await WalletController.getVendorLinkedAccountId(vendorId);
+    }
+
+    const orderNotes = {
+      videoId: videoId,
+      userId: userId,
+      purchaseType: purchaseType,
+      customerName: customerDetails.name,
+      customerEmail: customerDetails.email,
+    };
+
+    let razorpayOrder: any;
+
+    if (linkedAccountId && currency === 'INR') {
+      // Route payment: Create order with transfer to vendor's linked account
+      const platformFeePercentage = await WalletController.getPlatformFeePercentage('movie_watch');
+      const amountInPaise = Math.round(finalAmount * 100);
+      const platformFeeInPaise = Math.round((amountInPaise * platformFeePercentage) / 100);
+      const vendorAmountInPaise = amountInPaise - platformFeeInPaise;
+
+      const holdTimestamp = razorpayRouteService.getSettlementHoldTimestamp();
+      const holdDays = razorpayRouteService.getSettlementHoldDays();
+
+      razorpayOrder = await razorpayService.createOrderWithTransfers(
+        {
+          amount: finalAmount,
+          currency: 'INR',
+          receipt: purchaseReference,
+          notes: orderNotes,
+        },
+        [{
+          account: linkedAccountId,
+          amount: vendorAmountInPaise,
+          currency: 'INR',
+          notes: {
+            videoId: videoId,
+            vendorId: vendorId!,
+            platformFee: platformFeePercentage.toString(),
+          },
+          linked_account_notes: ['videoId', 'vendorId'],
+          on_hold: holdDays > 0,
+          on_hold_until: holdDays > 0 ? holdTimestamp : undefined,
+        }]
+      );
+    } else {
+      // Normal order (no Route transfer)
+      razorpayOrder = await razorpayService.createOrder({
+        amount: finalAmount,
+        currency: currency,
+        receipt: purchaseReference,
+        notes: orderNotes,
+      });
+    }
 
     // Create purchase record with pending status
     const purchaseData = {
@@ -223,21 +271,34 @@ const verifyVideoPayment = catchAsync(async (req: Request, res: Response) => {
         .populate('channelId', 'name logoUrl');
 
       // Credit vendor wallet if video has a vendor
-      const videoData = video as any;
+      const vData = video as any;
       const purchaseData = purchase as any;
-      if (videoData && videoData.uploadedBy && videoData.uploadedByType === 'vendor') {
+      if (vData && vData.uploadedBy && vData.uploadedByType === 'vendor') {
         try {
+          // Check if this was a Route transfer order
+          let razorpayTransferId = '';
+          if (payment.order_id) {
+            try {
+              const orderDetails = await razorpayService.fetchOrder(payment.order_id);
+              if (orderDetails.transfers && orderDetails.transfers.length > 0) {
+                razorpayTransferId = orderDetails.transfers[0].id || '';
+              }
+            } catch (e) { /* ignore fetch error */ }
+          }
+
           await WalletController.creditVendorEarnings({
-            vendorId: videoData.uploadedBy.toString(),
+            vendorId: vData.uploadedBy.toString(),
             amount: purchaseData.amount as number,
             serviceType: 'movie_watch',
             referenceType: 'video_purchase',
             referenceId: purchaseData._id.toString(),
+            razorpayTransferId,
+            razorpayPaymentId: paymentId,
             metadata: {
               purchaseId: purchaseData._id.toString(),
               customerName: purchaseData.customerDetails?.name || '',
               customerEmail: purchaseData.customerDetails?.email || '',
-              itemTitle: videoData.title || '',
+              itemTitle: vData.title || '',
             },
           });
         } catch (walletError) {

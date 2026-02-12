@@ -53,48 +53,8 @@ export const isCurrencySupported = (currency: string): boolean => {
  * Get currency for country code
  */
 export const getCurrencyForCountry = (countryCode: string): string => {
-  const currencyMap: Record<string, string> = {
-    'IN': 'INR',
-    'US': 'USD',
-    'GB': 'GBP',
-    'EU': 'EUR',
-    'AE': 'AED',
-    'SG': 'SGD',
-    'AU': 'AUD',
-    'CA': 'CAD',
-    'JP': 'JPY',
-    'CH': 'CHF',
-    'SE': 'SEK',
-    'DK': 'DKK',
-    'NO': 'NOK',
-    'HK': 'HKD',
-    'NZ': 'NZD',
-    'SA': 'SAR',
-    'QA': 'QAR',
-    'OM': 'OMR',
-    'KW': 'KWD',
-    'BH': 'BHD',
-    'MY': 'MYR',
-    'TH': 'THB',
-    'ZA': 'ZAR',
-    'PH': 'PHP',
-    'ID': 'IDR',
-    'BR': 'BRL',
-    'MX': 'MXN',
-    'PL': 'PLN',
-    'CZ': 'CZK',
-    'TR': 'TRY',
-    'IL': 'ILS',
-    'KR': 'KRW',
-    'CN': 'CNY',
-    'BD': 'BDT',
-    'PK': 'PKR',
-    'LK': 'LKR',
-    'NP': 'NPR',
-    'VN': 'VND',
-  };
-
-  return currencyMap[countryCode.toUpperCase()] || 'INR';
+  // All payments are processed in INR only (Razorpay Route requires INR)
+  return 'INR';
 };
 
 export interface RazorpayOrderParams {
@@ -103,6 +63,16 @@ export interface RazorpayOrderParams {
   receipt: string; // Unique receipt ID
   notes?: Record<string, string>; // Custom notes
   paymentCapture?: 0 | 1; // 0 = manual, 1 = automatic
+}
+
+export interface RazorpayRouteTransfer {
+  account: string; // Linked Account ID (acc_xxxx)
+  amount: number; // In paise
+  currency?: string;
+  notes?: Record<string, string>;
+  linked_account_notes?: string[];
+  on_hold?: boolean;
+  on_hold_until?: number; // Unix timestamp in seconds
 }
 
 /**
@@ -126,6 +96,43 @@ export const createOrder = async (params: RazorpayOrderParams): Promise<any> => 
   } catch (error: any) {
     console.error('Razorpay order creation error:', error);
     throw new Error(error.error?.description || 'Failed to create Razorpay order');
+  }
+};
+
+/**
+ * Create Razorpay order with Route transfers (split payment)
+ * The transfers array tells Razorpay to automatically split funds to linked accounts
+ * after the payment is captured.
+ */
+export const createOrderWithTransfers = async (
+  params: RazorpayOrderParams,
+  transfers: RazorpayRouteTransfer[]
+): Promise<any> => {
+  try {
+    const amountInSmallestUnit = Math.round(params.amount * 100);
+
+    const orderOptions: any = {
+      amount: amountInSmallestUnit,
+      currency: 'INR', // Route only supports INR
+      receipt: params.receipt,
+      notes: params.notes || {},
+      payment_capture: params.paymentCapture !== undefined ? params.paymentCapture : 1,
+      transfers: transfers.map(t => ({
+        account: t.account,
+        amount: t.amount,
+        currency: t.currency || 'INR',
+        notes: t.notes || {},
+        linked_account_notes: t.linked_account_notes || (t.notes ? Object.keys(t.notes) : []),
+        on_hold: t.on_hold ?? false,
+        on_hold_until: t.on_hold_until || undefined,
+      })),
+    };
+
+    const order = await razorpayInstance.orders.create(orderOptions);
+    return order;
+  } catch (error: any) {
+    console.error('Razorpay order with transfers creation error:', error);
+    throw new Error(error.error?.description || 'Failed to create Razorpay order with transfers');
   }
 };
 
@@ -304,6 +311,7 @@ export const getRazorpayKeyId = (): string => {
 
 export default {
   createOrder,
+  createOrderWithTransfers,
   fetchOrder,
   fetchOrderPayments,
   verifyPaymentSignature,

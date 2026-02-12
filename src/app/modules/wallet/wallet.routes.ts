@@ -1,6 +1,6 @@
 import express from 'express';
 import { WalletController } from './wallet.controller';
-import PayoutWebhookController from './wallet-payout-webhook.controller';
+import RouteWebhookController from './wallet-payout-webhook.controller';
 import { auth } from '../../middlewares/authMiddleware';
 
 const router = express.Router();
@@ -45,6 +45,15 @@ router.put('/bank-details', auth('vendor', 'admin'), WalletController.updateBank
 
 /**
  * @swagger
+ * /v1/api/wallet/bank-details:
+ *   delete:
+ *     summary: Delete bank details
+ *     tags: [Wallet]
+ */
+router.delete('/bank-details', auth('vendor', 'admin'), WalletController.deleteBankDetails);
+
+/**
+ * @swagger
  * /v1/api/wallet/withdrawals:
  *   post:
  *     summary: Request withdrawal
@@ -70,16 +79,16 @@ router.get('/withdrawals', auth('vendor', 'admin'), WalletController.getMyWithdr
  */
 router.post('/withdrawals/:id/cancel', auth('vendor'), WalletController.cancelWithdrawal);
 
-// ==================== RAZORPAY PAYOUT WEBHOOK ====================
+// ==================== RAZORPAY ROUTE WEBHOOK ====================
 
 /**
  * @swagger
- * /v1/api/wallet/webhooks/razorpay-payout:
+ * /v1/api/wallet/webhooks/razorpay-route:
  *   post:
- *     summary: Razorpay Payout Webhook (No Auth)
+ *     summary: Razorpay Route Transfer Webhook (No Auth)
  *     tags: [Wallet - Webhooks]
  */
-router.post('/webhooks/razorpay-payout', PayoutWebhookController.handlePayoutWebhook);
+router.post('/webhooks/razorpay-route', RouteWebhookController.handleRouteWebhook);
 
 // ==================== ADMIN ROUTES ====================
 
@@ -121,11 +130,11 @@ router.post('/admin/withdrawals/:id/process', auth('admin'), WalletController.pr
 
 /**
  * @swagger
- * /v1/api/wallet/admin/withdrawals/{id}/sync-status:
+ * /v1/api/wallet/admin/transfers/{transferId}/sync-status:
  *   post:
- *     summary: Manually sync transfer status from Razorpay (Admin)
+ *     summary: Manually sync Route transfer status from Razorpay (Admin)
  *     tags: [Wallet - Admin]
  */
-router.post('/admin/withdrawals/:id/sync-status', auth('admin'), PayoutWebhookController.syncTransferStatus);
+router.post('/admin/transfers/:transferId/sync-status', auth('admin'), RouteWebhookController.syncTransferStatus);
 
 export default router;
