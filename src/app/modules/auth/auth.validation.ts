@@ -1,31 +1,30 @@
 import { z } from "zod";
 
-// Regex for Indian mobile numbers
-// Must start with 6, 7, 8, or 9 and be followed by 9 digits
-const indianMobileRegex = /^[6-9]\d{9}$/;
+// International phone validation: digits only, 7-15 digits (E.164 without '+')
+// Accepts phone numbers with country code, e.g. "8801617660907" (BD), "919876543210" (IN)
+const internationalPhoneRegex = /^\d{7,15}$/;
 
-// Function to validate and format Indian mobile number
-const validateIndianMobile = (phone: string) => {
-  // Remove country code +91 or 0 prefix if present
-  let cleanedPhone = phone.replace(/^(\+91|0)/, '').trim();
+// Function to validate international phone number (digits only with country code)
+const validatePhone = (phone: string) => {
+  // Remove any '+' prefix, spaces, dashes
+  let cleanedPhone = phone.replace(/[\s\-\+]/g, '').trim();
   
-  if (!indianMobileRegex.test(cleanedPhone)) {
-    throw new Error("Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9");
+  if (!internationalPhoneRegex.test(cleanedPhone)) {
+    throw new Error("Invalid phone number. Please provide your full phone number with country code (digits only, 7-15 digits).");
   }
   
   return cleanedPhone;
 };
 
 // Optional phone validation - only validates if phone is provided and not empty
-const optionalIndianMobile = z.string().optional().transform((val) => {
+const optionalPhone = z.string().optional().transform((val) => {
   // If empty or undefined, return undefined (skip validation)
   if (!val || val.trim() === '') {
     return undefined;
   }
-  // Clean and validate the phone number
-  const cleanedPhone = val.replace(/^(\+91|0)/, '').trim();
-  if (!indianMobileRegex.test(cleanedPhone)) {
-    throw new Error("Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9");
+  const cleanedPhone = val.replace(/[\s\-\+]/g, '').trim();
+  if (!internationalPhoneRegex.test(cleanedPhone)) {
+    throw new Error("Invalid phone number. Please provide your full phone number with country code (digits only, 7-15 digits).");
   }
   return cleanedPhone;
 });
@@ -33,7 +32,7 @@ const optionalIndianMobile = z.string().optional().transform((val) => {
 export const authValidation = z.object({
   name: z.string(),
   password: z.string().min(6),
-  phone: optionalIndianMobile,
+  phone: optionalPhone,
   email: z.string().email("Invalid email format"),
   img: z.string().optional(),
   role: z.enum(['admin','vendor', 'user']).default('user').optional()
@@ -45,21 +44,21 @@ export const loginValidation = z.object({
 });
 
 export const resetPasswordValidation = z.object({
-  phone: z.string().refine(validateIndianMobile, {
-    message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
+  phone: z.string().refine(validatePhone, {
+    message: "Invalid phone number. Please provide your full phone number with country code."
   }),
   newPassword: z.string().min(6)
 });
 
 export const activateUserValidation = z.object({
-  phone: z.string().refine(validateIndianMobile, {
-    message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
+  phone: z.string().refine(validatePhone, {
+    message: "Invalid phone number. Please provide your full phone number with country code."
   })
 });
 
 export const phoneCheckValidation = z.object({
-  phone: z.string().refine(validateIndianMobile, {
-    message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
+  phone: z.string().refine(validatePhone, {
+    message: "Invalid phone number. Please provide your full phone number with country code."
   })
 });
 
@@ -69,7 +68,7 @@ export const emailCheckValidation = z.object({
 
 export const updateUserValidation = z.object({
   name: z.string().optional(),
-  phone: optionalIndianMobile,
+  phone: optionalPhone,
   email: z.union([
     z.string().email("Invalid email format"),
     z.string().length(0) // Allow empty string
@@ -81,14 +80,14 @@ export const updateUserValidation = z.object({
 
 
 export const requestOtpValidation = z.object({
-  phone: z.string().refine(validateIndianMobile, {
-    message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
+  phone: z.string().refine(validatePhone, {
+    message: "Invalid phone number. Please provide your full phone number with country code."
   })
 });
 
 export const verifyOtpValidation = z.object({
-  phone: z.string().refine(validateIndianMobile, {
-    message: "Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9"
+  phone: z.string().refine(validatePhone, {
+    message: "Invalid phone number. Please provide your full phone number with country code."
   }),
   otp: z.string().length(6, "OTP must be 6 digits")
 });
