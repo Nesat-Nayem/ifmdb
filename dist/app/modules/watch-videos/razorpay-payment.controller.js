@@ -20,6 +20,7 @@ const sendResponse_1 = require("../../utils/sendResponse");
 const watch_videos_model_1 = require("./watch-videos.model");
 const wallet_controller_1 = require("../wallet/wallet.controller");
 const razorpayService_1 = __importDefault(require("../../services/razorpayService"));
+const razorpayRouteService_1 = __importDefault(require("../../services/razorpayRouteService"));
 // Generate unique purchase reference
 const generatePurchaseReference = () => {
     const timestamp = Date.now().toString(36);
@@ -87,19 +88,59 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
         expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     }
     try {
-        // Create Razorpay order
-        const razorpayOrder = yield razorpayService_1.default.createOrder({
-            amount: finalAmount,
-            currency: currency,
-            receipt: purchaseReference,
-            notes: {
-                videoId: videoId,
-                userId: userId,
-                purchaseType: purchaseType,
-                customerName: customerDetails.name,
-                customerEmail: customerDetails.email,
-            },
-        });
+        // Check if vendor has Razorpay Route linked account for split payment
+        const videoData = video;
+        const vendorId = (videoData.uploadedBy && videoData.uploadedByType === 'vendor')
+            ? videoData.uploadedBy.toString()
+            : null;
+        let linkedAccountId = null;
+        if (vendorId) {
+            linkedAccountId = yield wallet_controller_1.WalletController.getVendorLinkedAccountId(vendorId);
+        }
+        const orderNotes = {
+            videoId: videoId,
+            userId: userId,
+            purchaseType: purchaseType,
+            customerName: customerDetails.name,
+            customerEmail: customerDetails.email,
+        };
+        let razorpayOrder;
+        if (linkedAccountId && currency === 'INR') {
+            // Route payment: Create order with transfer to vendor's linked account
+            const platformFeePercentage = yield wallet_controller_1.WalletController.getPlatformFeePercentage('movie_watch');
+            const amountInPaise = Math.round(finalAmount * 100);
+            const platformFeeInPaise = Math.round((amountInPaise * platformFeePercentage) / 100);
+            const vendorAmountInPaise = amountInPaise - platformFeeInPaise;
+            const holdTimestamp = razorpayRouteService_1.default.getSettlementHoldTimestamp();
+            const holdDays = razorpayRouteService_1.default.getSettlementHoldDays();
+            razorpayOrder = yield razorpayService_1.default.createOrderWithTransfers({
+                amount: finalAmount,
+                currency: 'INR',
+                receipt: purchaseReference,
+                notes: orderNotes,
+            }, [{
+                    account: linkedAccountId,
+                    amount: vendorAmountInPaise,
+                    currency: 'INR',
+                    notes: {
+                        videoId: videoId,
+                        vendorId: vendorId,
+                        platformFee: platformFeePercentage.toString(),
+                    },
+                    linked_account_notes: ['videoId', 'vendorId'],
+                    on_hold: holdDays > 0,
+                    on_hold_until: holdDays > 0 ? holdTimestamp : undefined,
+                }]);
+        }
+        else {
+            // Normal order (no Route transfer)
+            razorpayOrder = yield razorpayService_1.default.createOrder({
+                amount: finalAmount,
+                currency: currency,
+                receipt: purchaseReference,
+                notes: orderNotes,
+            });
+        }
         // Create purchase record with pending status
         const purchaseData = {
             userId: new mongoose_1.default.Types.ObjectId(userId),
@@ -200,21 +241,34 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
             const video = yield watch_videos_model_1.WatchVideo.findById(purchase.videoId)
                 .populate('channelId', 'name logoUrl');
             // Credit vendor wallet if video has a vendor
-            const videoData = video;
+            const vData = video;
             const purchaseData = purchase;
-            if (videoData && videoData.uploadedBy && videoData.uploadedByType === 'vendor') {
+            if (vData && vData.uploadedBy && vData.uploadedByType === 'vendor') {
                 try {
+                    // Check if this was a Route transfer order
+                    let razorpayTransferId = '';
+                    if (payment.order_id) {
+                        try {
+                            const orderDetails = yield razorpayService_1.default.fetchOrder(payment.order_id);
+                            if (orderDetails.transfers && orderDetails.transfers.length > 0) {
+                                razorpayTransferId = orderDetails.transfers[0].id || '';
+                            }
+                        }
+                        catch (e) { /* ignore fetch error */ }
+                    }
                     yield wallet_controller_1.WalletController.creditVendorEarnings({
-                        vendorId: videoData.uploadedBy.toString(),
+                        vendorId: vData.uploadedBy.toString(),
                         amount: purchaseData.amount,
                         serviceType: 'movie_watch',
                         referenceType: 'video_purchase',
                         referenceId: purchaseData._id.toString(),
+                        razorpayTransferId,
+                        razorpayPaymentId: paymentId,
                         metadata: {
                             purchaseId: purchaseData._id.toString(),
                             customerName: ((_a = purchaseData.customerDetails) === null || _a === void 0 ? void 0 : _a.name) || '',
                             customerEmail: ((_b = purchaseData.customerDetails) === null || _b === void 0 ? void 0 : _b.email) || '',
-                            itemTitle: videoData.title || '',
+                            itemTitle: vData.title || '',
                         },
                     });
                 }

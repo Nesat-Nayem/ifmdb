@@ -23,7 +23,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getRazorpayKeyId = exports.getConfigStatus = exports.isRazorpayConfigured = exports.fetchRefund = exports.refundPayment = exports.capturePayment = exports.fetchPayment = exports.verifyWebhookSignature = exports.verifyPaymentSignature = exports.fetchOrderPayments = exports.fetchOrder = exports.createOrder = exports.getCurrencyForCountry = exports.isCurrencySupported = exports.RAZORPAY_SUPPORTED_CURRENCIES = exports.generateOrderId = void 0;
+exports.getRazorpayKeyId = exports.getConfigStatus = exports.isRazorpayConfigured = exports.fetchRefund = exports.refundPayment = exports.capturePayment = exports.fetchPayment = exports.verifyWebhookSignature = exports.verifyPaymentSignature = exports.fetchOrderPayments = exports.fetchOrder = exports.createOrderWithTransfers = exports.createOrder = exports.getCurrencyForCountry = exports.isCurrencySupported = exports.RAZORPAY_SUPPORTED_CURRENCIES = exports.generateOrderId = void 0;
 const razorpay_1 = __importDefault(require("razorpay"));
 const crypto_1 = __importDefault(require("crypto"));
 // Razorpay Configuration
@@ -63,47 +63,8 @@ exports.isCurrencySupported = isCurrencySupported;
  * Get currency for country code
  */
 const getCurrencyForCountry = (countryCode) => {
-    const currencyMap = {
-        'IN': 'INR',
-        'US': 'USD',
-        'GB': 'GBP',
-        'EU': 'EUR',
-        'AE': 'AED',
-        'SG': 'SGD',
-        'AU': 'AUD',
-        'CA': 'CAD',
-        'JP': 'JPY',
-        'CH': 'CHF',
-        'SE': 'SEK',
-        'DK': 'DKK',
-        'NO': 'NOK',
-        'HK': 'HKD',
-        'NZ': 'NZD',
-        'SA': 'SAR',
-        'QA': 'QAR',
-        'OM': 'OMR',
-        'KW': 'KWD',
-        'BH': 'BHD',
-        'MY': 'MYR',
-        'TH': 'THB',
-        'ZA': 'ZAR',
-        'PH': 'PHP',
-        'ID': 'IDR',
-        'BR': 'BRL',
-        'MX': 'MXN',
-        'PL': 'PLN',
-        'CZ': 'CZK',
-        'TR': 'TRY',
-        'IL': 'ILS',
-        'KR': 'KRW',
-        'CN': 'CNY',
-        'BD': 'BDT',
-        'PK': 'PKR',
-        'LK': 'LKR',
-        'NP': 'NPR',
-        'VN': 'VND',
-    };
-    return currencyMap[countryCode.toUpperCase()] || 'INR';
+    // All payments are processed in INR only (Razorpay Route requires INR)
+    return 'INR';
 };
 exports.getCurrencyForCountry = getCurrencyForCountry;
 /**
@@ -130,6 +91,43 @@ const createOrder = (params) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.createOrder = createOrder;
+/**
+ * Create Razorpay order with Route transfers (split payment)
+ * The transfers array tells Razorpay to automatically split funds to linked accounts
+ * after the payment is captured.
+ */
+const createOrderWithTransfers = (params, transfers) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    try {
+        const amountInSmallestUnit = Math.round(params.amount * 100);
+        const orderOptions = {
+            amount: amountInSmallestUnit,
+            currency: 'INR', // Route only supports INR
+            receipt: params.receipt,
+            notes: params.notes || {},
+            payment_capture: params.paymentCapture !== undefined ? params.paymentCapture : 1,
+            transfers: transfers.map(t => {
+                var _a;
+                return ({
+                    account: t.account,
+                    amount: t.amount,
+                    currency: t.currency || 'INR',
+                    notes: t.notes || {},
+                    linked_account_notes: t.linked_account_notes || (t.notes ? Object.keys(t.notes) : []),
+                    on_hold: (_a = t.on_hold) !== null && _a !== void 0 ? _a : false,
+                    on_hold_until: t.on_hold_until || undefined,
+                });
+            }),
+        };
+        const order = yield razorpayInstance.orders.create(orderOptions);
+        return order;
+    }
+    catch (error) {
+        console.error('Razorpay order with transfers creation error:', error);
+        throw new Error(((_a = error.error) === null || _a === void 0 ? void 0 : _a.description) || 'Failed to create Razorpay order with transfers');
+    }
+});
+exports.createOrderWithTransfers = createOrderWithTransfers;
 /**
  * Fetch order details from Razorpay
  */
@@ -291,6 +289,7 @@ const getRazorpayKeyId = () => {
 exports.getRazorpayKeyId = getRazorpayKeyId;
 exports.default = {
     createOrder: exports.createOrder,
+    createOrderWithTransfers: exports.createOrderWithTransfers,
     fetchOrder: exports.fetchOrder,
     fetchOrderPayments: exports.fetchOrderPayments,
     verifyPaymentSignature: exports.verifyPaymentSignature,

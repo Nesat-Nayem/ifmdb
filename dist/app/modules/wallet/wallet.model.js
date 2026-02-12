@@ -83,6 +83,19 @@ const walletSchema = new mongoose_1.Schema({
         bankName: { type: String, default: '' },
         branchName: { type: String, default: '' },
         upiId: { type: String, default: '' }
+    },
+    razorpayLinkedAccountId: {
+        type: String,
+        default: ''
+    },
+    razorpayAccountStatus: {
+        type: String,
+        enum: ['created', 'activated', 'suspended', 'failed', 'pending', ''],
+        default: ''
+    },
+    razorpayProductId: {
+        type: String,
+        default: ''
     }
 }, { timestamps: true });
 // Transaction Schema
@@ -141,6 +154,14 @@ const walletTransactionSchema = new mongoose_1.Schema({
     },
     availableAt: {
         type: Date
+    },
+    razorpayTransferId: {
+        type: String,
+        default: ''
+    },
+    razorpayPaymentId: {
+        type: String,
+        default: ''
     },
     metadata: {
         bookingId: { type: String },

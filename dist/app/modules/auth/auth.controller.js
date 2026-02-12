@@ -116,10 +116,10 @@ const requestOtp = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
         // Log OTP to console for development
         console.log(`📱 WhatsApp OTP for ${phone}: ${otp}`);
         console.log(`OTP expires at: ${expiresAt.toLocaleString()}`);
-        // Send OTP via WhatsApp API
+        // Send OTP via WhatsApp API (international)
         let whatsappSent = false;
         try {
-            const whatsappApiUrl = `http://wapi.nationalsms.in/wapp/v2/api/send?apikey=274d09e223464ff89c9ba70a7b68434e&mobile=${phone}&msg=Your MovieMart login OTP is ${otp}. Valid for 5 minutes. Do not share this code with anyone.`;
+            const whatsappApiUrl = `https://wapi.nationalsms.in/wapp/v2/api/send?apikey=274d09e223464ff89c9ba70a7b68434e&mobile=${phone}&msg=Your MovieMart login OTP is ${otp}. Valid for 5 minutes. Do not share this code with anyone.&intl=true`;
             const response = yield fetch(whatsappApiUrl);
             const result = yield response.text();
             console.log(`WhatsApp API Response: ${result}`);

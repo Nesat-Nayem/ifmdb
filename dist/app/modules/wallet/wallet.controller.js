@@ -19,7 +19,7 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const wallet_model_1 = require("./wallet.model");
 const platformSettings_model_1 = require("../vendor/platformSettings.model");
-const razorpayPayoutService_1 = __importDefault(require("../../services/razorpayPayoutService"));
+const razorpayRouteService_1 = __importDefault(require("../../services/razorpayRouteService"));
 // ==================== WALLET CONTROLLERS ====================
 // Get or Create Wallet for User
 const getOrCreateWallet = (userId, userType) => __awaiter(void 0, void 0, void 0, function* () {
@@ -68,6 +68,29 @@ const getWalletStats = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void
         });
     }
     const wallet = yield getOrCreateWallet(user._id, user.role);
+    // Sync Razorpay Route account status if vendor has a linked account but not yet activated in DB
+    if (wallet.razorpayLinkedAccountId &&
+        wallet.razorpayAccountStatus !== 'activated' &&
+        wallet.razorpayAccountStatus !== 'suspended' &&
+        razorpayRouteService_1.default.isRouteConfigured()) {
+        try {
+            const fetchResult = yield razorpayRouteService_1.default.fetchLinkedAccount(wallet.razorpayLinkedAccountId);
+            if (fetchResult.success && fetchResult.data) {
+                const liveStatus = fetchResult.data.status;
+                if (liveStatus === 'activated') {
+                    wallet.razorpayAccountStatus = 'activated';
+                    yield wallet.save();
+                }
+                else if (liveStatus === 'suspended') {
+                    wallet.razorpayAccountStatus = 'suspended';
+                    yield wallet.save();
+                }
+            }
+        }
+        catch (err) {
+            // Non-critical - continue with existing status
+        }
+    }
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
@@ -217,8 +240,9 @@ const getWalletTransactions = (0, catchAsync_1.catchAsync)((req, res) => __await
         }
     });
 }));
-// Update Bank Details
+// Update Bank Details & Create/Update Razorpay Linked Account for Route
 const updateBankDetails = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c;
     const user = req.user;
     const { accountHolderName, accountNumber, ifscCode, bankName, branchName, upiId } = req.body;
     if (!user) {
@@ -229,16 +253,199 @@ const updateBankDetails = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
             data: null,
         });
     }
-    const wallet = yield wallet_model_1.Wallet.findOneAndUpdate({ userId: user._id }, {
-        bankDetails: {
-            accountHolderName,
-            accountNumber,
-            ifscCode,
-            bankName,
-            branchName: branchName || '',
-            upiId: upiId || ''
+    let wallet = yield getOrCreateWallet(user._id, user.role);
+    // Update bank details
+    wallet.bankDetails = {
+        accountHolderName,
+        accountNumber,
+        ifscCode,
+        bankName,
+        branchName: branchName || '',
+        upiId: upiId || ''
+    };
+    yield wallet.save();
+    // Create Razorpay Linked Account for Route (only for vendors)
+    if (user.role === 'vendor' && razorpayRouteService_1.default.isRouteConfigured()) {
+        try {
+            if (!wallet.razorpayLinkedAccountId || wallet.razorpayAccountStatus === 'failed') {
+                // ===== FULL 4-STEP RAZORPAY ROUTE SETUP =====
+                let accountId = wallet.razorpayLinkedAccountId; // May already exist from a previous partial attempt
+                // Step 1: Create Linked Account
+                // If retrying with a stale account, delete it first
+                if (accountId && wallet.razorpayAccountStatus === 'failed') {
+                    console.log(`Step 1 - Deleting stale linked account: ${accountId}`);
+                    yield razorpayRouteService_1.default.deleteLinkedAccount(accountId);
+                    accountId = null;
+                    wallet.razorpayLinkedAccountId = '';
+                    wallet.razorpayProductId = '';
+                    yield wallet.save();
+                }
+                if (!accountId) {
+                    const referenceId = razorpayRouteService_1.default.generateVendorReferenceId(user._id.toString());
+                    const result = yield razorpayRouteService_1.default.createLinkedAccount({
+                        email: user.email,
+                        phone: user.phone || '9999999999',
+                        legalBusinessName: accountHolderName || user.name || 'Vendor Business',
+                        contactName: accountHolderName || user.name || 'Vendor',
+                        businessType: 'individual',
+                        referenceId,
+                    });
+                    if (result.success && result.accountId) {
+                        accountId = result.accountId;
+                        console.log(`Step 1 OK - Linked Account created: ${accountId}`);
+                    }
+                    else {
+                        console.error('Step 1 FAILED - Create linked account:', result.message);
+                        wallet.razorpayAccountStatus = 'failed';
+                        yield wallet.save();
+                    }
+                }
+                else {
+                    console.log(`Step 1 SKIP - Linked Account already exists: ${accountId}`);
+                }
+                if (accountId) {
+                    wallet.razorpayLinkedAccountId = accountId;
+                    wallet.razorpayAccountStatus = 'created';
+                    yield wallet.save();
+                    // Small delay to let Razorpay process the account creation
+                    yield new Promise(resolve => setTimeout(resolve, 1000));
+                    // Step 2: Create Stakeholder
+                    // Use the SAME name as legalBusinessName for proprietorship consistency
+                    const vendorName = accountHolderName || user.name || 'Vendor';
+                    const stakeholderResult = yield razorpayRouteService_1.default.createStakeholder(accountId, {
+                        name: vendorName,
+                        email: user.email,
+                        phone: user.phone || '9999999999',
+                    });
+                    if (stakeholderResult.success) {
+                        console.log(`Step 2 OK - Stakeholder created for account: ${accountId}`);
+                    }
+                    else {
+                        // Stakeholder might already exist from previous attempt - continue anyway
+                        console.log(`Step 2 WARN - Stakeholder creation: ${stakeholderResult.message} (continuing...)`);
+                    }
+                    // Small delay before product configuration
+                    yield new Promise(resolve => setTimeout(resolve, 1000));
+                    // Step 3: Request Product Configuration
+                    let productId = wallet.razorpayProductId;
+                    if (!productId) {
+                        const productResult = yield razorpayRouteService_1.default.requestProductConfiguration(accountId);
+                        if (productResult.success && ((_a = productResult.data) === null || _a === void 0 ? void 0 : _a.id)) {
+                            productId = productResult.data.id;
+                            wallet.razorpayProductId = productId;
+                            yield wallet.save();
+                            console.log(`Step 3 OK - Product config requested: ${productId}`);
+                        }
+                        else {
+                            console.error('Step 3 FAILED - Product config:', productResult.message);
+                        }
+                    }
+                    else {
+                        console.log(`Step 3 SKIP - Product config already exists: ${productId}`);
+                    }
+                    // Small delay before updating product with bank details
+                    yield new Promise(resolve => setTimeout(resolve, 1000));
+                    // Step 4: Update Product Configuration with bank details
+                    if (productId) {
+                        const updateResult = yield razorpayRouteService_1.default.updateProductConfiguration(accountId, productId, {
+                            accountNumber,
+                            ifscCode,
+                            beneficiaryName: accountHolderName,
+                        });
+                        if (updateResult.success) {
+                            const activationStatus = (_b = updateResult.data) === null || _b === void 0 ? void 0 : _b.activation_status;
+                            console.log(`Step 4 OK - Product config updated, activation_status: ${activationStatus}`);
+                            if (activationStatus !== 'activated') {
+                                console.log('Product Config Requirements:', JSON.stringify((_c = updateResult.data) === null || _c === void 0 ? void 0 : _c.requirements, null, 2));
+                                // Step 5: Explicitly submit the account for activation
+                                console.log(`Step 5 - Submitting account ${accountId} for activation...`);
+                                const submitResult = yield razorpayRouteService_1.default.submitAccount(accountId);
+                                if (submitResult.success) {
+                                    console.log('Step 5 OK - Account submitted for activation');
+                                }
+                                else {
+                                    console.log('Step 5 WARN - Account submission:', submitResult.message);
+                                }
+                            }
+                            if (activationStatus === 'activated') {
+                                wallet.razorpayAccountStatus = 'activated';
+                            }
+                            else {
+                                // Fetch actual account status from Razorpay
+                                const accountCheck = yield razorpayRouteService_1.default.fetchLinkedAccount(accountId);
+                                if (accountCheck.success && accountCheck.data) {
+                                    const liveStatus = accountCheck.data.status;
+                                    console.log(`Account status from Razorpay: ${liveStatus}`);
+                                    if (liveStatus === 'activated') {
+                                        wallet.razorpayAccountStatus = 'activated';
+                                        console.log(`Account confirmed activated via direct fetch`);
+                                    }
+                                    else {
+                                        wallet.razorpayAccountStatus = 'created';
+                                        if (accountCheck.data.requirements) {
+                                            console.log('Account Requirements:', JSON.stringify(accountCheck.data.requirements, null, 2));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        else {
+                            console.error('Step 4 FAILED - Update product config:', updateResult.message);
+                        }
+                    }
+                    yield wallet.save();
+                }
+            }
+            else {
+                // Account already active - just update bank details via product config
+                if (wallet.razorpayProductId) {
+                    const updateResult = yield razorpayRouteService_1.default.updateProductConfiguration(wallet.razorpayLinkedAccountId, wallet.razorpayProductId, {
+                        accountNumber,
+                        ifscCode,
+                        beneficiaryName: accountHolderName,
+                    });
+                    if (updateResult.success) {
+                        console.log('Bank details updated on existing Route account');
+                    }
+                }
+            }
         }
-    }, { new: true });
+        catch (routeError) {
+            console.error('Razorpay Route setup error:', routeError.message);
+            // Don't fail the bank details update even if Route setup fails
+        }
+    }
+    // Refresh wallet data
+    wallet = (yield wallet_model_1.Wallet.findById(wallet._id));
+    let responseMessage = 'Bank details updated successfully';
+    if ((wallet === null || wallet === void 0 ? void 0 : wallet.razorpayLinkedAccountId) && (wallet === null || wallet === void 0 ? void 0 : wallet.razorpayAccountStatus) === 'activated') {
+        responseMessage = 'Bank details updated and Razorpay Route account configured successfully';
+    }
+    else if ((wallet === null || wallet === void 0 ? void 0 : wallet.razorpayAccountStatus) === 'failed') {
+        responseMessage = 'Bank details saved, but Razorpay Route account setup failed. Please try updating bank details again.';
+    }
+    else if ((wallet === null || wallet === void 0 ? void 0 : wallet.razorpayAccountStatus) === 'created') {
+        responseMessage = 'Bank details updated and Razorpay Route account created (pending activation)';
+    }
+    return (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: responseMessage,
+        data: wallet,
+    });
+}));
+// Delete/Clear Bank Details
+const deleteBankDetails = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const user = req.user;
+    if (!user) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.UNAUTHORIZED,
+            success: false,
+            message: 'Unauthorized',
+            data: null,
+        });
+    }
+    const wallet = yield wallet_model_1.Wallet.findOne({ userId: user._id });
     if (!wallet) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
@@ -247,15 +454,38 @@ const updateBankDetails = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
             data: null,
         });
     }
+    // Delete linked account on Razorpay if exists
+    if (wallet.razorpayLinkedAccountId) {
+        try {
+            yield razorpayRouteService_1.default.deleteLinkedAccount(wallet.razorpayLinkedAccountId);
+            console.log(`Razorpay linked account ${wallet.razorpayLinkedAccountId} suspended/deleted`);
+        }
+        catch (err) {
+            console.error('Failed to delete Razorpay linked account:', err.message);
+        }
+    }
+    // Clear bank details and Route fields
+    wallet.bankDetails = {
+        accountHolderName: '',
+        accountNumber: '',
+        ifscCode: '',
+        bankName: '',
+        branchName: '',
+        upiId: '',
+    };
+    wallet.razorpayLinkedAccountId = undefined;
+    wallet.razorpayAccountStatus = undefined;
+    wallet.razorpayProductId = undefined;
+    yield wallet.save();
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
-        message: 'Bank details updated successfully',
+        message: 'Bank details deleted successfully',
         data: wallet,
     });
 }));
 // ==================== WITHDRAWAL CONTROLLERS ====================
-// Request Withdrawal
+// Request Withdrawal - Kept for backward compatibility but Route vendors don't need this
 const requestWithdrawal = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
     const user = req.user;
@@ -274,6 +504,15 @@ const requestWithdrawal = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,
             message: 'Wallet not found',
+            data: null,
+        });
+    }
+    // If vendor has Route linked account, withdrawals are automatic
+    if (wallet.razorpayLinkedAccountId) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.BAD_REQUEST,
+            success: false,
+            message: 'Your account uses Razorpay Route. Payments are automatically settled to your bank account. No manual withdrawal needed.',
             data: null,
         });
     }
@@ -317,19 +556,19 @@ const requestWithdrawal = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
             data: null,
         });
     }
-    // Create withdrawal request
+    // Create withdrawal request (manual processing by admin for non-Route vendors)
     const withdrawalRequest = yield wallet_model_1.WithdrawalRequest.create({
         walletId: wallet._id,
         userId: user._id,
         amount,
         bankDetails: wallet.bankDetails,
-        status: 'processing' // Changed from 'pending' to 'processing'
+        status: 'pending'
     });
     // Deduct from wallet balance immediately
     wallet.balance -= amount;
     yield wallet.save();
     // Create transaction record
-    const transaction = yield wallet_model_1.WalletTransaction.create({
+    yield wallet_model_1.WalletTransaction.create({
         walletId: wallet._id,
         userId: user._id,
         type: 'debit',
@@ -341,69 +580,12 @@ const requestWithdrawal = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
         referenceId: withdrawalRequest._id,
         status: 'pending'
     });
-    // ✅ AUTOMATIC RAZORPAY PAYOUT - Process withdrawal immediately
-    try {
-        if (!razorpayPayoutService_1.default.isPayoutsConfigured()) {
-            throw new Error('Razorpay Payouts not configured. Please contact admin.');
-        }
-        const payoutResult = yield razorpayPayoutService_1.default.processWithdrawal(withdrawalRequest._id.toString(), user._id.toString(), amount, {
-            accountHolderName: wallet.bankDetails.accountHolderName,
-            accountNumber: wallet.bankDetails.accountNumber,
-            ifscCode: wallet.bankDetails.ifscCode,
-            bankName: wallet.bankDetails.bankName,
-        }, user.email, user.phone || '0000000000');
-        if (payoutResult.success) {
-            // Update withdrawal request with Razorpay details
-            withdrawalRequest.gatewayTransactionId = payoutResult.transferId;
-            withdrawalRequest.gatewayResponse = payoutResult.gatewayResponse;
-            withdrawalRequest.status = 'processing'; // Will be updated to 'completed' via webhook
-            yield withdrawalRequest.save();
-            return (0, sendResponse_1.sendResponse)(res, {
-                statusCode: http_status_1.default.CREATED,
-                success: true,
-                message: 'Withdrawal initiated successfully. Funds will be transferred to your bank within 24 hours.',
-                data: Object.assign(Object.assign({}, withdrawalRequest.toObject()), { transferId: payoutResult.transferId, estimatedTime: '24 hours' }),
-            });
-        }
-        else {
-            // Payout failed - refund to wallet
-            withdrawalRequest.status = 'failed';
-            withdrawalRequest.failureReason = payoutResult.message;
-            withdrawalRequest.gatewayResponse = payoutResult.gatewayResponse;
-            yield withdrawalRequest.save();
-            // Refund amount back to wallet
-            wallet.balance += amount;
-            yield wallet.save();
-            // Update transaction status
-            transaction.status = 'failed';
-            yield transaction.save();
-            return (0, sendResponse_1.sendResponse)(res, {
-                statusCode: http_status_1.default.BAD_REQUEST,
-                success: false,
-                message: `Withdrawal failed: ${payoutResult.message}`,
-                data: null,
-            });
-        }
-    }
-    catch (error) {
-        console.error('Razorpay Payout Error:', error);
-        // Payout failed - refund to wallet
-        withdrawalRequest.status = 'failed';
-        withdrawalRequest.failureReason = error.message || 'Payout service error';
-        yield withdrawalRequest.save();
-        // Refund amount back to wallet
-        wallet.balance += amount;
-        yield wallet.save();
-        // Update transaction status
-        transaction.status = 'failed';
-        yield transaction.save();
-        return (0, sendResponse_1.sendResponse)(res, {
-            statusCode: http_status_1.default.INTERNAL_SERVER_ERROR,
-            success: false,
-            message: error.message || 'Failed to process withdrawal. Amount has been refunded to your wallet.',
-            data: null,
-        });
-    }
+    return (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.CREATED,
+        success: true,
+        message: 'Withdrawal request submitted. It will be processed by admin.',
+        data: withdrawalRequest,
+    });
 }));
 // Get My Withdrawal History
 const getMyWithdrawals = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -680,16 +862,16 @@ const getAdminWalletStats = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
 }));
 // ==================== EARNING CREDIT HELPER ====================
 // Credit earnings to vendor wallet (called after successful payment)
+// For Route vendors: Records the transaction for tracking (actual payment via Route transfer)
+// For non-Route vendors: Adds to pending balance (old flow)
 const creditVendorEarnings = (params) => __awaiter(void 0, void 0, void 0, function* () {
-    const { vendorId, amount, serviceType, referenceType, referenceId, metadata, isGovernmentEvent } = params;
+    const { vendorId, amount, serviceType, referenceType, referenceId, metadata, isGovernmentEvent, razorpayTransferId, razorpayPaymentId } = params;
     // Get platform fee - Government events have fixed 10% fee
     let platformFeePercentage;
     if (serviceType === 'events' && isGovernmentEvent) {
-        // Government events have fixed 10% platform fee
         platformFeePercentage = 10;
     }
     else {
-        // Get platform fee from settings
         const feeKey = serviceType === 'events' ? 'event_platform_fee' : 'movie_watch_platform_fee';
         const platformFeeSetting = yield platformSettings_model_1.PlatformSettings.findOne({ key: feeKey });
         platformFeePercentage = (platformFeeSetting === null || platformFeeSetting === void 0 ? void 0 : platformFeeSetting.value) || (serviceType === 'events' ? 20 : 50);
@@ -699,30 +881,57 @@ const creditVendorEarnings = (params) => __awaiter(void 0, void 0, void 0, funct
     const vendorEarnings = amount - platformFee;
     // Get or create vendor wallet
     const wallet = yield getOrCreateWallet(vendorId, 'vendor');
-    // Calculate available date (7 days from now)
+    const holdDays = razorpayRouteService_1.default.getSettlementHoldDays();
     const availableAt = new Date();
-    availableAt.setDate(availableAt.getDate() + 7);
-    // Add to pending balance
-    wallet.pendingBalance += vendorEarnings;
-    wallet.totalEarnings += vendorEarnings;
-    yield wallet.save();
-    // Create pending transaction for vendor
-    yield wallet_model_1.WalletTransaction.create({
-        walletId: wallet._id,
-        userId: vendorId,
-        type: 'pending_credit',
-        amount,
-        platformFee,
-        netAmount: vendorEarnings,
-        description: `${serviceType === 'events' ? (isGovernmentEvent ? 'Government event booking' : 'Event booking') : 'Video purchase'} earnings (available after 7 days)`,
-        referenceType,
-        referenceId,
-        serviceType,
-        status: 'completed',
-        availableAt,
-        metadata: Object.assign(Object.assign({}, metadata), { isGovernmentEvent: isGovernmentEvent || false, platformFeePercentage: platformFeePercentage })
-    });
-    // Create platform fee transaction for admin tracking
+    availableAt.setDate(availableAt.getDate() + holdDays);
+    const isRouteVendor = !!wallet.razorpayLinkedAccountId;
+    if (isRouteVendor && razorpayTransferId) {
+        // Route vendor: Payment is handled by Razorpay Route transfer
+        // Track earnings for dashboard but don't add to internal wallet balance
+        wallet.totalEarnings += vendorEarnings;
+        wallet.pendingBalance += vendorEarnings;
+        yield wallet.save();
+        // Create transaction record for tracking
+        yield wallet_model_1.WalletTransaction.create({
+            walletId: wallet._id,
+            userId: vendorId,
+            type: 'pending_credit',
+            amount,
+            platformFee,
+            netAmount: vendorEarnings,
+            description: `${serviceType === 'events' ? (isGovernmentEvent ? 'Government event booking' : 'Event booking') : 'Video purchase'} - Route payment (settles in ${holdDays} days)`,
+            referenceType,
+            referenceId,
+            serviceType,
+            status: 'completed',
+            availableAt,
+            razorpayTransferId,
+            razorpayPaymentId,
+            metadata: Object.assign(Object.assign({}, metadata), { isGovernmentEvent: isGovernmentEvent || false, platformFeePercentage })
+        });
+    }
+    else {
+        // Non-Route vendor: Old flow - add to pending balance for manual withdrawal
+        wallet.pendingBalance += vendorEarnings;
+        wallet.totalEarnings += vendorEarnings;
+        yield wallet.save();
+        yield wallet_model_1.WalletTransaction.create({
+            walletId: wallet._id,
+            userId: vendorId,
+            type: 'pending_credit',
+            amount,
+            platformFee,
+            netAmount: vendorEarnings,
+            description: `${serviceType === 'events' ? (isGovernmentEvent ? 'Government event booking' : 'Event booking') : 'Video purchase'} earnings (available after ${holdDays} days)`,
+            referenceType,
+            referenceId,
+            serviceType,
+            status: 'completed',
+            availableAt,
+            metadata: Object.assign(Object.assign({}, metadata), { isGovernmentEvent: isGovernmentEvent || false, platformFeePercentage })
+        });
+    }
+    // Create platform fee transaction for admin tracking (always)
     yield wallet_model_1.WalletTransaction.create({
         walletId: wallet._id,
         userId: vendorId,
@@ -735,9 +944,58 @@ const creditVendorEarnings = (params) => __awaiter(void 0, void 0, void 0, funct
         referenceId,
         serviceType,
         status: 'completed',
-        metadata: Object.assign(Object.assign({}, metadata), { isGovernmentEvent: isGovernmentEvent || false, platformFeePercentage: platformFeePercentage })
+        metadata: Object.assign(Object.assign({}, metadata), { isGovernmentEvent: isGovernmentEvent || false, platformFeePercentage })
     });
-    return { vendorEarnings, platformFee, availableAt };
+    return { vendorEarnings, platformFee, platformFeePercentage, availableAt, isRouteVendor };
+});
+// Get vendor's linked account ID (used by payment controllers)
+const getVendorLinkedAccountId = (vendorId) => __awaiter(void 0, void 0, void 0, function* () {
+    const wallet = yield wallet_model_1.Wallet.findOne({ userId: vendorId });
+    if (!(wallet === null || wallet === void 0 ? void 0 : wallet.razorpayLinkedAccountId)) {
+        return null;
+    }
+    // If already activated in DB, return immediately
+    if (wallet.razorpayAccountStatus === 'activated') {
+        return wallet.razorpayLinkedAccountId;
+    }
+    // Sync live status from Razorpay (account may have been activated since last check)
+    try {
+        const fetchResult = yield razorpayRouteService_1.default.fetchLinkedAccount(wallet.razorpayLinkedAccountId);
+        if (fetchResult.success && fetchResult.data) {
+            const liveStatus = fetchResult.data.status;
+            // Update status in DB if it changed
+            if (liveStatus !== wallet.razorpayAccountStatus) {
+                wallet.razorpayAccountStatus = liveStatus;
+                yield wallet.save();
+                console.log(`Synced Razorpay account status to '${liveStatus}' for vendor ${vendorId}`);
+            }
+            if (liveStatus === 'activated') {
+                return wallet.razorpayLinkedAccountId;
+            }
+            // FOR TEST MODE: Allow transfers even if not fully activated yet
+            // This helps the user see transfers in their dashboard during development
+            if (process.env.NODE_ENV !== 'production' && (liveStatus === 'created' || liveStatus === 'needs_clarification')) {
+                console.log(`Allowing transfer for vendor ${vendorId} in test mode with status: ${liveStatus}`);
+                return wallet.razorpayLinkedAccountId;
+            }
+            if (liveStatus === 'suspended') {
+                return null;
+            }
+        }
+    }
+    catch (err) {
+        console.error('Failed to sync Razorpay account status:', err.message);
+    }
+    return null;
+});
+// Get platform fee percentage for a service
+const getPlatformFeePercentage = (serviceType, isGovernmentEvent) => __awaiter(void 0, void 0, void 0, function* () {
+    if (serviceType === 'events' && isGovernmentEvent) {
+        return 10;
+    }
+    const feeKey = serviceType === 'events' ? 'event_platform_fee' : 'movie_watch_platform_fee';
+    const platformFeeSetting = yield platformSettings_model_1.PlatformSettings.findOne({ key: feeKey });
+    return (platformFeeSetting === null || platformFeeSetting === void 0 ? void 0 : platformFeeSetting.value) || (serviceType === 'events' ? 20 : 50);
 });
 // Move pending funds to available balance (called by cron job)
 const processPendingFunds = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -824,6 +1082,7 @@ exports.WalletController = {
     getWalletStats,
     getWalletTransactions,
     updateBankDetails,
+    deleteBankDetails,
     requestWithdrawal,
     getMyWithdrawals,
     cancelWithdrawal,
@@ -836,5 +1095,7 @@ exports.WalletController = {
     getOrCreateWallet,
     creditVendorEarnings,
     processPendingFunds,
-    handleRefund
+    handleRefund,
+    getVendorLinkedAccountId,
+    getPlatformFeePercentage,
 };

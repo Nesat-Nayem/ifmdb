@@ -43,6 +43,14 @@ router.get('/transactions', (0, authMiddleware_1.auth)('vendor', 'admin'), walle
 router.put('/bank-details', (0, authMiddleware_1.auth)('vendor', 'admin'), wallet_controller_1.WalletController.updateBankDetails);
 /**
  * @swagger
+ * /v1/api/wallet/bank-details:
+ *   delete:
+ *     summary: Delete bank details
+ *     tags: [Wallet]
+ */
+router.delete('/bank-details', (0, authMiddleware_1.auth)('vendor', 'admin'), wallet_controller_1.WalletController.deleteBankDetails);
+/**
+ * @swagger
  * /v1/api/wallet/withdrawals:
  *   post:
  *     summary: Request withdrawal
@@ -65,15 +73,15 @@ router.get('/withdrawals', (0, authMiddleware_1.auth)('vendor', 'admin'), wallet
  *     tags: [Wallet - Withdrawals]
  */
 router.post('/withdrawals/:id/cancel', (0, authMiddleware_1.auth)('vendor'), wallet_controller_1.WalletController.cancelWithdrawal);
-// ==================== RAZORPAY PAYOUT WEBHOOK ====================
+// ==================== RAZORPAY ROUTE WEBHOOK ====================
 /**
  * @swagger
- * /v1/api/wallet/webhooks/razorpay-payout:
+ * /v1/api/wallet/webhooks/razorpay-route:
  *   post:
- *     summary: Razorpay Payout Webhook (No Auth)
+ *     summary: Razorpay Route Transfer Webhook (No Auth)
  *     tags: [Wallet - Webhooks]
  */
-router.post('/webhooks/razorpay-payout', wallet_payout_webhook_controller_1.default.handlePayoutWebhook);
+router.post('/webhooks/razorpay-route', wallet_payout_webhook_controller_1.default.handleRouteWebhook);
 // ==================== ADMIN ROUTES ====================
 /**
  * @swagger
@@ -109,10 +117,10 @@ router.get('/admin/withdrawals', (0, authMiddleware_1.auth)('admin'), wallet_con
 router.post('/admin/withdrawals/:id/process', (0, authMiddleware_1.auth)('admin'), wallet_controller_1.WalletController.processWithdrawal);
 /**
  * @swagger
- * /v1/api/wallet/admin/withdrawals/{id}/sync-status:
+ * /v1/api/wallet/admin/transfers/{transferId}/sync-status:
  *   post:
- *     summary: Manually sync transfer status from Razorpay (Admin)
+ *     summary: Manually sync Route transfer status from Razorpay (Admin)
  *     tags: [Wallet - Admin]
  */
-router.post('/admin/withdrawals/:id/sync-status', (0, authMiddleware_1.auth)('admin'), wallet_payout_webhook_controller_1.default.syncTransferStatus);
+router.post('/admin/transfers/:transferId/sync-status', (0, authMiddleware_1.auth)('admin'), wallet_payout_webhook_controller_1.default.syncTransferStatus);
 exports.default = router;
