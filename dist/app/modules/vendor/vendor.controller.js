@@ -395,6 +395,7 @@ const decideVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
                 return s.serviceType;
             });
             const panelUrl = 'https://panel.moviemart.org';
+            console.log("vendor password is ", password);
             try {
                 const template = emailService_1.emailTemplates.vendorApproved(item.vendorName, item.email, password, serviceNames, panelUrl);
                 yield (0, emailService_1.sendEmail)(Object.assign({ to: item.email }, template));
