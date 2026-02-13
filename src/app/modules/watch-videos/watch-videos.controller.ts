@@ -640,10 +640,12 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
 const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { countryCode } = req.query;
+  const user = (req as userInterface).user;
+  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
   // Handle userId - filter out 'null', 'undefined', or empty strings
   const userId = req.query.userId && req.query.userId !== 'null' && req.query.userId !== 'undefined' 
     ? req.query.userId 
-    : null;
+    : (user?._id || null);
 
   const video = await WatchVideo.findById(id)
     .populate('channelId', 'name logoUrl bannerUrl isVerified subscriberCount description')
@@ -729,11 +731,12 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
 
   // SECURITY: Hide video URLs for paid content that user hasn't purchased
   // Users must use the /stream endpoint to get secure, time-limited URLs
+  // Admin and vendor users always get full video URLs (needed for edit/manage)
   const videoObj = video.toObject() as any;
   const canWatch = video.isFree || hasPurchased;
   
-  if (!canWatch) {
-    // Hide actual video URLs for unpurchased paid content
+  if (!canWatch && !isAdminOrVendor) {
+    // Hide actual video URLs for unpurchased paid content (public users only)
     videoObj.videoUrl = null;
     videoObj.cloudflareVideoUid = null;
     // Also hide episode video URLs for series
@@ -768,7 +771,16 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
 // Update Watch Video
 const updateWatchVideo = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const updateData = { ...req.body };
+
+  // Protect critical media fields from being accidentally wiped
+  // Only update these fields if a non-empty value is explicitly provided
+  const protectedMediaFields = ['videoUrl', 'trailerUrl', 'thumbnailUrl', 'posterUrl', 'cloudflareVideoUid', 'cloudflareTrailerUid'];
+  for (const field of protectedMediaFields) {
+    if (field in updateData && (updateData[field] === null || updateData[field] === undefined || updateData[field] === '')) {
+      delete updateData[field];
+    }
+  }
 
   // Recalculate total episodes if seasons updated
   if (updateData.seasons) {

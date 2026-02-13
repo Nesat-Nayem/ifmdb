@@ -1205,7 +1205,7 @@ router.get('/purchases', RazorpayVideoPaymentController.getAllPurchases);
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get('/:id', WatchVideoController.getWatchVideoById);
+router.get('/:id', optionalAuth(), WatchVideoController.getWatchVideoById);
 
 /**
  * @swagger
