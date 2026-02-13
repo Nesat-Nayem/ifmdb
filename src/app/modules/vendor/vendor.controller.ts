@@ -400,7 +400,7 @@ export const decideVendorApplication = async (req: userInterface, res: Response,
 
       const panelUrl = 'https://panel.moviemart.org';
       
-      console.log("vendor password is ", password)
+      // console.log("vendor password is ", password)
 
       try {
         const template = emailTemplates.vendorApproved(item.vendorName, item.email, password, serviceNames, panelUrl);
