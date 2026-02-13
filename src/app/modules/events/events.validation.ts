@@ -96,6 +96,8 @@ const updateEventValidation = z.object({
     seatTypes: z.array(seatTypeSchema).optional(),
     maxTicketsPerPerson: z.number().min(1).optional(),
     posterImage: z.string().min(1, 'Poster image is required').optional(),
+    videoUrl: z.string().optional(),
+    cloudflareVideoUid: z.string().optional(),
     galleryImages: z.array(z.string()).optional(),
     performers: z.array(performerSchema).optional(),
     organizers: z.array(organizerSchema).optional(),

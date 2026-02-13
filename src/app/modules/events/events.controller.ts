@@ -180,8 +180,16 @@ const getEventById = catchAsync(async (req: Request, res: Response) => {
 // Update event
 const updateEvent = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const updateData = req.body;
+  const updateData = { ...req.body };
   
+  // Protect critical media fields from being wiped with empty/null values
+  const mediaFields = ['videoUrl', 'cloudflareVideoUid', 'posterImage'];
+  for (const field of mediaFields) {
+    if (updateData[field] === null || updateData[field] === undefined || updateData[field] === '') {
+      delete updateData[field];
+    }
+  }
+
   const updatedEvent = await Event.findByIdAndUpdate(
     id,
     updateData,
