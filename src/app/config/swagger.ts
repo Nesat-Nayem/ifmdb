@@ -19,11 +19,11 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'https://api.moviemart.org',
+        url: 'http://localhost:8080',
         description: 'Development server',
       },
       {
-        url: 'https://api.moviemart.org',
+        url: 'http://localhost:8080',
         description: 'Production server',
       }
    
@@ -255,6 +255,18 @@ const options: swaggerJSDoc.Options = {
               type: 'string',
               description: 'Banner image URL',
               example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/banners/summer-film-fest.jpg'
+            },
+            bannerType: {
+              type: 'string',
+              enum: ['home', 'film_mart', 'events', 'watch_movies'],
+              description: 'Page this banner belongs to. home: 1920×600px web / 1080×400px mobile. film_mart/events/watch_movies: 1920×400px web / 1080×360px mobile.',
+              example: 'home'
+            },
+            platform: {
+              type: 'string',
+              enum: ['web', 'mobile', 'both'],
+              description: 'Platform the banner is shown on. web = Next.js frontend only, mobile = Flutter app only, both = all platforms.',
+              example: 'both'
             },
             isActive: {
               type: 'boolean',
@@ -1069,7 +1081,7 @@ export const setupSwagger = (app: Application): void => {
     res.send(specs);
   });
 
-  console.log('📚 Swagger documentation available at: https://api.moviemart.org/api-docs');
+  console.log('📚 Swagger documentation available at: http://localhost:8080/api-docs');
 };
 
 export default specs;

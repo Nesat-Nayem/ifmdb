@@ -12,7 +12,7 @@ export const createBanner = async (
   
   
   try {
-    const { title, isActive, order } = req.body;
+    const { title, isActive, order, bannerType, platform } = req.body;
     
     // If image is uploaded through multer middleware, req.file will be available
     if (!req.file) {
@@ -27,6 +27,8 @@ export const createBanner = async (
     const validatedData = bannerValidation.parse({ 
       title, 
       image,
+      bannerType: bannerType || 'home',
+      platform: platform || 'both',
       isActive: isActive === 'true' || isActive === true,
       order: order ? parseInt(order as string) : undefined
     });
@@ -61,11 +63,17 @@ export const getAllBanners = async (
 ) => {
   try {
     // Get only active banners if requested
-    const { active } = req.query;
+    const { active, bannerType, platform } = req.query;
     const filter: any = { isDeleted: false };
     
     if (active === 'true') {
       filter.isActive = true;
+    }
+    if (bannerType) {
+      filter.bannerType = bannerType;
+    }
+    if (platform && platform !== 'all') {
+      filter.platform = { $in: [platform, 'both'] };
     }
     
     const banners = await Banner.find(filter).sort({ order: 1, createdAt: -1 });
@@ -127,7 +135,7 @@ export const updateBannerById = async (
 ) => {
   try {
     const bannerId = req.params.id;
-    const { title, isActive, order } = req.body;
+    const { title, isActive, order, bannerType, platform } = req.body;
     
     // Find the banner to update
     const banner = await Banner.findOne({ 
@@ -153,6 +161,12 @@ export const updateBannerById = async (
     
     if (order !== undefined) {
       updateData.order = parseInt(order as string);
+    }
+    if (bannerType !== undefined) {
+      updateData.bannerType = bannerType;
+    }
+    if (platform !== undefined) {
+      updateData.platform = platform;
     }
 
     // If there's a new image

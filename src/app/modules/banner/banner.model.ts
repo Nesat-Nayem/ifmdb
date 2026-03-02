@@ -1,5 +1,5 @@
 import mongoose, { Schema } from 'mongoose';
-import { IBanner } from './banner.interface';
+import { IBanner, BannerType, BannerPlatform } from './banner.interface';
 
 const BannerSchema: Schema = new Schema(
   {
@@ -12,8 +12,18 @@ const BannerSchema: Schema = new Schema(
       type: String, 
       required: true 
     },
-    
-    
+    bannerType: {
+      type: String,
+      enum: ['home', 'film_mart', 'events', 'watch_movies'] as BannerType[],
+      required: true,
+      default: 'home'
+    },
+    platform: {
+      type: String,
+      enum: ['web', 'mobile', 'both'] as BannerPlatform[],
+      required: true,
+      default: 'both'
+    },
     isActive: {
       type: Boolean,
       default: true
