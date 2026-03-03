@@ -93,6 +93,8 @@ const updateEventValidation = zod_1.z.object({
         seatTypes: zod_1.z.array(seatTypeSchema).optional(),
         maxTicketsPerPerson: zod_1.z.number().min(1).optional(),
         posterImage: zod_1.z.string().min(1, 'Poster image is required').optional(),
+        videoUrl: zod_1.z.string().optional(),
+        cloudflareVideoUid: zod_1.z.string().optional(),
         galleryImages: zod_1.z.array(zod_1.z.string()).optional(),
         performers: zod_1.z.array(performerSchema).optional(),
         organizers: zod_1.z.array(organizerSchema).optional(),

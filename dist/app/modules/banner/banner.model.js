@@ -45,6 +45,18 @@ const BannerSchema = new mongoose_1.Schema({
         type: String,
         required: true
     },
+    bannerType: {
+        type: String,
+        enum: ['home', 'film_mart', 'events', 'watch_movies'],
+        required: true,
+        default: 'home'
+    },
+    platform: {
+        type: String,
+        enum: ['web', 'mobile', 'both'],
+        required: true,
+        default: 'both'
+    },
     isActive: {
         type: Boolean,
         default: true

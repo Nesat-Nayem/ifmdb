@@ -164,7 +164,14 @@ const getEventById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
 // Update event
 const updateEvent = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = Object.assign({}, req.body);
+    // Protect critical media fields from being wiped with empty/null values
+    const mediaFields = ['videoUrl', 'cloudflareVideoUid', 'posterImage'];
+    for (const field of mediaFields) {
+        if (updateData[field] === null || updateData[field] === undefined || updateData[field] === '') {
+            delete updateData[field];
+        }
+    }
     const updatedEvent = yield events_model_1.default.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
     if (!updatedEvent) {
         return (0, sendResponse_1.sendResponse)(res, {

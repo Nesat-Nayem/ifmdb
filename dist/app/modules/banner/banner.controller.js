@@ -17,7 +17,7 @@ const cloudinary_1 = require("../../config/cloudinary");
 const createBanner = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b;
     try {
-        const { title, isActive, order } = req.body;
+        const { title, isActive, order, bannerType, platform } = req.body;
         // If image is uploaded through multer middleware, req.file will be available
         if (!req.file) {
             next(new appError_1.appError("Banner image is required", 400));
@@ -29,6 +29,8 @@ const createBanner = (req, res, next) => __awaiter(void 0, void 0, void 0, funct
         const validatedData = banner_validation_1.bannerValidation.parse({
             title,
             image,
+            bannerType: bannerType || 'home',
+            platform: platform || 'both',
             isActive: isActive === 'true' || isActive === true,
             order: order ? parseInt(order) : undefined
         });
@@ -58,10 +60,16 @@ exports.createBanner = createBanner;
 const getAllBanners = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         // Get only active banners if requested
-        const { active } = req.query;
+        const { active, bannerType, platform } = req.query;
         const filter = { isDeleted: false };
         if (active === 'true') {
             filter.isActive = true;
+        }
+        if (bannerType) {
+            filter.bannerType = bannerType;
+        }
+        if (platform && platform !== 'all') {
+            filter.platform = { $in: [platform, 'both'] };
         }
         const banners = yield banner_model_1.Banner.find(filter).sort({ order: 1, createdAt: -1 });
         if (banners.length === 0) {
@@ -112,7 +120,7 @@ const updateBannerById = (req, res, next) => __awaiter(void 0, void 0, void 0, f
     var _a, _b, _c;
     try {
         const bannerId = req.params.id;
-        const { title, isActive, order } = req.body;
+        const { title, isActive, order, bannerType, platform } = req.body;
         // Find the banner to update
         const banner = yield banner_model_1.Banner.findOne({
             _id: bannerId,
@@ -132,6 +140,12 @@ const updateBannerById = (req, res, next) => __awaiter(void 0, void 0, void 0, f
         }
         if (order !== undefined) {
             updateData.order = parseInt(order);
+        }
+        if (bannerType !== undefined) {
+            updateData.bannerType = bannerType;
+        }
+        if (platform !== undefined) {
+            updateData.platform = platform;
         }
         // If there's a new image
         if (req.file) {

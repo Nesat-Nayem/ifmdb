@@ -259,6 +259,18 @@ const options = {
                             description: 'Banner image URL',
                             example: 'https://res.cloudinary.com/demo/image/upload/v1724300000/moviemart/banners/summer-film-fest.jpg'
                         },
+                        bannerType: {
+                            type: 'string',
+                            enum: ['home', 'film_mart', 'events', 'watch_movies'],
+                            description: 'Page this banner belongs to. home: 1920×600px web / 1080×400px mobile. film_mart/events/watch_movies: 1920×400px web / 1080×360px mobile.',
+                            example: 'home'
+                        },
+                        platform: {
+                            type: 'string',
+                            enum: ['web', 'mobile', 'both'],
+                            description: 'Platform the banner is shown on. web = Next.js frontend only, mobile = Flutter app only, both = all platforms.',
+                            example: 'both'
+                        },
                         isActive: {
                             type: 'boolean',
                             description: 'Whether the banner is visible',

@@ -532,10 +532,12 @@ const getAllWatchVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
 const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const { countryCode } = req.query;
+    const user = req.user;
+    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
     // Handle userId - filter out 'null', 'undefined', or empty strings
     const userId = req.query.userId && req.query.userId !== 'null' && req.query.userId !== 'undefined'
         ? req.query.userId
-        : null;
+        : ((user === null || user === void 0 ? void 0 : user._id) || null);
     const video = yield watch_videos_model_1.WatchVideo.findById(id)
         .populate('channelId', 'name logoUrl bannerUrl isVerified subscriberCount description')
         .populate('categoryId', 'name');
@@ -607,10 +609,11 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     yield watch_videos_model_1.Channel.findByIdAndUpdate(video.channelId._id, { $inc: { totalViews: 1 } });
     // SECURITY: Hide video URLs for paid content that user hasn't purchased
     // Users must use the /stream endpoint to get secure, time-limited URLs
+    // Admin and vendor users always get full video URLs (needed for edit/manage)
     const videoObj = video.toObject();
     const canWatch = video.isFree || hasPurchased;
-    if (!canWatch) {
-        // Hide actual video URLs for unpurchased paid content
+    if (!canWatch && !isAdminOrVendor) {
+        // Hide actual video URLs for unpurchased paid content (public users only)
         videoObj.videoUrl = null;
         videoObj.cloudflareVideoUid = null;
         // Also hide episode video URLs for series
@@ -635,7 +638,15 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
 // Update Watch Video
 const updateWatchVideo = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = Object.assign({}, req.body);
+    // Protect critical media fields from being accidentally wiped
+    // Only update these fields if a non-empty value is explicitly provided
+    const protectedMediaFields = ['videoUrl', 'trailerUrl', 'thumbnailUrl', 'posterUrl', 'cloudflareVideoUid', 'cloudflareTrailerUid'];
+    for (const field of protectedMediaFields) {
+        if (field in updateData && (updateData[field] === null || updateData[field] === undefined || updateData[field] === '')) {
+            delete updateData[field];
+        }
+    }
     // Recalculate total episodes if seasons updated
     if (updateData.seasons) {
         updateData.totalEpisodes = updateData.seasons.reduce((total, season) => { var _a; return total + (((_a = season.episodes) === null || _a === void 0 ? void 0 : _a.length) || 0); }, 0);
