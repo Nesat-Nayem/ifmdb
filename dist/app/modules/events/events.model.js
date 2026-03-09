@@ -33,6 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.DEFAULT_EVENT_CATEGORIES = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
 // Seat Type Schema for dynamic pricing
 const SeatTypeSchema = new mongoose_1.Schema({
@@ -127,6 +128,13 @@ const LocationSchema = new mongoose_1.Schema({
         default: 0
     }
 });
+// Default Event Categories (Participation Types)
+exports.DEFAULT_EVENT_CATEGORIES = [
+    'Awardee & Represent our show',
+    'Sponsored',
+    'Ticket Booking',
+    'Participate'
+];
 const eventSchema = new mongoose_1.Schema({
     title: {
         type: String,
@@ -149,6 +157,16 @@ const eventSchema = new mongoose_1.Schema({
     categoryId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'EventCategory'
+    },
+    eventCategories: {
+        type: [String],
+        default: exports.DEFAULT_EVENT_CATEGORIES,
+        validate: {
+            validator: function (v) {
+                return v && v.length > 0;
+            },
+            message: 'At least one event category is required'
+        }
     },
     eventLanguage: {
         type: String,

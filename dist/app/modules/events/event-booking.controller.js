@@ -42,7 +42,7 @@ const generateTicketScannerId = () => {
 // Create event ticket booking with seat type selection
 const createEventBooking = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id: eventId } = req.params;
-    const { userId, quantity, seatType = 'Normal', bookingFee = 0, taxAmount = 0, discountAmount = 0, paymentMethod = 'card', customerDetails } = req.body;
+    const { userId, quantity, seatType = 'Normal', eventCategory = 'Ticket Booking', bookingFee = 0, taxAmount = 0, discountAmount = 0, paymentMethod = 'card', customerDetails } = req.body;
     const event = yield events_model_1.default.findById(eventId);
     if (!event || !event.isActive || !['upcoming', 'ongoing'].includes(event.status)) {
         return (0, sendResponse_1.sendResponse)(res, {
@@ -124,6 +124,7 @@ const createEventBooking = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
         bookingReference: generateBookingReference(),
         quantity,
         seatType,
+        eventCategory,
         unitPrice,
         totalAmount,
         bookingFee,

@@ -62,6 +62,11 @@ const EventBookingSchema = new mongoose_1.Schema({
         required: true,
         default: 'Normal'
     },
+    eventCategory: {
+        type: String,
+        required: true,
+        default: 'Ticket Booking'
+    },
     unitPrice: {
         type: Number,
         required: true,

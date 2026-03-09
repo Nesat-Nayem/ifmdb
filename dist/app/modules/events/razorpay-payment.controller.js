@@ -46,7 +46,7 @@ const generateTicketScannerId = () => {
 const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const { id: eventId } = req.params;
-    const { userId, quantity, seatType = 'Normal', customerDetails, countryCode = 'IN' } = req.body;
+    const { userId, quantity, seatType = 'Normal', eventCategory = 'Ticket Booking', customerDetails, countryCode = 'IN' } = req.body;
     // Validate event
     const event = yield events_model_1.default.findById(eventId);
     if (!event || !event.isActive || !['upcoming', 'ongoing'].includes(event.status)) {
@@ -163,6 +163,7 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             bookingReference,
             quantity,
             seatType,
+            eventCategory,
             unitPrice,
             totalAmount,
             bookingFee,

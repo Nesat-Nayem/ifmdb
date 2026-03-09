@@ -41,6 +41,7 @@ const createEventValidation = zod_1.z.object({
         eventType: zod_1.z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']),
         category: zod_1.z.string().min(1, 'Event category is required'),
         categoryId: zod_1.z.string().optional(),
+        eventCategories: zod_1.z.array(zod_1.z.string()).min(1, 'At least one event category is required').optional(),
         eventLanguage: zod_1.z.string().optional().default('English'),
         startDate: zod_1.z.string().refine((date) => !isNaN(Date.parse(date)), {
             message: 'Invalid start date format'
@@ -77,6 +78,7 @@ const updateEventValidation = zod_1.z.object({
         eventType: zod_1.z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']).optional(),
         category: zod_1.z.string().min(1, 'Event category is required').optional(),
         categoryId: zod_1.z.string().optional(),
+        eventCategories: zod_1.z.array(zod_1.z.string()).min(1, 'At least one event category is required').optional(),
         eventLanguage: zod_1.z.string().optional(),
         startDate: zod_1.z.string().refine((date) => !isNaN(Date.parse(date)), {
             message: 'Invalid start date format'

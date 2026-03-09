@@ -19,11 +19,11 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:8080',
+        url: 'http://api.moviemart.org',
         description: 'Development server',
       },
       {
-        url: 'http://localhost:8080',
+        url: 'http://api.moviemart.org',
         description: 'Production server',
       }
    
@@ -1081,7 +1081,7 @@ export const setupSwagger = (app: Application): void => {
     res.send(specs);
   });
 
-  console.log('📚 Swagger documentation available at: http://localhost:8080/api-docs');
+  console.log('📚 Swagger documentation available at: http://api.moviemart.org/api-docs');
 };
 
 export default specs;
