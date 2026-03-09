@@ -115,6 +115,12 @@ const router = express.Router();
  *         category:
  *           type: string
  *           description: Event category
+ *         eventCategories:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Participation types available for this event (e.g., Awardee & Represent our show, Sponsored, Ticket Booking, Participate)
+ *           default: ['Awardee & Represent our show', 'Sponsored', 'Ticket Booking', 'Participate']
  *         startDate:
  *           type: string
  *           format: date
@@ -197,6 +203,12 @@ const router = express.Router();
  *           type: integer
  *           minimum: 1
  *           description: Number of tickets
+ *         seatType:
+ *           type: string
+ *           description: Type of seat booked
+ *         eventCategory:
+ *           type: string
+ *           description: User's selected participation type (e.g., Awardee & Represent our show, Sponsored, Ticket Booking, Participate)
  *         unitPrice:
  *           type: number
  *           description: Ticket unit price at time of booking
@@ -256,6 +268,10 @@ const router = express.Router();
  *           type: string
  *           default: Normal
  *           description: Type of seat (e.g., Normal, VIP, Premium, VVIP). Must match one of the event's seat types
+ *         eventCategory:
+ *           type: string
+ *           description: User's selected participation type. Must be one of the event's eventCategories (e.g., Awardee & Represent our show, Sponsored, Ticket Booking, Participate)
+ *           example: Ticket Booking
  *         bookingFee:
  *           type: number
  *           default: 0

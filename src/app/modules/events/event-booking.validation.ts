@@ -16,6 +16,7 @@ const createEventBookingValidation = z.object({
     userId: z.string().min(1, 'User ID is required'),
     quantity: z.number().min(1, 'Quantity must be at least 1'),
     seatType: z.string().optional().default('Normal'),
+    eventCategory: z.string().min(1, 'Event category is required'),
     bookingFee: z.number().min(0).optional(),
     taxAmount: z.number().min(0).optional(),
     discountAmount: z.number().min(0).optional(),

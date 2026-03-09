@@ -43,6 +43,7 @@ const createEventValidation = z.object({
     eventType: z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']),
     category: z.string().min(1, 'Event category is required'),
     categoryId: z.string().optional(),
+    eventCategories: z.array(z.string()).min(1, 'At least one event category is required').optional(),
     eventLanguage: z.string().optional().default('English'),
     startDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
       message: 'Invalid start date format'
@@ -80,6 +81,7 @@ const updateEventValidation = z.object({
     eventType: z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']).optional(),
     category: z.string().min(1, 'Event category is required').optional(),
     categoryId: z.string().optional(),
+    eventCategories: z.array(z.string()).min(1, 'At least one event category is required').optional(),
     eventLanguage: z.string().optional(),
     startDate: z.string().refine((date) => !isNaN(Date.parse(date)), {
       message: 'Invalid start date format'

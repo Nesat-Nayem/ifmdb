@@ -27,6 +27,11 @@ const EventBookingSchema = new Schema({
     required: true,
     default: 'Normal'
   },
+  eventCategory: {
+    type: String,
+    required: true,
+    default: 'Ticket Booking'
+  },
   unitPrice: {
     type: Number,
     required: true,
@@ -207,6 +212,7 @@ export interface IEventBooking extends Document {
   bookingReference: string;
   quantity: number;
   seatType: string;
+  eventCategory: string;
   unitPrice: number;
   totalAmount: number;
   bookingFee: number;

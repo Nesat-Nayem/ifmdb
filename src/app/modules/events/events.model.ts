@@ -105,6 +105,14 @@ export interface ISeatType {
   availableSeats: number;
 }
 
+// Default Event Categories (Participation Types)
+export const DEFAULT_EVENT_CATEGORIES = [
+  'Awardee & Represent our show',
+  'Sponsored',
+  'Ticket Booking',
+  'Participate'
+];
+
 // Event Interface
 export interface IEvent extends Document {
   title: string;
@@ -112,6 +120,7 @@ export interface IEvent extends Document {
   eventType: string;
   category: string;
   categoryId?: mongoose.Types.ObjectId;
+  eventCategories: string[]; // Participation types: Awardee, Sponsored, Ticket Booking, Participate
   eventLanguage: string;
   startDate: Date;
   endDate?: Date;
@@ -166,6 +175,16 @@ const eventSchema: Schema = new Schema(
     categoryId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'EventCategory'
+    },
+    eventCategories: {
+      type: [String],
+      default: DEFAULT_EVENT_CATEGORIES,
+      validate: {
+        validator: function(v: string[]) {
+          return v && v.length > 0;
+        },
+        message: 'At least one event category is required'
+      }
     },
     eventLanguage: {
       type: String,

@@ -39,6 +39,7 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
     userId, 
     quantity, 
     seatType = 'Normal',
+    eventCategory = 'Ticket Booking',
     customerDetails,
     countryCode = 'IN'
   } = req.body;
@@ -179,6 +180,7 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
       bookingReference,
       quantity,
       seatType,
+      eventCategory,
       unitPrice,
       totalAmount,
       bookingFee,
