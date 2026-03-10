@@ -8,7 +8,6 @@ import Event from './events.model';
 import { EventBooking, EventETicket, EventPaymentTransaction } from './event-booking.model';
 import { WalletController } from '../wallet/wallet.controller';
 import razorpayService from '../../services/razorpayService';
-import razorpayRouteService from '../../services/razorpayRouteService';
 
 // Generate unique booking reference
 const generateBookingReference = (): string => {
@@ -139,9 +138,7 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
       const platformFeeInPaise = Math.round((amountInPaise * platformFeePercentage) / 100);
       const vendorAmountInPaise = amountInPaise - platformFeeInPaise;
 
-      const holdTimestamp = razorpayRouteService.getSettlementHoldTimestamp();
-      const holdDays = razorpayRouteService.getSettlementHoldDays();
-
+      // Events: on_hold=true - vendor must request withdrawal, admin approves to release funds
       razorpayOrder = await razorpayService.createOrderWithTransfers(
         {
           amount: finalAmount,
@@ -157,10 +154,10 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
             eventId: eventId,
             vendorId: vendorId,
             platformFee: platformFeePercentage.toString(),
+            serviceType: 'events',
           },
           linked_account_notes: ['eventId', 'vendorId'],
-          on_hold: holdDays > 0,
-          on_hold_until: holdDays > 0 ? holdTimestamp : undefined,
+          on_hold: true,
         }]
       );
     } else {

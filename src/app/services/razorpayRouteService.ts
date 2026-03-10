@@ -284,41 +284,21 @@ export const createStakeholder = async (
     name: string;
     email: string;
     phone?: string;
-    dob?: string;
   }
 ): Promise<LinkedAccountResponse> => {
   try {
     const payload: any = {
       name: params.name,
       email: params.email,
-      addresses: {
-        residential: {
-          street: 'Flat No 405, Raj Residency, Main Street',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          postal_code: '400058',
-          country: 'IN',
-        },
-      },
       relationship: {
         executive: true,
         director: true,
-        percentage_ownership: 100,
-      },
-      kyc: {
-        pan: 'ABCDE1234F',
       },
       notes: {
         role: 'vendor_owner',
         type: 'individual_stakeholder'
       }
     };
-
-    if (params.dob) {
-      payload.dob = params.dob; // Format: YYYY-MM-DD
-    } else {
-      payload.dob = '1990-01-01'; // Default dummy DOB
-    }
 
     if (params.phone) {
       payload.phone = {
@@ -417,6 +397,78 @@ export const updateProductConfiguration = async (
       success: false,
       data: error.response?.data,
       message: error.response?.data?.error?.description || 'Failed to update product configuration',
+    };
+  }
+};
+
+/**
+ * Update a Stakeholder for a Linked Account
+ * PATCH /v2/accounts/:accountId/stakeholders/:stakeholderId
+ * Used when activation_status is needs_clarification and stakeholder fields need updating
+ */
+export const updateStakeholder = async (
+  accountId: string,
+  stakeholderId: string,
+  params: {
+    name: string;
+    email: string;
+    phone?: string;
+  }
+): Promise<LinkedAccountResponse> => {
+  try {
+    const payload: any = {
+      name: params.name,
+      email: params.email,
+      relationship: {
+        executive: true,
+        director: true,
+      },
+    };
+
+    if (params.phone) {
+      payload.phone = { primary: params.phone };
+    }
+
+    const response = await razorpayClientV2.patch(
+      `/accounts/${accountId}/stakeholders/${stakeholderId}`,
+      payload
+    );
+
+    return {
+      success: true,
+      data: response.data,
+      accountId: accountId,
+      message: 'Stakeholder updated successfully',
+    };
+  } catch (error: any) {
+    console.error('Razorpay Update Stakeholder Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      data: error.response?.data,
+      message: error.response?.data?.error?.description || 'Failed to update stakeholder',
+    };
+  }
+};
+
+/**
+ * Fetch stakeholders for a Linked Account
+ * GET /v2/accounts/:accountId/stakeholders
+ */
+export const fetchStakeholders = async (accountId: string): Promise<LinkedAccountResponse> => {
+  try {
+    const response = await razorpayClientV2.get(`/accounts/${accountId}/stakeholders`);
+    return {
+      success: true,
+      data: response.data,
+      accountId: accountId,
+      message: 'Stakeholders fetched successfully',
+    };
+  } catch (error: any) {
+    console.error('Razorpay Fetch Stakeholders Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      data: error.response?.data,
+      message: error.response?.data?.error?.description || 'Failed to fetch stakeholders',
     };
   }
 };
@@ -574,6 +626,41 @@ export const reverseTransfer = async (
   }
 };
 
+/**
+ * Modify settlement hold for a transfer
+ * PATCH /v1/transfers/:transferId
+ * Used to release held event transfers when admin approves withdrawal
+ */
+export const modifySettlementHold = async (
+  transferId: string,
+  onHold: boolean,
+  onHoldUntil?: number
+): Promise<LinkedAccountResponse> => {
+  try {
+    const payload: any = {
+      on_hold: onHold ? 1 : 0,
+    };
+    if (onHoldUntil) {
+      payload.on_hold_until = onHoldUntil;
+    }
+
+    const response = await razorpayClientV1.patch(`/transfers/${transferId}`, payload);
+
+    return {
+      success: true,
+      data: response.data,
+      message: onHold ? 'Transfer put on hold' : 'Transfer hold released successfully',
+    };
+  } catch (error: any) {
+    console.error('Razorpay Modify Settlement Hold Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      data: error.response?.data,
+      message: error.response?.data?.error?.description || 'Failed to modify settlement hold',
+    };
+  }
+};
+
 // ==================== WEBHOOK VERIFICATION ====================
 
 /**
@@ -621,6 +708,8 @@ export default {
   deleteLinkedAccount,
   submitAccount,
   createStakeholder,
+  updateStakeholder,
+  fetchStakeholders,
   requestProductConfiguration,
   updateProductConfiguration,
   // Transfers
@@ -631,6 +720,7 @@ export default {
   fetchPaymentTransfers,
   fetchTransfer,
   reverseTransfer,
+  modifySettlementHold,
   // Webhook
   verifyWebhookSignature,
   // Utility

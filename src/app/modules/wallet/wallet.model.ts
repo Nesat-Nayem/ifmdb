@@ -217,6 +217,8 @@ export interface IWithdrawalRequest extends Document {
   processedAt?: Date;
   failureReason?: string;
   adminNotes?: string;
+  isRouteWithdrawal?: boolean;
+  razorpayTransferIds?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -273,6 +275,14 @@ const withdrawalRequestSchema: Schema = new Schema(
     },
     adminNotes: {
       type: String
+    },
+    isRouteWithdrawal: {
+      type: Boolean,
+      default: false
+    },
+    razorpayTransferIds: {
+      type: [String],
+      default: []
     }
   },
   { timestamps: true }

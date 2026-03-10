@@ -10,7 +10,6 @@ import {
 } from './watch-videos.model';
 import { WalletController } from '../wallet/wallet.controller';
 import razorpayService from '../../services/razorpayService';
-import razorpayRouteService from '../../services/razorpayRouteService';
 
 // Generate unique purchase reference
 const generatePurchaseReference = (): string => {
@@ -124,9 +123,7 @@ const createVideoPaymentOrder = catchAsync(async (req: Request, res: Response) =
       const platformFeeInPaise = Math.round((amountInPaise * platformFeePercentage) / 100);
       const vendorAmountInPaise = amountInPaise - platformFeeInPaise;
 
-      const holdTimestamp = razorpayRouteService.getSettlementHoldTimestamp();
-      const holdDays = razorpayRouteService.getSettlementHoldDays();
-
+      // Watch movie: on_hold=false - vendor gets paid directly via Route auto-settlement
       razorpayOrder = await razorpayService.createOrderWithTransfers(
         {
           amount: finalAmount,
@@ -142,10 +139,10 @@ const createVideoPaymentOrder = catchAsync(async (req: Request, res: Response) =
             videoId: videoId,
             vendorId: vendorId!,
             platformFee: platformFeePercentage.toString(),
+            serviceType: 'movie_watch',
           },
           linked_account_notes: ['videoId', 'vendorId'],
-          on_hold: holdDays > 0,
-          on_hold_until: holdDays > 0 ? holdTimestamp : undefined,
+          on_hold: false,
         }]
       );
     } else {

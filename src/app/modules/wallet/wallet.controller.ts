@@ -289,16 +289,18 @@ const updateBankDetails = catchAsync(async (req: Request, res: Response) => {
   // Create Razorpay Linked Account for Route (only for vendors)
   if (user.role === 'vendor' && razorpayRouteService.isRouteConfigured()) {
     try {
-      if (!wallet.razorpayLinkedAccountId || wallet.razorpayAccountStatus === 'failed') {
-        // ===== FULL 4-STEP RAZORPAY ROUTE SETUP =====
-        let accountId = wallet.razorpayLinkedAccountId; // May already exist from a previous partial attempt
+      if (!wallet.razorpayLinkedAccountId || wallet.razorpayAccountStatus === 'failed' || wallet.razorpayAccountStatus === 'created') {
+        // ===== RAZORPAY ROUTE SETUP (handles fresh + retry flows) =====
+        let accountId = wallet.razorpayLinkedAccountId;
+        const vendorName = accountHolderName || user.name || 'Vendor';
+        const vendorPhone = user.phone || '9999999999';
 
-        // Step 1: Create Linked Account
-        // If retrying with a stale account, delete it first
+        // Step 1: Create Linked Account (skip if already exists)
         if (accountId && wallet.razorpayAccountStatus === 'failed') {
-          console.log(`Step 1 - Deleting stale linked account: ${accountId}`);
+          // Delete and recreate on hard failure
+          console.log(`Step 1 - Deleting failed linked account: ${accountId}`);
           await razorpayRouteService.deleteLinkedAccount(accountId);
-          accountId = null as any;
+          accountId = '';
           wallet.razorpayLinkedAccountId = '';
           wallet.razorpayProductId = '';
           await wallet.save();
@@ -311,15 +313,18 @@ const updateBankDetails = catchAsync(async (req: Request, res: Response) => {
 
           const result = await razorpayRouteService.createLinkedAccount({
             email: user.email,
-            phone: user.phone || '9999999999',
-            legalBusinessName: accountHolderName || user.name || 'Vendor Business',
-            contactName: accountHolderName || user.name || 'Vendor',
+            phone: vendorPhone,
+            legalBusinessName: vendorName,
+            contactName: vendorName,
             businessType: 'individual',
             referenceId,
           });
 
           if (result.success && result.accountId) {
             accountId = result.accountId;
+            wallet.razorpayLinkedAccountId = accountId;
+            wallet.razorpayAccountStatus = 'created';
+            await wallet.save();
             console.log(`Step 1 OK - Linked Account created: ${accountId}`);
           } else {
             console.error('Step 1 FAILED - Create linked account:', result.message);
@@ -331,37 +336,45 @@ const updateBankDetails = catchAsync(async (req: Request, res: Response) => {
         }
 
         if (accountId) {
-          wallet.razorpayLinkedAccountId = accountId;
-          wallet.razorpayAccountStatus = 'created';
-          await wallet.save();
-
-          // Small delay to let Razorpay process the account creation
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Step 2: Create Stakeholder
-          // Use the SAME name as legalBusinessName for proprietorship consistency
-          const vendorName = accountHolderName || user.name || 'Vendor';
-          const stakeholderResult = await razorpayRouteService.createStakeholder(accountId, {
-            name: vendorName,
-            email: user.email,
-            phone: user.phone || '9999999999',
-          });
+          // Step 2: Create or Update Stakeholder
+          const stakeholdersResult = await razorpayRouteService.fetchStakeholders(accountId);
+          const existingStakeholders = stakeholdersResult.data?.items || [];
 
-          if (stakeholderResult.success) {
-            console.log(`Step 2 OK - Stakeholder created for account: ${accountId}`);
+          if (existingStakeholders.length > 0) {
+            // Stakeholder exists - update it (fixes needs_clarification name issues)
+            const stakeholderId = existingStakeholders[0].id;
+            const updateStakeholderResult = await razorpayRouteService.updateStakeholder(
+              accountId,
+              stakeholderId,
+              { name: vendorName, email: user.email, phone: vendorPhone }
+            );
+            if (updateStakeholderResult.success) {
+              console.log(`Step 2 OK - Stakeholder updated: ${stakeholderId}`);
+            } else {
+              console.log(`Step 2 WARN - Stakeholder update: ${updateStakeholderResult.message}`);
+            }
           } else {
-            // Stakeholder might already exist from previous attempt - continue anyway
-            console.log(`Step 2 WARN - Stakeholder creation: ${stakeholderResult.message} (continuing...)`);
+            // Create fresh stakeholder
+            const stakeholderResult = await razorpayRouteService.createStakeholder(accountId, {
+              name: vendorName,
+              email: user.email,
+              phone: vendorPhone,
+            });
+            if (stakeholderResult.success) {
+              console.log(`Step 2 OK - Stakeholder created`);
+            } else {
+              console.log(`Step 2 WARN - Stakeholder creation: ${stakeholderResult.message} (continuing...)`);
+            }
           }
 
-          // Small delay before product configuration
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Step 3: Request Product Configuration
+          // Step 3: Request Product Configuration (skip if already exists)
           let productId = wallet.razorpayProductId;
           if (!productId) {
             const productResult = await razorpayRouteService.requestProductConfiguration(accountId);
-
             if (productResult.success && productResult.data?.id) {
               productId = productResult.data.id;
               wallet.razorpayProductId = productId;
@@ -374,10 +387,9 @@ const updateBankDetails = catchAsync(async (req: Request, res: Response) => {
             console.log(`Step 3 SKIP - Product config already exists: ${productId}`);
           }
 
-          // Small delay before updating product with bank details
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Step 4: Update Product Configuration with bank details
+          // Step 4: Update Product Configuration with bank details to trigger activation
           if (productId) {
             const updateResult = await razorpayRouteService.updateProductConfiguration(
               accountId,
@@ -392,37 +404,24 @@ const updateBankDetails = catchAsync(async (req: Request, res: Response) => {
             if (updateResult.success) {
               const activationStatus = updateResult.data?.activation_status;
               console.log(`Step 4 OK - Product config updated, activation_status: ${activationStatus}`);
-              
-              if (activationStatus !== 'activated') {
-                console.log('Product Config Requirements:', JSON.stringify(updateResult.data?.requirements, null, 2));
-                
-                // Step 5: Explicitly submit the account for activation
-                console.log(`Step 5 - Submitting account ${accountId} for activation...`);
-                const submitResult = await razorpayRouteService.submitAccount(accountId);
-                if (submitResult.success) {
-                  console.log('Step 5 OK - Account submitted for activation');
-                } else {
-                  console.log('Step 5 WARN - Account submission:', submitResult.message);
-                }
-              }
 
               if (activationStatus === 'activated') {
                 wallet.razorpayAccountStatus = 'activated';
+                console.log(`Account activated successfully`);
               } else {
-                // Fetch actual account status from Razorpay
+                if (updateResult.data?.requirements?.length > 0) {
+                  console.log('Product Config Requirements:', JSON.stringify(updateResult.data.requirements, null, 2));
+                }
+
+                // Wait and re-fetch account to confirm status
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 const accountCheck = await razorpayRouteService.fetchLinkedAccount(accountId);
                 if (accountCheck.success && accountCheck.data) {
                   const liveStatus = accountCheck.data.status;
                   console.log(`Account status from Razorpay: ${liveStatus}`);
-                  
+                  wallet.razorpayAccountStatus = liveStatus === 'activated' ? 'activated' : 'created';
                   if (liveStatus === 'activated') {
-                    wallet.razorpayAccountStatus = 'activated';
-                    console.log(`Account confirmed activated via direct fetch`);
-                  } else {
-                    wallet.razorpayAccountStatus = 'created';
-                    if (accountCheck.data.requirements) {
-                      console.log('Account Requirements:', JSON.stringify(accountCheck.data.requirements, null, 2));
-                    }
+                    console.log(`Account confirmed activated`);
                   }
                 }
               }
@@ -534,7 +533,9 @@ const deleteBankDetails = catchAsync(async (req: Request, res: Response) => {
 
 // ==================== WITHDRAWAL CONTROLLERS ====================
 
-// Request Withdrawal - Kept for backward compatibility but Route vendors don't need this
+// Request Withdrawal
+// For Route vendors: Only event earnings need withdrawal (watch movie auto-settles)
+// For non-Route vendors: All earnings need manual withdrawal
 const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
   const user = (req as userInterface).user;
   const { amount } = req.body;
@@ -555,16 +556,6 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
       statusCode: httpStatus.NOT_FOUND,
       success: false,
       message: 'Wallet not found',
-      data: null,
-    });
-  }
-
-  // If vendor has Route linked account, withdrawals are automatic
-  if (wallet.razorpayLinkedAccountId) {
-    return sendResponse(res, {
-      statusCode: httpStatus.BAD_REQUEST,
-      success: false,
-      message: 'Your account uses Razorpay Route. Payments are automatically settled to your bank account. No manual withdrawal needed.',
       data: null,
     });
   }
@@ -614,13 +605,33 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  // Create withdrawal request (manual processing by admin for non-Route vendors)
+  const isRouteVendor = !!wallet.razorpayLinkedAccountId;
+
+  // For Route vendors: Find held event transfer IDs to release on admin approval
+  let heldTransferIds: string[] = [];
+  if (isRouteVendor) {
+    const heldEventTransactions = await WalletTransaction.find({
+      userId: user._id,
+      serviceType: 'events',
+      status: 'completed',
+      razorpayTransferId: { $exists: true, $ne: '' },
+      type: { $in: ['pending_credit', 'credit'] },
+    }).sort({ createdAt: -1 });
+
+    heldTransferIds = heldEventTransactions
+      .filter(t => t.razorpayTransferId)
+      .map(t => t.razorpayTransferId as string);
+  }
+
+  // Create withdrawal request
   const withdrawalRequest = await WithdrawalRequest.create({
     walletId: wallet._id,
     userId: user._id,
     amount,
     bankDetails: wallet.bankDetails,
-    status: 'pending'
+    status: 'pending',
+    isRouteWithdrawal: isRouteVendor,
+    razorpayTransferIds: heldTransferIds,
   });
 
   // Deduct from wallet balance immediately
@@ -635,7 +646,9 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     amount,
     platformFee: 0,
     netAmount: amount,
-    description: `Withdrawal request #${withdrawalRequest._id}`,
+    description: isRouteVendor
+      ? `Event earnings withdrawal request #${withdrawalRequest._id} (Route)`
+      : `Withdrawal request #${withdrawalRequest._id}`,
     referenceType: 'withdrawal',
     referenceId: withdrawalRequest._id,
     status: 'pending'
@@ -644,7 +657,9 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
   return sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
-    message: 'Withdrawal request submitted. It will be processed by admin.',
+    message: isRouteVendor
+      ? 'Event earnings withdrawal request submitted. Admin will review and release funds to your bank account.'
+      : 'Withdrawal request submitted. It will be processed by admin.',
     data: withdrawalRequest,
   });
 });
@@ -811,6 +826,8 @@ const getAllWithdrawals = catchAsync(async (req: Request, res: Response) => {
 });
 
 // Process Withdrawal (Admin)
+// For Route vendors with event earnings: releases held transfers via Razorpay Route
+// For non-Route vendors: admin manually processes the payout
 const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const { status, gatewayTransactionId, adminNotes, failureReason } = req.body;
@@ -843,6 +860,40 @@ const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
   if (status === 'completed') {
     withdrawal.processedAt = new Date();
     
+    // For Route vendors: Release held event transfers so Razorpay settles to vendor's bank
+    const withdrawalData = withdrawal as any;
+    if (withdrawalData.isRouteWithdrawal && withdrawalData.razorpayTransferIds && withdrawalData.razorpayTransferIds.length > 0) {
+      const releaseResults: { transferId: string; success: boolean; message: string }[] = [];
+      
+      for (const transferId of withdrawalData.razorpayTransferIds) {
+        try {
+          const result = await razorpayRouteService.modifySettlementHold(transferId, false);
+          releaseResults.push({
+            transferId,
+            success: result.success,
+            message: result.message,
+          });
+          if (result.success) {
+            console.log(`Route transfer ${transferId} hold released for withdrawal ${withdrawal._id}`);
+          } else {
+            console.error(`Failed to release Route transfer ${transferId}: ${result.message}`);
+          }
+        } catch (err: any) {
+          console.error(`Error releasing Route transfer ${transferId}:`, err.message);
+          releaseResults.push({
+            transferId,
+            success: false,
+            message: err.message,
+          });
+        }
+      }
+
+      // Store release results in admin notes for tracking
+      const existingNotes = withdrawal.adminNotes || '';
+      const releaseInfo = releaseResults.map(r => `${r.transferId}: ${r.success ? 'Released' : 'Failed - ' + r.message}`).join('; ');
+      withdrawal.adminNotes = existingNotes ? `${existingNotes} | Route releases: ${releaseInfo}` : `Route releases: ${releaseInfo}`;
+    }
+
     // Update wallet total withdrawn
     const wallet = await Wallet.findById(withdrawal.walletId);
     if (wallet) {
@@ -875,7 +926,11 @@ const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
   return sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Withdrawal request processed successfully',
+    message: status === 'completed' 
+      ? (withdrawal as any).isRouteWithdrawal 
+        ? 'Withdrawal approved. Route transfer holds released - funds will settle to vendor\'s bank account.'
+        : 'Withdrawal request processed successfully'
+      : 'Withdrawal request updated',
     data: withdrawal,
   });
 });
@@ -1014,33 +1069,62 @@ const creditVendorEarnings = async (params: {
 
   if (isRouteVendor && razorpayTransferId) {
     // Route vendor: Payment is handled by Razorpay Route transfer
-    // Track earnings for dashboard but don't add to internal wallet balance
-    wallet.totalEarnings += vendorEarnings;
-    wallet.pendingBalance += vendorEarnings;
-    await wallet.save();
+    if (serviceType === 'movie_watch') {
+      // Watch movie: on_hold=false → Razorpay auto-settles to vendor's bank
+      // Only track earnings for dashboard, don't add to withdrawable balance
+      wallet.totalEarnings += vendorEarnings;
+      await wallet.save();
 
-    // Create transaction record for tracking
-    await WalletTransaction.create({
-      walletId: wallet._id,
-      userId: vendorId,
-      type: 'pending_credit',
-      amount,
-      platformFee,
-      netAmount: vendorEarnings,
-      description: `${serviceType === 'events' ? (isGovernmentEvent ? 'Government event booking' : 'Event booking') : 'Video purchase'} - Route payment (settles in ${holdDays} days)`,
-      referenceType,
-      referenceId,
-      serviceType,
-      status: 'completed',
-      availableAt,
-      razorpayTransferId,
-      razorpayPaymentId,
-      metadata: {
-        ...metadata,
-        isGovernmentEvent: isGovernmentEvent || false,
-        platformFeePercentage,
-      }
-    });
+      await WalletTransaction.create({
+        walletId: wallet._id,
+        userId: vendorId,
+        type: 'credit',
+        amount,
+        platformFee,
+        netAmount: vendorEarnings,
+        description: `Video purchase - Route auto-settlement (paid directly to bank)`,
+        referenceType,
+        referenceId,
+        serviceType,
+        status: 'completed',
+        razorpayTransferId,
+        razorpayPaymentId,
+        metadata: {
+          ...metadata,
+          isGovernmentEvent: false,
+          platformFeePercentage,
+          routeAutoSettle: true,
+        }
+      });
+    } else {
+      // Events: on_hold=true → Funds held on Route until admin approves withdrawal
+      // Add to wallet balance so vendor can request withdrawal
+      wallet.totalEarnings += vendorEarnings;
+      wallet.balance += vendorEarnings;
+      await wallet.save();
+
+      await WalletTransaction.create({
+        walletId: wallet._id,
+        userId: vendorId,
+        type: 'credit',
+        amount,
+        platformFee,
+        netAmount: vendorEarnings,
+        description: `${isGovernmentEvent ? 'Government event booking' : 'Event booking'} - Route payment (held until withdrawal approved)`,
+        referenceType,
+        referenceId,
+        serviceType,
+        status: 'completed',
+        razorpayTransferId,
+        razorpayPaymentId,
+        metadata: {
+          ...metadata,
+          isGovernmentEvent: isGovernmentEvent || false,
+          platformFeePercentage,
+          routeOnHold: true,
+        }
+      });
+    }
   } else {
     // Non-Route vendor: Old flow - add to pending balance for manual withdrawal
     wallet.pendingBalance += vendorEarnings;
