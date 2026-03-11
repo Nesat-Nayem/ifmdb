@@ -553,6 +553,34 @@ export const createTransferFromPayment = async (
 };
 
 /**
+ * Fetch all transfers for a linked account (recipient)
+ * GET /v1/transfers?recipient=:linkedAccountId
+ * Used as fallback to find on-hold transfers when DB transactions lack razorpayTransferId
+ */
+export const fetchTransfersByRecipient = async (
+  linkedAccountId: string,
+  count: number = 50
+): Promise<LinkedAccountResponse> => {
+  try {
+    const response = await razorpayClientV1.get(`/transfers`, {
+      params: { recipient: linkedAccountId, count },
+    });
+    return {
+      success: true,
+      data: response.data,
+      message: 'Transfers fetched successfully',
+    };
+  } catch (error: any) {
+    console.error('Razorpay Fetch Transfers by Recipient Error:', error.response?.data || error.message);
+    return {
+      success: false,
+      data: error.response?.data,
+      message: error.response?.data?.error?.description || 'Failed to fetch transfers',
+    };
+  }
+};
+
+/**
  * Fetch transfers for a payment
  * GET /v1/payments/:paymentId/transfers
  */
@@ -717,6 +745,7 @@ export default {
   getSettlementHoldDays,
   buildTransferParams,
   createTransferFromPayment,
+  fetchTransfersByRecipient,
   fetchPaymentTransfers,
   fetchTransfer,
   reverseTransfer,

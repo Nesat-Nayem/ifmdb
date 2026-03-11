@@ -932,12 +932,58 @@ const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
     
     // For Route vendors: Release held event transfers so Razorpay settles to vendor's bank
     const withdrawalData = withdrawal as any;
-    if (withdrawalData.isRouteWithdrawal && withdrawalData.razorpayTransferIds && withdrawalData.razorpayTransferIds.length > 0) {
+    if (withdrawalData.isRouteWithdrawal) {
       const releaseResults: { transferId: string; success: boolean; message: string }[] = [];
-      
-      console.log(`Processing Route withdrawal ${withdrawal._id}: releasing ${withdrawalData.razorpayTransferIds.length} transfers`);
-      
-      for (const transferId of withdrawalData.razorpayTransferIds) {
+
+      // Get transfer IDs: use stored ones if available, otherwise fresh lookup from DB
+      let transferIdsToRelease: string[] = (withdrawalData.razorpayTransferIds || []).filter((id: string) => !!id);
+
+      if (transferIdsToRelease.length === 0) {
+        // Fallback 1: fresh DB lookup for event transactions with razorpayTransferId
+        console.log(`Withdrawal ${withdrawal._id} has empty razorpayTransferIds — doing fresh DB lookup for vendor ${withdrawal.userId}`);
+        const freshEventTxns = await WalletTransaction.find({
+          userId: withdrawal.userId,
+          serviceType: 'events',
+          status: 'completed',
+          razorpayTransferId: { $exists: true, $ne: '' },
+          type: { $in: ['pending_credit', 'credit'] },
+        });
+        transferIdsToRelease = freshEventTxns
+          .filter(t => t.razorpayTransferId)
+          .map(t => t.razorpayTransferId as string);
+        console.log(`DB fallback found ${transferIdsToRelease.length} event transfer IDs: ${transferIdsToRelease.join(', ')}`);
+      }
+
+      if (transferIdsToRelease.length === 0) {
+        // Fallback 2: fetch ALL on-hold transfers directly from Razorpay by linked account
+        const vendorWallet = await Wallet.findById(withdrawal.walletId);
+        if (vendorWallet?.razorpayLinkedAccountId) {
+          console.log(`DB fallback found nothing — fetching on-hold transfers from Razorpay for account ${vendorWallet.razorpayLinkedAccountId}`);
+          const razorpayResult = await razorpayRouteService.fetchTransfersByRecipient(vendorWallet.razorpayLinkedAccountId, 100);
+          if (razorpayResult.success && razorpayResult.data?.items?.length > 0) {
+            // Only release transfers that are currently on_hold
+            const onHoldTransfers = razorpayResult.data.items.filter((t: any) => t.on_hold === true || t.settlement_status === 'on_hold');
+            transferIdsToRelease = onHoldTransfers.map((t: any) => t.id as string);
+            console.log(`Razorpay fallback found ${transferIdsToRelease.length} on-hold transfers: ${transferIdsToRelease.join(', ')}`);
+          } else {
+            console.log(`Razorpay fallback: no transfers found. Result: ${razorpayResult.message}`);
+          }
+        }
+      }
+
+      // Update the withdrawal record with found IDs for future reference
+      if (transferIdsToRelease.length > 0) {
+        withdrawalData.razorpayTransferIds = transferIdsToRelease;
+      }
+
+      console.log(`Processing Route withdrawal ${withdrawal._id}: releasing ${transferIdsToRelease.length} transfers`);
+
+      if (transferIdsToRelease.length === 0) {
+        console.warn(`No transfer IDs found for Route withdrawal ${withdrawal._id}. Vendor: ${withdrawal.userId}. No Razorpay holds to release.`);
+        withdrawal.adminNotes = (withdrawal.adminNotes ? withdrawal.adminNotes + ' | ' : '') + 'WARNING: No Razorpay transfer IDs found to release. Check vendor event transactions.';
+      }
+
+      for (const transferId of transferIdsToRelease) {
         try {
           console.log(`Releasing hold on transfer ${transferId}...`);
           const result = await razorpayRouteService.modifySettlementHold(transferId, false);
@@ -962,9 +1008,11 @@ const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
       }
 
       // Store release results in admin notes for tracking
-      const existingNotes = withdrawal.adminNotes || '';
-      const releaseInfo = releaseResults.map(r => `${r.transferId}: ${r.success ? 'Released' : 'Failed - ' + r.message}`).join('; ');
-      withdrawal.adminNotes = existingNotes ? `${existingNotes} | Route releases: ${releaseInfo}` : `Route releases: ${releaseInfo}`;
+      if (releaseResults.length > 0) {
+        const existingNotes = withdrawal.adminNotes || '';
+        const releaseInfo = releaseResults.map(r => `${r.transferId}: ${r.success ? 'Released' : 'Failed - ' + r.message}`).join('; ');
+        withdrawal.adminNotes = existingNotes ? `${existingNotes} | Route releases: ${releaseInfo}` : `Route releases: ${releaseInfo}`;
+      }
     }
 
     // Update wallet total withdrawn

@@ -8,6 +8,7 @@ import Event from './events.model';
 import { EventBooking, EventETicket, EventPaymentTransaction } from './event-booking.model';
 import { WalletController } from '../wallet/wallet.controller';
 import razorpayService from '../../services/razorpayService';
+import razorpayRouteService from '../../services/razorpayRouteService';
 
 // Generate unique booking reference
 const generateBookingReference = (): string => {
@@ -336,15 +337,19 @@ const verifyRazorpayPayment = catchAsync(async (req: Request, res: Response) => 
       const eventData = event as any;
       if (eventData && eventData.vendorId) {
         try {
-          // Check if this was a Route transfer order
+          // Fetch transfer ID from Razorpay using payment ID
+          // GET /v1/payments/:paymentId/transfers returns all transfers created for this payment
           let razorpayTransferId = '';
-          if (payment.order_id) {
-            try {
-              const orderDetails = await razorpayService.fetchOrder(payment.order_id);
-              if (orderDetails.transfers && orderDetails.transfers.length > 0) {
-                razorpayTransferId = orderDetails.transfers[0].id || '';
-              }
-            } catch (e) { /* ignore fetch error */ }
+          try {
+            const transfersResult = await razorpayRouteService.fetchPaymentTransfers(paymentId);
+            if (transfersResult.success && transfersResult.data?.items?.length > 0) {
+              razorpayTransferId = transfersResult.data.items[0].id || '';
+              console.log(`Event payment ${paymentId} → Route transfer ${razorpayTransferId}`);
+            } else {
+              console.log(`No Route transfers found for event payment ${paymentId}`);
+            }
+          } catch (e) {
+            console.error(`Failed to fetch transfers for payment ${paymentId}:`, e);
           }
 
           await WalletController.creditVendorEarnings({
