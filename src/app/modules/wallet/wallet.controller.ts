@@ -66,6 +66,26 @@ const getWalletStats = catchAsync(async (req: Request, res: Response) => {
 
   const wallet = await getOrCreateWallet(user._id, user.role as 'vendor' | 'admin');
 
+  // Self-correct totalWithdrawn from actual completed withdrawal records
+  // This fixes any corruption from past double-counting bugs
+  if (wallet.razorpayLinkedAccountId) {
+    const actualWithdrawnAgg = await WithdrawalRequest.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(user._id),
+          status: 'completed',
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ]);
+    const actualWithdrawn = actualWithdrawnAgg[0]?.total || 0;
+    if (wallet.totalWithdrawn !== actualWithdrawn) {
+      console.log(`Correcting totalWithdrawn for user ${user._id}: ${wallet.totalWithdrawn} -> ${actualWithdrawn}`);
+      wallet.totalWithdrawn = actualWithdrawn;
+      await wallet.save();
+    }
+  }
+
   // Sync Razorpay Route account status if vendor has a linked account but not yet activated in DB
   if (
     wallet.razorpayLinkedAccountId &&
@@ -168,11 +188,24 @@ const getWalletStats = catchAsync(async (req: Request, res: Response) => {
     .sort({ createdAt: -1 })
     .limit(10);
 
-  // Get pending withdrawals count
-  const pendingWithdrawals = await WithdrawalRequest.countDocuments({
-    userId: user._id,
-    status: 'pending'
-  });
+  // Get pending withdrawals count and amount
+  const [pendingWithdrawals, pendingWithdrawalAmountAgg] = await Promise.all([
+    WithdrawalRequest.countDocuments({
+      userId: user._id,
+      status: { $in: ['pending', 'processing'] }
+    }),
+    WithdrawalRequest.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(user._id),
+          status: { $in: ['pending', 'processing'] },
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ])
+  ]);
+
+  const pendingWithdrawalAmount = pendingWithdrawalAmountAgg[0]?.total || 0;
 
   return sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -191,7 +224,8 @@ const getWalletStats = catchAsync(async (req: Request, res: Response) => {
         return acc;
       }, {}),
       recentTransactions,
-      pendingWithdrawals
+      pendingWithdrawals,
+      pendingWithdrawalAmount,
     },
   });
 });
@@ -570,12 +604,46 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
+  const isRouteVendor = !!wallet.razorpayLinkedAccountId;
+
+  // For Route vendors: check available event earnings (from transaction history minus withdrawn & pending)
+  // For non-Route vendors: check wallet.balance as usual
+  let availableForWithdrawal = wallet.balance;
+  if (isRouteVendor) {
+    const [eventEarningsAgg, pendingWithdrawalsAgg] = await Promise.all([
+      WalletTransaction.aggregate([
+        {
+          $match: {
+            userId: new mongoose.Types.ObjectId(user._id as string),
+            serviceType: 'events',
+            type: { $in: ['credit', 'pending_credit'] },
+            status: 'completed',
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$netAmount' } } }
+      ]),
+      WithdrawalRequest.aggregate([
+        {
+          $match: {
+            userId: new mongoose.Types.ObjectId(user._id as string),
+            status: { $in: ['pending', 'processing'] },
+            isRouteWithdrawal: true,
+          }
+        },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+    ]);
+    const totalEventEarnings = eventEarningsAgg[0]?.total || 0;
+    const pendingAmount = pendingWithdrawalsAgg[0]?.total || 0;
+    availableForWithdrawal = Math.max(0, totalEventEarnings - wallet.totalWithdrawn - pendingAmount);
+  }
+
   // Check available balance
-  if (wallet.balance < amount) {
+  if (availableForWithdrawal < amount) {
     return sendResponse(res, {
       statusCode: httpStatus.BAD_REQUEST,
       success: false,
-      message: `Insufficient balance. Available: ₹${wallet.balance.toFixed(2)}`,
+      message: `Insufficient balance. Available: ₹${availableForWithdrawal.toFixed(2)}`,
       data: null,
     });
   }
@@ -605,8 +673,6 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  const isRouteVendor = !!wallet.razorpayLinkedAccountId;
-
   // For Route vendors: Find held event transfer IDs to release on admin approval
   let heldTransferIds: string[] = [];
   if (isRouteVendor) {
@@ -634,9 +700,13 @@ const requestWithdrawal = catchAsync(async (req: Request, res: Response) => {
     razorpayTransferIds: heldTransferIds,
   });
 
-  // Deduct from wallet balance immediately
-  wallet.balance -= amount;
-  await wallet.save();
+  // Non-Route vendors: deduct from wallet balance immediately
+  // Route vendors: don't deduct anything here — money is held on Razorpay,
+  // totalWithdrawn is updated when admin approves in processWithdrawal
+  if (!isRouteVendor) {
+    wallet.balance -= amount;
+    await wallet.save();
+  }
 
   // Create transaction record
   await WalletTransaction.create({
@@ -865,8 +935,11 @@ const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
     if (withdrawalData.isRouteWithdrawal && withdrawalData.razorpayTransferIds && withdrawalData.razorpayTransferIds.length > 0) {
       const releaseResults: { transferId: string; success: boolean; message: string }[] = [];
       
+      console.log(`Processing Route withdrawal ${withdrawal._id}: releasing ${withdrawalData.razorpayTransferIds.length} transfers`);
+      
       for (const transferId of withdrawalData.razorpayTransferIds) {
         try {
+          console.log(`Releasing hold on transfer ${transferId}...`);
           const result = await razorpayRouteService.modifySettlementHold(transferId, false);
           releaseResults.push({
             transferId,
@@ -874,9 +947,9 @@ const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
             message: result.message,
           });
           if (result.success) {
-            console.log(`Route transfer ${transferId} hold released for withdrawal ${withdrawal._id}`);
+            console.log(`Route transfer ${transferId} hold released. Settlement status: ${result.data?.settlement_status}, on_hold: ${result.data?.on_hold}`);
           } else {
-            console.error(`Failed to release Route transfer ${transferId}: ${result.message}`);
+            console.error(`Failed to release Route transfer ${transferId}: ${result.message}`, result.data);
           }
         } catch (err: any) {
           console.error(`Error releasing Route transfer ${transferId}:`, err.message);
@@ -907,11 +980,14 @@ const processWithdrawal = catchAsync(async (req: Request, res: Response) => {
       { status: 'completed' }
     );
   } else if (status === 'failed') {
-    // Refund to wallet
-    const wallet = await Wallet.findById(withdrawal.walletId);
-    if (wallet) {
-      wallet.balance += withdrawal.amount;
-      await wallet.save();
+    // Refund to wallet (only for non-Route vendors who had balance deducted)
+    const withdrawalData = withdrawal as any;
+    if (!withdrawalData.isRouteWithdrawal) {
+      const wallet = await Wallet.findById(withdrawal.walletId);
+      if (wallet) {
+        wallet.balance += withdrawal.amount;
+        await wallet.save();
+      }
     }
 
     // Update transaction status

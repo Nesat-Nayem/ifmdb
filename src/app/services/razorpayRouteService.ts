@@ -638,7 +638,7 @@ export const modifySettlementHold = async (
 ): Promise<LinkedAccountResponse> => {
   try {
     const payload: any = {
-      on_hold: onHold ? 1 : 0,
+      on_hold: onHold,
     };
     if (onHoldUntil) {
       payload.on_hold_until = onHoldUntil;
