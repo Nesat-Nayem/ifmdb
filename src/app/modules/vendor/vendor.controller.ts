@@ -292,10 +292,22 @@ export const createVendorApplication = async (req: userInterface, res: Response,
 
 export const listVendorApplications = async (req: userInterface, res: Response, next: NextFunction) => {
   try {
-    const { status, userId } = req.query as { status?: string; userId?: string };
+    const { status, userId, search } = req.query as { status?: string; userId?: string; search?: string };
     const filter: any = { isDeleted: false };
     if (status) filter.status = status;
     if (userId) filter.userId = userId;
+
+    // Add search functionality - search by vendorName, email, phone, businessType
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [
+        { vendorName: searchRegex },
+        { email: searchRegex },
+        { phone: searchRegex },
+        { businessType: searchRegex },
+        { gstNumber: searchRegex },
+      ];
+    }
 
     const items = await VendorApplication.find(filter)
       .populate('selectedServices.packageId')
@@ -454,9 +466,30 @@ export const decideVendorApplication = async (req: userInterface, res: Response,
 export const deleteVendorApplication = async (req: userInterface, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
-    const item = await VendorApplication.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
+    const item = await VendorApplication.findById(id);
     if (!item) return next(new appError('Vendor application not found', 404));
-    res.json({ success: true, statusCode: 200, message: 'Application deleted' });
+
+    // If vendor was approved, also delete the associated User account
+    let userDeleted = false;
+    if (item.status === 'approved' && item.vendorUserId) {
+      const deletedUser = await User.findByIdAndDelete(item.vendorUserId);
+      if (deletedUser) {
+        userDeleted = true;
+      }
+    }
+
+    // Soft delete the application
+    item.isDeleted = true;
+    await item.save();
+
+    res.json({ 
+      success: true, 
+      statusCode: 200, 
+      message: userDeleted 
+        ? 'Application and vendor account deleted successfully' 
+        : 'Application deleted successfully',
+      data: { userDeleted }
+    });
   } catch (error) {
     next(error);
   }
