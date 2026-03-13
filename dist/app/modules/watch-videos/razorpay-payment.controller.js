@@ -111,8 +111,7 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
             const amountInPaise = Math.round(finalAmount * 100);
             const platformFeeInPaise = Math.round((amountInPaise * platformFeePercentage) / 100);
             const vendorAmountInPaise = amountInPaise - platformFeeInPaise;
-            const holdTimestamp = razorpayRouteService_1.default.getSettlementHoldTimestamp();
-            const holdDays = razorpayRouteService_1.default.getSettlementHoldDays();
+            // Watch movie: on_hold=false - vendor gets paid directly via Route auto-settlement
             razorpayOrder = yield razorpayService_1.default.createOrderWithTransfers({
                 amount: finalAmount,
                 currency: 'INR',
@@ -126,10 +125,10 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
                         videoId: videoId,
                         vendorId: vendorId,
                         platformFee: platformFeePercentage.toString(),
+                        serviceType: 'movie_watch',
                     },
                     linked_account_notes: ['videoId', 'vendorId'],
-                    on_hold: holdDays > 0,
-                    on_hold_until: holdDays > 0 ? holdTimestamp : undefined,
+                    on_hold: false,
                 }]);
         }
         else {
@@ -202,7 +201,7 @@ const createVideoPaymentOrder = (0, catchAsync_1.catchAsync)((req, res) => __awa
 }));
 // Verify Razorpay payment for video
 const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _a, _b, _c, _d;
     const { orderId, paymentId, signature } = req.body;
     // Verify signature
     const isValid = razorpayService_1.default.verifyPaymentSignature(orderId, paymentId, signature);
@@ -245,16 +244,21 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
             const purchaseData = purchase;
             if (vData && vData.uploadedBy && vData.uploadedByType === 'vendor') {
                 try {
-                    // Check if this was a Route transfer order
+                    // Fetch transfer ID from Razorpay using payment ID
+                    // GET /v1/payments/:paymentId/transfers returns all transfers created for this payment
                     let razorpayTransferId = '';
-                    if (payment.order_id) {
-                        try {
-                            const orderDetails = yield razorpayService_1.default.fetchOrder(payment.order_id);
-                            if (orderDetails.transfers && orderDetails.transfers.length > 0) {
-                                razorpayTransferId = orderDetails.transfers[0].id || '';
-                            }
+                    try {
+                        const transfersResult = yield razorpayRouteService_1.default.fetchPaymentTransfers(paymentId);
+                        if (transfersResult.success && ((_b = (_a = transfersResult.data) === null || _a === void 0 ? void 0 : _a.items) === null || _b === void 0 ? void 0 : _b.length) > 0) {
+                            razorpayTransferId = transfersResult.data.items[0].id || '';
+                            console.log(`Video payment ${paymentId} → Route transfer ${razorpayTransferId}`);
                         }
-                        catch (e) { /* ignore fetch error */ }
+                        else {
+                            console.log(`No Route transfers found for video payment ${paymentId}`);
+                        }
+                    }
+                    catch (e) {
+                        console.error(`Failed to fetch transfers for payment ${paymentId}:`, e);
                     }
                     yield wallet_controller_1.WalletController.creditVendorEarnings({
                         vendorId: vData.uploadedBy.toString(),
@@ -266,8 +270,8 @@ const verifyVideoPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
                         razorpayPaymentId: paymentId,
                         metadata: {
                             purchaseId: purchaseData._id.toString(),
-                            customerName: ((_a = purchaseData.customerDetails) === null || _a === void 0 ? void 0 : _a.name) || '',
-                            customerEmail: ((_b = purchaseData.customerDetails) === null || _b === void 0 ? void 0 : _b.email) || '',
+                            customerName: ((_c = purchaseData.customerDetails) === null || _c === void 0 ? void 0 : _c.name) || '',
+                            customerEmail: ((_d = purchaseData.customerDetails) === null || _d === void 0 ? void 0 : _d.email) || '',
                             itemTitle: vData.title || '',
                         },
                     });

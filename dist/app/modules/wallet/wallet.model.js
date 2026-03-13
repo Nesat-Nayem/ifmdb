@@ -222,6 +222,14 @@ const withdrawalRequestSchema = new mongoose_1.Schema({
     },
     adminNotes: {
         type: String
+    },
+    isRouteWithdrawal: {
+        type: Boolean,
+        default: false
+    },
+    razorpayTransferIds: {
+        type: [String],
+        default: []
     }
 }, { timestamps: true });
 // Indexes

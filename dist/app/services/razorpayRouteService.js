@@ -25,7 +25,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateVendorReferenceId = exports.isRouteConfigured = exports.verifyWebhookSignature = exports.reverseTransfer = exports.fetchTransfer = exports.fetchPaymentTransfers = exports.createTransferFromPayment = exports.buildTransferParams = exports.getSettlementHoldDays = exports.getSettlementHoldTimestamp = exports.updateProductConfiguration = exports.requestProductConfiguration = exports.createStakeholder = exports.deleteLinkedAccount = exports.fetchLinkedAccount = exports.submitAccount = exports.createLinkedAccount = void 0;
+exports.generateVendorReferenceId = exports.isRouteConfigured = exports.verifyWebhookSignature = exports.modifySettlementHold = exports.reverseTransfer = exports.fetchTransfer = exports.fetchPaymentTransfers = exports.fetchTransfersByRecipient = exports.createTransferFromPayment = exports.buildTransferParams = exports.getSettlementHoldDays = exports.getSettlementHoldTimestamp = exports.fetchStakeholders = exports.updateStakeholder = exports.updateProductConfiguration = exports.requestProductConfiguration = exports.createStakeholder = exports.deleteLinkedAccount = exports.fetchLinkedAccount = exports.submitAccount = exports.createLinkedAccount = void 0;
 const axios_1 = __importDefault(require("axios"));
 const crypto_1 = __importDefault(require("crypto"));
 // Environment variables
@@ -249,34 +249,15 @@ const createStakeholder = (accountId, params) => __awaiter(void 0, void 0, void 
         const payload = {
             name: params.name,
             email: params.email,
-            addresses: {
-                residential: {
-                    street: 'Flat No 405, Raj Residency, Main Street',
-                    city: 'Mumbai',
-                    state: 'Maharashtra',
-                    postal_code: '400058',
-                    country: 'IN',
-                },
-            },
             relationship: {
                 executive: true,
                 director: true,
-                percentage_ownership: 100,
-            },
-            kyc: {
-                pan: 'ABCDE1234F',
             },
             notes: {
                 role: 'vendor_owner',
                 type: 'individual_stakeholder'
             }
         };
-        if (params.dob) {
-            payload.dob = params.dob; // Format: YYYY-MM-DD
-        }
-        else {
-            payload.dob = '1990-01-01'; // Default dummy DOB
-        }
         if (params.phone) {
             payload.phone = {
                 primary: params.phone,
@@ -364,6 +345,68 @@ const updateProductConfiguration = (accountId, productId, bankAccount) => __awai
     }
 });
 exports.updateProductConfiguration = updateProductConfiguration;
+/**
+ * Update a Stakeholder for a Linked Account
+ * PATCH /v2/accounts/:accountId/stakeholders/:stakeholderId
+ * Used when activation_status is needs_clarification and stakeholder fields need updating
+ */
+const updateStakeholder = (accountId, stakeholderId, params) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d, _e;
+    try {
+        const payload = {
+            name: params.name,
+            email: params.email,
+            relationship: {
+                executive: true,
+                director: true,
+            },
+        };
+        if (params.phone) {
+            payload.phone = { primary: params.phone };
+        }
+        const response = yield razorpayClientV2.patch(`/accounts/${accountId}/stakeholders/${stakeholderId}`, payload);
+        return {
+            success: true,
+            data: response.data,
+            accountId: accountId,
+            message: 'Stakeholder updated successfully',
+        };
+    }
+    catch (error) {
+        console.error('Razorpay Update Stakeholder Error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        return {
+            success: false,
+            data: (_b = error.response) === null || _b === void 0 ? void 0 : _b.data,
+            message: ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.description) || 'Failed to update stakeholder',
+        };
+    }
+});
+exports.updateStakeholder = updateStakeholder;
+/**
+ * Fetch stakeholders for a Linked Account
+ * GET /v2/accounts/:accountId/stakeholders
+ */
+const fetchStakeholders = (accountId) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d, _e;
+    try {
+        const response = yield razorpayClientV2.get(`/accounts/${accountId}/stakeholders`);
+        return {
+            success: true,
+            data: response.data,
+            accountId: accountId,
+            message: 'Stakeholders fetched successfully',
+        };
+    }
+    catch (error) {
+        console.error('Razorpay Fetch Stakeholders Error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        return {
+            success: false,
+            data: (_b = error.response) === null || _b === void 0 ? void 0 : _b.data,
+            message: ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.description) || 'Failed to fetch stakeholders',
+        };
+    }
+});
+exports.fetchStakeholders = fetchStakeholders;
 // ==================== TRANSFER OPERATIONS ====================
 /**
  * Get the settlement hold timestamp based on configurable days
@@ -437,6 +480,33 @@ const createTransferFromPayment = (paymentId, transfers) => __awaiter(void 0, vo
     }
 });
 exports.createTransferFromPayment = createTransferFromPayment;
+/**
+ * Fetch all transfers for a linked account (recipient)
+ * GET /v1/transfers?recipient=:linkedAccountId
+ * Used as fallback to find on-hold transfers when DB transactions lack razorpayTransferId
+ */
+const fetchTransfersByRecipient = (linkedAccountId_1, ...args_1) => __awaiter(void 0, [linkedAccountId_1, ...args_1], void 0, function* (linkedAccountId, count = 50) {
+    var _a, _b, _c, _d, _e;
+    try {
+        const response = yield razorpayClientV1.get(`/transfers`, {
+            params: { recipient: linkedAccountId, count },
+        });
+        return {
+            success: true,
+            data: response.data,
+            message: 'Transfers fetched successfully',
+        };
+    }
+    catch (error) {
+        console.error('Razorpay Fetch Transfers by Recipient Error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        return {
+            success: false,
+            data: (_b = error.response) === null || _b === void 0 ? void 0 : _b.data,
+            message: ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.description) || 'Failed to fetch transfers',
+        };
+    }
+});
+exports.fetchTransfersByRecipient = fetchTransfersByRecipient;
 /**
  * Fetch transfers for a payment
  * GET /v1/payments/:paymentId/transfers
@@ -513,6 +583,37 @@ notes) => __awaiter(void 0, void 0, void 0, function* () {
     }
 });
 exports.reverseTransfer = reverseTransfer;
+/**
+ * Modify settlement hold for a transfer
+ * PATCH /v1/transfers/:transferId
+ * Used to release held event transfers when admin approves withdrawal
+ */
+const modifySettlementHold = (transferId, onHold, onHoldUntil) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d, _e;
+    try {
+        const payload = {
+            on_hold: onHold,
+        };
+        if (onHoldUntil) {
+            payload.on_hold_until = onHoldUntil;
+        }
+        const response = yield razorpayClientV1.patch(`/transfers/${transferId}`, payload);
+        return {
+            success: true,
+            data: response.data,
+            message: onHold ? 'Transfer put on hold' : 'Transfer hold released successfully',
+        };
+    }
+    catch (error) {
+        console.error('Razorpay Modify Settlement Hold Error:', ((_a = error.response) === null || _a === void 0 ? void 0 : _a.data) || error.message);
+        return {
+            success: false,
+            data: (_b = error.response) === null || _b === void 0 ? void 0 : _b.data,
+            message: ((_e = (_d = (_c = error.response) === null || _c === void 0 ? void 0 : _c.data) === null || _d === void 0 ? void 0 : _d.error) === null || _e === void 0 ? void 0 : _e.description) || 'Failed to modify settlement hold',
+        };
+    }
+});
+exports.modifySettlementHold = modifySettlementHold;
 // ==================== WEBHOOK VERIFICATION ====================
 /**
  * Verify Route webhook signature
@@ -555,6 +656,8 @@ exports.default = {
     deleteLinkedAccount: exports.deleteLinkedAccount,
     submitAccount: exports.submitAccount,
     createStakeholder: exports.createStakeholder,
+    updateStakeholder: exports.updateStakeholder,
+    fetchStakeholders: exports.fetchStakeholders,
     requestProductConfiguration: exports.requestProductConfiguration,
     updateProductConfiguration: exports.updateProductConfiguration,
     // Transfers
@@ -562,9 +665,11 @@ exports.default = {
     getSettlementHoldDays: exports.getSettlementHoldDays,
     buildTransferParams: exports.buildTransferParams,
     createTransferFromPayment: exports.createTransferFromPayment,
+    fetchTransfersByRecipient: exports.fetchTransfersByRecipient,
     fetchPaymentTransfers: exports.fetchPaymentTransfers,
     fetchTransfer: exports.fetchTransfer,
     reverseTransfer: exports.reverseTransfer,
+    modifySettlementHold: exports.modifySettlementHold,
     // Webhook
     verifyWebhookSignature: exports.verifyWebhookSignature,
     // Utility
