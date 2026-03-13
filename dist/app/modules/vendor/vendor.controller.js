@@ -285,12 +285,23 @@ const createVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
 exports.createVendorApplication = createVendorApplication;
 const listVendorApplications = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { status, userId } = req.query;
+        const { status, userId, search } = req.query;
         const filter = { isDeleted: false };
         if (status)
             filter.status = status;
         if (userId)
             filter.userId = userId;
+        // Add search functionality - search by vendorName, email, phone, businessType
+        if (search && search.trim()) {
+            const searchRegex = new RegExp(search.trim(), 'i');
+            filter.$or = [
+                { vendorName: searchRegex },
+                { email: searchRegex },
+                { phone: searchRegex },
+                { businessType: searchRegex },
+                { gstNumber: searchRegex },
+            ];
+        }
         const items = yield vendor_model_1.VendorApplication.find(filter)
             .populate('selectedServices.packageId')
             .sort({ createdAt: -1 });
@@ -449,10 +460,28 @@ exports.decideVendorApplication = decideVendorApplication;
 const deleteVendorApplication = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { id } = req.params;
-        const item = yield vendor_model_1.VendorApplication.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
+        const item = yield vendor_model_1.VendorApplication.findById(id);
         if (!item)
             return next(new appError_1.appError('Vendor application not found', 404));
-        res.json({ success: true, statusCode: 200, message: 'Application deleted' });
+        // If vendor was approved, also delete the associated User account
+        let userDeleted = false;
+        if (item.status === 'approved' && item.vendorUserId) {
+            const deletedUser = yield auth_model_1.User.findByIdAndDelete(item.vendorUserId);
+            if (deletedUser) {
+                userDeleted = true;
+            }
+        }
+        // Soft delete the application
+        item.isDeleted = true;
+        yield item.save();
+        res.json({
+            success: true,
+            statusCode: 200,
+            message: userDeleted
+                ? 'Application and vendor account deleted successfully'
+                : 'Application deleted successfully',
+            data: { userDeleted }
+        });
     }
     catch (error) {
         next(error);
