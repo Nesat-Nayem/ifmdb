@@ -673,6 +673,20 @@ const options = {
                         isNotificationEnabled: { type: 'boolean', example: true },
                         subscribedAt: { type: 'string', format: 'date-time' }
                     }
+                },
+                HomepageCategory: {
+                    type: 'object',
+                    properties: {
+                        _id: { type: 'string', example: '64a9f1c2e4b0a1234567890a' },
+                        title: { type: 'string', example: 'MUSIC' },
+                        image: { type: 'string', example: 'https://res.cloudinary.com/demo/image/upload/category-music.png' },
+                        link: { type: 'string', example: '/events?category=music' },
+                        order: { type: 'integer', example: 1 },
+                        isActive: { type: 'boolean', example: true },
+                        isDeleted: { type: 'boolean', example: false },
+                        createdAt: { type: 'string', example: '1/6/2025, 12:00:00 AM' },
+                        updatedAt: { type: 'string', example: '1/6/2025, 12:00:00 AM' },
+                    }
                 }
             },
         },

@@ -39,6 +39,7 @@ const ccavenue_payment_routes_1 = __importDefault(require("../modules/payment/cc
 const iap_payment_routes_1 = __importDefault(require("../modules/payment/iap-payment.routes"));
 const watchlist_routes_1 = __importDefault(require("../modules/watchlist/watchlist.routes"));
 const dashboard_routes_1 = __importDefault(require("../modules/dashboard/dashboard.routes"));
+const homepage_category_routes_1 = require("../modules/homepage-category/homepage-category.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -180,6 +181,10 @@ const moduleRoutes = [
     {
         path: "/dashboard",
         route: dashboard_routes_1.default,
+    },
+    {
+        path: "/homepage-categories",
+        route: homepage_category_routes_1.homepageCategoryRouter,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
