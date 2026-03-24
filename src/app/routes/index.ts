@@ -34,6 +34,7 @@ import ccavenuePaymentRouter from "../modules/payment/ccavenue-payment.routes";
 import iapPaymentRouter from "../modules/payment/iap-payment.routes";
 import watchlistRouter from "../modules/watchlist/watchlist.routes";
 import dashboardRouter from "../modules/dashboard/dashboard.routes";
+import { homepageCategoryRouter } from "../modules/homepage-category/homepage-category.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -200,6 +201,10 @@ const moduleRoutes = [
   {
     path: "/dashboard",
     route: dashboardRouter,
+  },
+  {
+    path: "/homepage-categories",
+    route: homepageCategoryRouter,
   },
 ];
 
