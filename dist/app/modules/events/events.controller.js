@@ -41,10 +41,12 @@ const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
     // Build filter query
-    const filter = { isActive: true };
-    // Visibility schedule filter - only for non-admin/vendor panel requests
+    const filter = {};
     const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
     if (!isAdminOrVendor) {
+        // Public: only show active events
+        filter.isActive = true;
+        // Visibility schedule filter
         const now = new Date();
         filter.$or = [
             { isScheduled: { $ne: true } },
@@ -57,10 +59,10 @@ const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
             }
         ];
     }
-    // Only filter by vendor when explicitly requested (e.g., from admin panel)
-    // Frontend should show all events to everyone including vendors
+    // Vendor always sees only their own events (active or inactive)
+    // Admin sees all events without any vendor restriction
     const { vendorOnly } = req.query;
-    if (vendorOnly === 'true' && user && user.role === 'vendor') {
+    if (user && user.role === 'vendor' && vendorOnly === 'true') {
         filter.vendorId = user._id;
     }
     if (search) {
@@ -125,7 +127,8 @@ const getEventById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
     const user = req.user;
     const { id } = req.params;
     const event = yield events_model_1.default.findById(id);
-    if (!event || !event.isActive) {
+    const isAdminOrVendorById = user && (user.role === 'admin' || user.role === 'vendor');
+    if (!event || (!isAdminOrVendorById && !event.isActive)) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,
