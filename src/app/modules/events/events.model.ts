@@ -133,6 +133,7 @@ export interface IEvent extends Document {
   seatTypes: ISeatType[];
   maxTicketsPerPerson: number;
   posterImage: string;
+  verticalPoster?: string;
   videoUrl?: string;
   cloudflareVideoUid?: string;
   galleryImages: string[];
@@ -240,6 +241,10 @@ const eventSchema: Schema = new Schema(
     posterImage: {
       type: String,
       required: [true, 'Poster image is required']
+    },
+    verticalPoster: {
+      type: String,
+      default: ''
     },
     videoUrl: {
       type: String,
