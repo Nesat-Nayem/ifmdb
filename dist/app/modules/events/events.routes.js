@@ -1666,5 +1666,5 @@ router.delete('/scanner-access/:id', (0, authMiddleware_1.auth)('vendor', 'admin
  *       404:
  *         description: Event not found
  */
-router.get('/:id', events_controller_1.EventController.getEventById);
+router.get('/:id', (0, authMiddleware_1.optionalAuth)(), events_controller_1.EventController.getEventById);
 exports.eventRouter = router;

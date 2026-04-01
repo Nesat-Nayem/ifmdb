@@ -98,10 +98,13 @@ const getAllMovies = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
+    const isAdmin = user && user.role === 'admin';
+    const isVendor = user && user.role === 'vendor';
+    const isAdminOrVendor = isAdmin || isVendor;
     // Build filter query
-    const filter = { isActive: true };
+    // Admin sees ALL movies (active + inactive), vendor sees only their own (all statuses), public sees only active
+    const filter = isAdmin ? {} : { isActive: true };
     // Visibility schedule filter - only for non-admin/vendor panel requests
-    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
     if (!isAdminOrVendor) {
         const now = new Date();
         filter.$or = [
@@ -115,9 +118,10 @@ const getAllMovies = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
             }
         ];
     }
-    // If user is a vendor, only show their own movies
-    if (user && user.role === 'vendor') {
+    // Vendor sees only their own movies (all statuses, active + inactive)
+    if (isVendor) {
         filter.vendorId = user._id;
+        delete filter.isActive;
     }
     if (search) {
         filter.$or = [
@@ -182,7 +186,8 @@ const getMovieById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
     const user = req.user;
     const { id } = req.params;
     const movie = yield movies_model_1.default.findById(id);
-    if (!movie || !movie.isActive) {
+    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+    if (!movie || (!isAdminOrVendor && !movie.isActive)) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,
@@ -191,7 +196,6 @@ const getMovieById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
         });
     }
     // Check visibility schedule for public access
-    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
     if (!isAdminOrVendor && movie.isScheduled) {
         const now = new Date();
         if (movie.visibleFrom && now < movie.visibleFrom) {

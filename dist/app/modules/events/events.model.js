@@ -223,6 +223,10 @@ const eventSchema = new mongoose_1.Schema({
         type: String,
         required: [true, 'Poster image is required']
     },
+    verticalPoster: {
+        type: String,
+        default: ''
+    },
     videoUrl: {
         type: String,
         default: ''

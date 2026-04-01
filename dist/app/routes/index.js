@@ -40,6 +40,7 @@ const iap_payment_routes_1 = __importDefault(require("../modules/payment/iap-pay
 const watchlist_routes_1 = __importDefault(require("../modules/watchlist/watchlist.routes"));
 const dashboard_routes_1 = __importDefault(require("../modules/dashboard/dashboard.routes"));
 const homepage_category_routes_1 = require("../modules/homepage-category/homepage-category.routes");
+const event_participation_type_routes_1 = require("../modules/event-participation-type/event-participation-type.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -185,6 +186,10 @@ const moduleRoutes = [
     {
         path: "/homepage-categories",
         route: homepage_category_routes_1.homepageCategoryRouter,
+    },
+    {
+        path: "/event-participation-types",
+        route: event_participation_type_routes_1.eventParticipationTypeRouter,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

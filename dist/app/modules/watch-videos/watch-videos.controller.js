@@ -90,10 +90,8 @@ const getAllChannels = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void
     const user = req.user;
     const { page = 1, limit = 10, search, isActive, isVerified, sortBy = 'subscriberCount', sortOrder = 'desc' } = req.query;
     const query = {};
-    // Only filter by vendor when explicitly requested (e.g., from admin panel)
-    // Frontend should show all channels to everyone including vendors
-    const { vendorOnly } = req.query;
-    if (vendorOnly === 'true' && user && user.role === 'vendor') {
+    // Vendor sees only their own channels; admin sees all channels
+    if (user && user.role === 'vendor') {
         query.ownerId = user._id;
     }
     if (search) {
@@ -448,22 +446,22 @@ const createWatchVideo = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(vo
 const getAllWatchVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const user = req.user;
     const { page = 1, limit = 10, search, category, categoryId, channelId, videoType, genre, language, status, isFree, isFeatured, minPrice, maxPrice, sortBy = 'createdAt', sortOrder = 'desc', uploadedBy } = req.query;
-    const query = { isActive: true };
-    // Only filter by vendor when explicitly requested (e.g., from admin panel)
-    // Frontend should show all videos to everyone including vendors
-    const { vendorOnly } = req.query;
-    if (vendorOnly === 'true' && user && user.role === 'vendor') {
-        query.uploadedBy = user._id;
+    const isAdmin = user && user.role === 'admin';
+    const isVendor = user && user.role === 'vendor';
+    const isAdminOrVendor = isAdmin || isVendor;
+    // Admin sees ALL videos (active + inactive), vendor sees only their own channel's videos (all statuses), public sees only active
+    const query = isAdmin ? {} : { isActive: true };
+    // Vendor sees only videos belonging to their channels (all statuses, active + inactive)
+    if (isVendor) {
+        const vendorChannelIds = yield watch_videos_model_1.Channel.find({ ownerId: user._id }).distinct('_id');
+        query.channelId = { $in: vendorChannelIds };
+        delete query.isActive;
     }
     // Visibility schedule filter - only for non-admin/vendor panel requests
-    // Admin and vendors can see all their videos regardless of schedule
-    const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
     if (!isAdminOrVendor) {
         const now = new Date();
         query.$or = [
-            // Not scheduled videos
             { isScheduled: { $ne: true } },
-            // Scheduled videos within visibility window
             {
                 isScheduled: true,
                 $and: [
@@ -541,7 +539,7 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     const video = yield watch_videos_model_1.WatchVideo.findById(id)
         .populate('channelId', 'name logoUrl bannerUrl isVerified subscriberCount description')
         .populate('categoryId', 'name');
-    if (!video || !video.isActive) {
+    if (!video || (!isAdminOrVendor && !video.isActive)) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,

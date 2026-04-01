@@ -556,7 +556,7 @@ router.delete('/categories/:id', movies_controller_1.MovieController.deleteMovie
  *       404:
  *         description: Movie not found
  */
-router.get('/:id', movies_controller_1.MovieController.getMovieById);
+router.get('/:id', (0, authMiddleware_1.optionalAuth)(), movies_controller_1.MovieController.getMovieById);
 /**
  * @swagger
  * /v1/api/movies/{id}/cast-crew:

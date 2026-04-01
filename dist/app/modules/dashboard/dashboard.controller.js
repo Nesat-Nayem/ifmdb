@@ -53,14 +53,19 @@ const getDashboardStats = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     // Build filter based on role
     const vendorFilter = isVendor ? { vendorId: userId } : {};
     // ==================== CONTENT COUNTS ====================
+    // Admin sees ALL content counts (active + inactive), vendor sees only their own
+    const vendorChannelIds = isVendor
+        ? yield watch_videos_model_1.Channel.find({ ownerId: userId }).distinct('_id')
+        : [];
+    const videoFilter = isAdmin ? {} : { channelId: { $in: vendorChannelIds } };
     const [totalMovies, totalEvents, totalWatchVideos, totalChannels, activeMovies, activeEvents, activeWatchVideos,] = yield Promise.all([
-        movies_model_1.default.countDocuments(Object.assign(Object.assign({}, vendorFilter), { isActive: true })),
-        events_model_1.default.countDocuments(Object.assign(Object.assign({}, vendorFilter), { isActive: true })),
-        watch_videos_model_1.WatchVideo.countDocuments(isVendor ? { 'channelId': { $in: yield watch_videos_model_1.Channel.find({ ownerId: userId }).distinct('_id') } } : { isActive: true }),
+        movies_model_1.default.countDocuments(isAdmin ? {} : { vendorId: userId }),
+        events_model_1.default.countDocuments(isAdmin ? {} : { vendorId: userId }),
+        watch_videos_model_1.WatchVideo.countDocuments(videoFilter),
         watch_videos_model_1.Channel.countDocuments(isVendor ? { ownerId: userId } : {}),
-        movies_model_1.default.countDocuments(Object.assign(Object.assign({}, vendorFilter), { isActive: true, status: 'released' })),
-        events_model_1.default.countDocuments(Object.assign(Object.assign({}, vendorFilter), { isActive: true, status: { $in: ['upcoming', 'ongoing'] } })),
-        watch_videos_model_1.WatchVideo.countDocuments(isVendor ? { 'channelId': { $in: yield watch_videos_model_1.Channel.find({ ownerId: userId }).distinct('_id') }, isActive: true } : { isActive: true }),
+        movies_model_1.default.countDocuments(isAdmin ? { isActive: true, status: 'released' } : { vendorId: userId, isActive: true, status: 'released' }),
+        events_model_1.default.countDocuments(isAdmin ? { isActive: true, status: { $in: ['upcoming', 'ongoing'] } } : { vendorId: userId, isActive: true, status: { $in: ['upcoming', 'ongoing'] } }),
+        watch_videos_model_1.WatchVideo.countDocuments(isAdmin ? { isActive: true } : { channelId: { $in: vendorChannelIds }, isActive: true }),
     ]);
     // ==================== REVENUE DATA (ADMIN ONLY OR VENDOR'S OWN) ====================
     let revenueData = {};
