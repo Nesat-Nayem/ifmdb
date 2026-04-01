@@ -108,11 +108,15 @@ const getAllMovies = catchAsync(async (req: Request, res: Response) => {
   const limitNum = parseInt(limit as string);
   const skip = (pageNum - 1) * limitNum;
 
+  const isAdmin = user && user.role === 'admin';
+  const isVendor = user && user.role === 'vendor';
+  const isAdminOrVendor = isAdmin || isVendor;
+
   // Build filter query
-  const filter: any = { isActive: true };
+  // Admin sees ALL movies (active + inactive), vendor sees only their own (all statuses), public sees only active
+  const filter: any = isAdmin ? {} : { isActive: true };
 
   // Visibility schedule filter - only for non-admin/vendor panel requests
-  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
   if (!isAdminOrVendor) {
     const now = new Date();
     filter.$or = [
@@ -127,9 +131,10 @@ const getAllMovies = catchAsync(async (req: Request, res: Response) => {
     ];
   }
 
-  // If user is a vendor, only show their own movies
-  if (user && user.role === 'vendor') {
+  // Vendor sees only their own movies (all statuses, active + inactive)
+  if (isVendor) {
     filter.vendorId = user._id;
+    delete filter.isActive;
   }
 
   if (search) {

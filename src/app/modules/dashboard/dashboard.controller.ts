@@ -46,6 +46,13 @@ const getDashboardStats = catchAsync(async (req: Request, res: Response) => {
   const vendorFilter = isVendor ? { vendorId: userId } : {};
 
   // ==================== CONTENT COUNTS ====================
+  // Admin sees ALL content counts (active + inactive), vendor sees only their own
+  const vendorChannelIds = isVendor
+    ? await Channel.find({ ownerId: userId }).distinct('_id')
+    : [];
+
+  const videoFilter = isAdmin ? {} : { channelId: { $in: vendorChannelIds } };
+
   const [
     totalMovies,
     totalEvents,
@@ -55,13 +62,13 @@ const getDashboardStats = catchAsync(async (req: Request, res: Response) => {
     activeEvents,
     activeWatchVideos,
   ] = await Promise.all([
-    Movie.countDocuments({ ...vendorFilter, isActive: true }),
-    Event.countDocuments({ ...vendorFilter, isActive: true }),
-    WatchVideo.countDocuments(isVendor ? { 'channelId': { $in: await Channel.find({ ownerId: userId }).distinct('_id') } } : { isActive: true }),
+    Movie.countDocuments(isAdmin ? {} : { vendorId: userId }),
+    Event.countDocuments(isAdmin ? {} : { vendorId: userId }),
+    WatchVideo.countDocuments(videoFilter),
     Channel.countDocuments(isVendor ? { ownerId: userId } : {}),
-    Movie.countDocuments({ ...vendorFilter, isActive: true, status: 'released' }),
-    Event.countDocuments({ ...vendorFilter, isActive: true, status: { $in: ['upcoming', 'ongoing'] } }),
-    WatchVideo.countDocuments(isVendor ? { 'channelId': { $in: await Channel.find({ ownerId: userId }).distinct('_id') }, isActive: true } : { isActive: true }),
+    Movie.countDocuments(isAdmin ? { isActive: true, status: 'released' } : { vendorId: userId, isActive: true, status: 'released' }),
+    Event.countDocuments(isAdmin ? { isActive: true, status: { $in: ['upcoming', 'ongoing'] } } : { vendorId: userId, isActive: true, status: { $in: ['upcoming', 'ongoing'] } }),
+    WatchVideo.countDocuments(isAdmin ? { isActive: true } : { channelId: { $in: vendorChannelIds }, isActive: true }),
   ]);
 
   // ==================== REVENUE DATA (ADMIN ONLY OR VENDOR'S OWN) ====================

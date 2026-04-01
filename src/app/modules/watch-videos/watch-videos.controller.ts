@@ -113,10 +113,8 @@ const getAllChannels = catchAsync(async (req: Request, res: Response) => {
 
   const query: any = {};
 
-  // Only filter by vendor when explicitly requested (e.g., from admin panel)
-  // Frontend should show all channels to everyone including vendors
-  const { vendorOnly } = req.query;
-  if (vendorOnly === 'true' && user && user.role === 'vendor') {
+  // Vendor sees only their own channels; admin sees all channels
+  if (user && user.role === 'vendor') {
     query.ownerId = user._id;
   }
 
@@ -559,24 +557,25 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
     uploadedBy
   } = req.query;
 
-  const query: any = { isActive: true };
+  const isAdmin = user && user.role === 'admin';
+  const isVendor = user && user.role === 'vendor';
+  const isAdminOrVendor = isAdmin || isVendor;
 
-  // Only filter by vendor when explicitly requested (e.g., from admin panel)
-  // Frontend should show all videos to everyone including vendors
-  const { vendorOnly } = req.query;
-  if (vendorOnly === 'true' && user && user.role === 'vendor') {
-    query.uploadedBy = user._id;
+  // Admin sees ALL videos (active + inactive), vendor sees only their own channel's videos (all statuses), public sees only active
+  const query: any = isAdmin ? {} : { isActive: true };
+
+  // Vendor sees only videos belonging to their channels (all statuses, active + inactive)
+  if (isVendor) {
+    const vendorChannelIds = await Channel.find({ ownerId: user._id }).distinct('_id');
+    query.channelId = { $in: vendorChannelIds };
+    delete query.isActive;
   }
 
   // Visibility schedule filter - only for non-admin/vendor panel requests
-  // Admin and vendors can see all their videos regardless of schedule
-  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
   if (!isAdminOrVendor) {
     const now = new Date();
     query.$or = [
-      // Not scheduled videos
       { isScheduled: { $ne: true } },
-      // Scheduled videos within visibility window
       {
         isScheduled: true,
         $and: [
