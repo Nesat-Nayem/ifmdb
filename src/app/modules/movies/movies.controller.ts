@@ -201,8 +201,10 @@ const getMovieById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   
   const movie = await Movie.findById(id);
-  
-  if (!movie || !movie.isActive) {
+
+  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
+
+  if (!movie || (!isAdminOrVendor && !movie.isActive)) {
     return sendResponse(res, {
       statusCode: httpStatus.NOT_FOUND,
       success: false,
@@ -212,7 +214,6 @@ const getMovieById = catchAsync(async (req: Request, res: Response) => {
   }
 
   // Check visibility schedule for public access
-  const isAdminOrVendor = user && (user.role === 'admin' || user.role === 'vendor');
   if (!isAdminOrVendor && movie.isScheduled) {
     const now = new Date();
     if (movie.visibleFrom && now < movie.visibleFrom) {

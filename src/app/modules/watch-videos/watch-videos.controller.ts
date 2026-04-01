@@ -650,7 +650,7 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
     .populate('channelId', 'name logoUrl bannerUrl isVerified subscriberCount description')
     .populate('categoryId', 'name');
 
-  if (!video || !video.isActive) {
+  if (!video || (!isAdminOrVendor && !video.isActive)) {
     return sendResponse(res, {
       statusCode: httpStatus.NOT_FOUND,
       success: false,

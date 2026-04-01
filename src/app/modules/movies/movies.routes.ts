@@ -573,7 +573,7 @@ router.delete('/categories/:id', MovieController.deleteMovieCategory);
  *       404:
  *         description: Movie not found
  */
-router.get('/:id', MovieController.getMovieById);
+router.get('/:id', optionalAuth(), MovieController.getMovieById);
 
 /**
  * @swagger

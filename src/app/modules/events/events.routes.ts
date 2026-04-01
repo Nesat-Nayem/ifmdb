@@ -1720,6 +1720,6 @@ router.delete('/scanner-access/:id', auth('vendor', 'admin'), TicketScannerContr
  *       404:
  *         description: Event not found
  */
-router.get('/:id', EventController.getEventById);
+router.get('/:id', optionalAuth(), EventController.getEventById);
 
 export const eventRouter = router;
