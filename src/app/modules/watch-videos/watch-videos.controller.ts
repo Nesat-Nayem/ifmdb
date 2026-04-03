@@ -748,8 +748,25 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
   // Build Cloudflare download URL for users who can watch
   const cloudflareCustomerCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
   let downloadUrl: string | null = null;
-  if ((canWatch || isAdminOrVendor) && videoObj.cloudflareVideoUid && cloudflareCustomerCode) {
-    downloadUrl = `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${videoObj.cloudflareVideoUid}/downloads/default.mp4`;
+
+  // Resolve the Cloudflare UID — prefer stored field, fall back to extracting from videoUrl
+  let resolvedCloudflareUid: string | null = videoObj.cloudflareVideoUid || null;
+  if (!resolvedCloudflareUid && videoObj.videoUrl) {
+    // videoUrl format: https://customer-<code>.cloudflarestream.com/<uid>/iframe
+    const cfMatch = videoObj.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+    if (cfMatch) {
+      resolvedCloudflareUid = cfMatch[1];
+      console.log(`[WatchVideo] Extracted Cloudflare UID from videoUrl: ${resolvedCloudflareUid}`);
+    }
+  }
+
+  console.log(`[WatchVideo] canWatch=${canWatch}, isAdminOrVendor=${isAdminOrVendor}, resolvedCloudflareUid=${resolvedCloudflareUid}, cloudflareCustomerCode=${cloudflareCustomerCode ? 'set' : 'NOT SET'}`);
+
+  if ((canWatch || isAdminOrVendor) && resolvedCloudflareUid && cloudflareCustomerCode) {
+    downloadUrl = `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${resolvedCloudflareUid}/downloads/default.mp4`;
+    console.log(`[WatchVideo] downloadUrl generated: ${downloadUrl}`);
+  } else {
+    console.log(`[WatchVideo] downloadUrl NOT generated — missing: ${!resolvedCloudflareUid ? 'cloudflareUid' : ''} ${!cloudflareCustomerCode ? 'CLOUDFLARE_STREAM_CUSTOMER_CODE env var' : ''}`);
   }
   
   if (!canWatch && !isAdminOrVendor) {
@@ -1531,8 +1548,14 @@ const getSecureVideoStream = catchAsync(async (req: Request, res: Response) => {
     const streamToken = generateStreamToken(videoId, userId as string || 'anonymous', 60);
     const videoDataFree = video as any;
     const cfCodeFree = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
-    const downloadUrlFree = videoDataFree.cloudflareVideoUid && cfCodeFree
-      ? `https://customer-${cfCodeFree}.cloudflarestream.com/${videoDataFree.cloudflareVideoUid}/downloads/default.mp4`
+    // Resolve UID: prefer stored field, fall back to extracting from videoUrl
+    let freeUid = videoDataFree.cloudflareVideoUid || null;
+    if (!freeUid && videoDataFree.videoUrl) {
+      const m = videoDataFree.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+      if (m) freeUid = m[1];
+    }
+    const downloadUrlFree = freeUid && cfCodeFree
+      ? `https://customer-${cfCodeFree}.cloudflarestream.com/${freeUid}/downloads/default.mp4`
       : null;
 
     return sendResponse(res, {
@@ -1586,8 +1609,14 @@ const getSecureVideoStream = catchAsync(async (req: Request, res: Response) => {
   // For regular videos, return the URL with our signed token
   const videoData = video as any;
   const cfCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
-  const downloadUrl = videoData.cloudflareVideoUid && cfCode
-    ? `https://customer-${cfCode}.cloudflarestream.com/${videoData.cloudflareVideoUid}/downloads/default.mp4`
+  // Resolve UID: prefer stored field, fall back to extracting from videoUrl
+  let resolvedUid = videoData.cloudflareVideoUid || null;
+  if (!resolvedUid && videoData.videoUrl) {
+    const m = videoData.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+    if (m) resolvedUid = m[1];
+  }
+  const downloadUrl = resolvedUid && cfCode
+    ? `https://customer-${cfCode}.cloudflarestream.com/${resolvedUid}/downloads/default.mp4`
     : null;
   
   return sendResponse(res, {
