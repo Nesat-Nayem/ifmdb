@@ -19,6 +19,9 @@ router.get('/video/:videoId', CloudflareStreamController.getVideoDetails);
 // Get video status (for polling during processing)
 router.get('/video/:videoId/status', CloudflareStreamController.getVideoStatus);
 
+// Enable MP4 download for a video (equivalent to "Generate Download" in Cloudflare dashboard)
+router.post('/video/:videoId/enable-download', auth(), CloudflareStreamController.enableDownload);
+
 // Delete video
 router.delete('/video/:videoId', auth(), CloudflareStreamController.deleteVideo);
 

@@ -18,6 +18,7 @@ import {
 } from './watch-videos.model';
 import notificationService from '../notifications/notifications.service';
 import videoExpiryScheduler from '../../schedulers/videoExpiryScheduler';
+import { triggerCloudflareDownload } from '../cloudflare-stream/cloudflare-stream.controller';
 
 // ==================== DEEP LINK REDIRECT ====================
 
@@ -511,6 +512,17 @@ const createWatchVideo = catchAsync(async (req: Request, res: Response) => {
   }
 
   const newVideo = await WatchVideo.create(videoData);
+
+  // Auto-trigger Cloudflare MP4 download generation so the download URL is ready for users.
+  // Extract UID from stored field or from the iframe videoUrl.
+  const cfUid: string = (videoData.cloudflareVideoUid as string) || (() => {
+    const m = (videoData.videoUrl as string || '').match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+    return m ? m[1] : '';
+  })();
+  if (cfUid) {
+    // Fire-and-forget — don't await so video creation isn't delayed
+    triggerCloudflareDownload(cfUid).catch(() => {});
+  }
 
   // Notify channel subscribers about the new video
   try {

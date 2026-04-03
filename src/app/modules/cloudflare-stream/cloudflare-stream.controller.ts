@@ -398,6 +398,85 @@ const listVideos = catchAsync(async (req: Request, res: Response) => {
 });
 
 /**
+ * Enable MP4 download for a Cloudflare Stream video.
+ * This calls the Cloudflare API equivalent of clicking "Generate Download" in the dashboard.
+ * Cloudflare will asynchronously encode an MP4; once ready the download URL becomes active.
+ */
+const enableDownload = catchAsync(async (req: Request, res: Response) => {
+  const { videoId } = req.params;
+
+  if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN) {
+    return sendResponse(res, {
+      statusCode: httpStatus.INTERNAL_SERVER_ERROR,
+      success: false,
+      message: 'Cloudflare configuration missing',
+      data: null,
+    });
+  }
+
+  const response = await axios.post(
+    `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/${videoId}/downloads`,
+    {},
+    {
+      headers: {
+        'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      validateStatus: (status) => status < 500,
+    }
+  );
+
+  if (!response.data.success) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: 'Failed to enable download on Cloudflare',
+      data: response.data.errors,
+    });
+  }
+
+  const result = response.data.result?.default;
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Download generation triggered successfully',
+    data: {
+      uid: videoId,
+      status: result?.status || 'inprogress',
+      url: result?.url || `https://customer-${CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com/${videoId}/downloads/default.mp4`,
+    },
+  });
+});
+
+/**
+ * Reusable helper — call this internally (not via HTTP) to trigger download generation.
+ * Returns true if successful, false otherwise (never throws so it won't break video creation).
+ */
+export const triggerCloudflareDownload = async (videoUid: string): Promise<boolean> => {
+  if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN || !videoUid) return false;
+  try {
+    const response = await axios.post(
+      `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/${videoUid}/downloads`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        validateStatus: (status) => status < 500,
+      }
+    );
+    const ok = response.data.success === true;
+    console.log(`[Cloudflare] triggerDownload uid=${videoUid} success=${ok}`);
+    return ok;
+  } catch (err: any) {
+    console.error(`[Cloudflare] triggerDownload failed for uid=${videoUid}:`, err.message);
+    return false;
+  }
+};
+
+/**
  * Get Cloudflare Stream configuration for frontend
  */
 const getConfig = catchAsync(async (req: Request, res: Response) => {
@@ -420,4 +499,5 @@ export const CloudflareStreamController = {
   deleteVideo,
   listVideos,
   getConfig,
+  enableDownload,
 };
