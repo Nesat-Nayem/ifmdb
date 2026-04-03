@@ -1169,7 +1169,12 @@ router.get('/purchases', RazorpayVideoPaymentController.getAllPurchases);
  * /v1/api/watch-videos/{id}:
  *   get:
  *     summary: Get watch video by ID
- *     description: Retrieve detailed information about a specific video
+ *     description: >
+ *       Retrieve detailed information about a specific video.
+ *       For free videos or videos the authenticated user has purchased, the response
+ *       includes `videoUrl`, `canWatch: true`, and a `downloadUrl` (Cloudflare Stream
+ *       MP4 download link). For paid videos the user has not purchased, `videoUrl` and
+ *       `cloudflareVideoUid` are hidden and `downloadUrl` is null.
  *     tags: [Watch Videos]
  *     parameters:
  *       - in: path
@@ -1179,6 +1184,17 @@ router.get('/purchases', RazorpayVideoPaymentController.getAllPurchases);
  *           type: string
  *         description: Video ID
  *         example: 67890abcdef1234567890789
+ *       - in: query
+ *         name: userId
+ *         schema:
+ *           type: string
+ *         description: User ID to check purchase/access status
+ *       - in: query
+ *         name: countryCode
+ *         schema:
+ *           type: string
+ *         description: ISO country code for localised pricing (e.g. IN, US)
+ *         example: IN
  *     responses:
  *       200:
  *         description: Video retrieved successfully
@@ -1197,7 +1213,43 @@ router.get('/purchases', RazorpayVideoPaymentController.getAllPurchases);
  *                   type: string
  *                   example: Video retrieved successfully
  *                 data:
- *                   $ref: '#/components/schemas/WatchVideo'
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/WatchVideo'
+ *                     - type: object
+ *                       properties:
+ *                         canWatch:
+ *                           type: boolean
+ *                           description: True if the user can watch this video (free or purchased)
+ *                           example: true
+ *                         hasPurchased:
+ *                           type: boolean
+ *                           description: True if the authenticated user has a completed purchase
+ *                           example: false
+ *                         isSubscribed:
+ *                           type: boolean
+ *                           description: True if the user is subscribed to the video's channel
+ *                           example: false
+ *                         userPrice:
+ *                           type: number
+ *                           description: Price in the user's local currency
+ *                           example: 199
+ *                         userCurrency:
+ *                           type: string
+ *                           description: Currency code for userPrice
+ *                           example: INR
+ *                         downloadUrl:
+ *                           type: string
+ *                           nullable: true
+ *                           description: >
+ *                             Cloudflare Stream MP4 download URL. Only present (non-null)
+ *                             when canWatch is true and the video was uploaded via
+ *                             Cloudflare Stream. Use this URL to allow users to download
+ *                             the video (matches the Flutter mobile app download feature).
+ *                           example: "https://customer-abc123.cloudflarestream.com/uid123/downloads/default.mp4"
+ *                         requiresSecureStream:
+ *                           type: boolean
+ *                           description: True for paid videos; use the /stream endpoint to obtain a secure playback URL
+ *                           example: true
  *       404:
  *         description: Video not found
  *         content:

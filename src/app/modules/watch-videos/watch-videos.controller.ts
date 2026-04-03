@@ -733,6 +733,13 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
   // Admin and vendor users always get full video URLs (needed for edit/manage)
   const videoObj = video.toObject() as any;
   const canWatch = video.isFree || hasPurchased;
+
+  // Build Cloudflare download URL for users who can watch
+  const cloudflareCustomerCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
+  let downloadUrl: string | null = null;
+  if ((canWatch || isAdminOrVendor) && videoObj.cloudflareVideoUid && cloudflareCustomerCode) {
+    downloadUrl = `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${videoObj.cloudflareVideoUid}/downloads/default.mp4`;
+  }
   
   if (!canWatch && !isAdminOrVendor) {
     // Hide actual video URLs for unpurchased paid content (public users only)
@@ -761,6 +768,7 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
       hasPurchased,
       isSubscribed,
       canWatch,
+      downloadUrl,
       // Indicate that secure streaming is required
       requiresSecureStream: !video.isFree,
     },
@@ -1510,7 +1518,12 @@ const getSecureVideoStream = catchAsync(async (req: Request, res: Response) => {
   // If video is free, generate stream token and return URL
   if (video.isFree) {
     const streamToken = generateStreamToken(videoId, userId as string || 'anonymous', 60);
-    
+    const videoDataFree = video as any;
+    const cfCodeFree = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
+    const downloadUrlFree = videoDataFree.cloudflareVideoUid && cfCodeFree
+      ? `https://customer-${cfCodeFree}.cloudflarestream.com/${videoDataFree.cloudflareVideoUid}/downloads/default.mp4`
+      : null;
+
     return sendResponse(res, {
       statusCode: httpStatus.OK,
       success: true,
@@ -1520,6 +1533,7 @@ const getSecureVideoStream = catchAsync(async (req: Request, res: Response) => {
         streamToken,
         expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
         isSecured: true,
+        downloadUrl: downloadUrlFree,
       },
     });
   }
@@ -1560,6 +1574,10 @@ const getSecureVideoStream = catchAsync(async (req: Request, res: Response) => {
   // For Cloudflare Stream videos, we can use their signed URLs feature
   // For regular videos, return the URL with our signed token
   const videoData = video as any;
+  const cfCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
+  const downloadUrl = videoData.cloudflareVideoUid && cfCode
+    ? `https://customer-${cfCode}.cloudflarestream.com/${videoData.cloudflareVideoUid}/downloads/default.mp4`
+    : null;
   
   return sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -1571,6 +1589,7 @@ const getSecureVideoStream = catchAsync(async (req: Request, res: Response) => {
       expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
       isSecured: true,
       cloudflareVideoUid: videoData.cloudflareVideoUid || null,
+      downloadUrl,
     },
   });
 });
