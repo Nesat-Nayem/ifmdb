@@ -331,6 +331,14 @@ const watchVideoSchema = new mongoose_1.Schema({
         type: String,
         default: ''
     },
+    cloudflareVideoUid: {
+        type: String,
+        default: ''
+    },
+    cloudflareTrailerUid: {
+        type: String,
+        default: ''
+    },
     // Multi-language support
     subtitles: [SubtitleSchema],
     audioTracks: [AudioTrackSchema],

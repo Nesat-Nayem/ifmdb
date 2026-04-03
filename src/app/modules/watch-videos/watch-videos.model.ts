@@ -297,6 +297,8 @@ export interface IWatchVideo extends Document {
   // For single video
   videoUrl?: string;
   trailerUrl?: string;
+  cloudflareVideoUid?: string;
+  cloudflareTrailerUid?: string;
   
   // For series
   seasons?: typeof SeasonSchema[];
@@ -395,6 +397,14 @@ const watchVideoSchema: Schema = new Schema(
       default: ''
     },
     trailerUrl: {
+      type: String,
+      default: ''
+    },
+    cloudflareVideoUid: {
+      type: String,
+      default: ''
+    },
+    cloudflareTrailerUid: {
       type: String,
       default: ''
     },

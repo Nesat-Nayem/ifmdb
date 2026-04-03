@@ -621,11 +621,22 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
     WatchVideo.countDocuments(query)
   ]);
 
+  // Strip sensitive video URLs from list response for public users
+  const responseVideos = isAdminOrVendor
+    ? videos
+    : videos.map((v: any) => {
+        const obj = v.toObject();
+        delete obj.videoUrl;
+        delete obj.cloudflareVideoUid;
+        delete obj.cloudflareTrailerUid;
+        return obj;
+      });
+
   return sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: 'Videos retrieved successfully',
-    data: videos,
+    data: responseVideos,
     meta: {
       page: Number(page),
       limit: Number(limit),

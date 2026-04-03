@@ -513,11 +513,21 @@ const getAllWatchVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
             .limit(Number(limit)),
         watch_videos_model_1.WatchVideo.countDocuments(query)
     ]);
+    // Strip sensitive video URLs from list response for public users
+    const responseVideos = isAdminOrVendor
+        ? videos
+        : videos.map((v) => {
+            const obj = v.toObject();
+            delete obj.videoUrl;
+            delete obj.cloudflareVideoUid;
+            delete obj.cloudflareTrailerUid;
+            return obj;
+        });
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
         message: 'Videos retrieved successfully',
-        data: videos,
+        data: responseVideos,
         meta: {
             page: Number(page),
             limit: Number(limit),
@@ -610,6 +620,12 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     // Admin and vendor users always get full video URLs (needed for edit/manage)
     const videoObj = video.toObject();
     const canWatch = video.isFree || hasPurchased;
+    // Build Cloudflare download URL for users who can watch
+    const cloudflareCustomerCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
+    let downloadUrl = null;
+    if ((canWatch || isAdminOrVendor) && videoObj.cloudflareVideoUid && cloudflareCustomerCode) {
+        downloadUrl = `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${videoObj.cloudflareVideoUid}/downloads/default.mp4`;
+    }
     if (!canWatch && !isAdminOrVendor) {
         // Hide actual video URLs for unpurchased paid content (public users only)
         videoObj.videoUrl = null;
@@ -628,7 +644,8 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
         message: 'Video retrieved successfully',
         data: Object.assign(Object.assign({}, videoObj), { userPrice: price, userCurrency: currency, hasPurchased,
             isSubscribed,
-            canWatch, 
+            canWatch,
+            downloadUrl, 
             // Indicate that secure streaming is required
             requiresSecureStream: !video.isFree }),
     });
@@ -1235,6 +1252,11 @@ const getSecureVideoStream = (0, catchAsync_1.catchAsync)((req, res) => __awaite
     // If video is free, generate stream token and return URL
     if (video.isFree) {
         const streamToken = generateStreamToken(videoId, userId || 'anonymous', 60);
+        const videoDataFree = video;
+        const cfCodeFree = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
+        const downloadUrlFree = videoDataFree.cloudflareVideoUid && cfCodeFree
+            ? `https://customer-${cfCodeFree}.cloudflarestream.com/${videoDataFree.cloudflareVideoUid}/downloads/default.mp4`
+            : null;
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.OK,
             success: true,
@@ -1244,6 +1266,7 @@ const getSecureVideoStream = (0, catchAsync_1.catchAsync)((req, res) => __awaite
                 streamToken,
                 expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
                 isSecured: true,
+                downloadUrl: downloadUrlFree,
             },
         });
     }
@@ -1279,6 +1302,10 @@ const getSecureVideoStream = (0, catchAsync_1.catchAsync)((req, res) => __awaite
     // For Cloudflare Stream videos, we can use their signed URLs feature
     // For regular videos, return the URL with our signed token
     const videoData = video;
+    const cfCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
+    const downloadUrl = videoData.cloudflareVideoUid && cfCode
+        ? `https://customer-${cfCode}.cloudflarestream.com/${videoData.cloudflareVideoUid}/downloads/default.mp4`
+        : null;
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -1289,6 +1316,7 @@ const getSecureVideoStream = (0, catchAsync_1.catchAsync)((req, res) => __awaite
             expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 1 hour
             isSecured: true,
             cloudflareVideoUid: videoData.cloudflareVideoUid || null,
+            downloadUrl,
         },
     });
 }));
