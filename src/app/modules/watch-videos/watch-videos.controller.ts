@@ -857,14 +857,11 @@ const updateWatchVideo = catchAsync(async (req: Request, res: Response) => {
 });
 
 // Delete Watch Video
+// Delete Watch Video (hard delete)
 const deleteWatchVideo = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const video = await WatchVideo.findByIdAndUpdate(
-    id,
-    { isActive: false, status: 'archived' },
-    { new: true }
-  );
+  const video = await WatchVideo.findByIdAndDelete(id);
 
   if (!video) {
     return sendResponse(res, {

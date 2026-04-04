@@ -218,15 +218,11 @@ const updateEvent = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Delete event (soft delete)
+// Delete event (hard delete)
 const deleteEvent = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   
-  const deletedEvent = await Event.findByIdAndUpdate(
-    id,
-    { isActive: false },
-    { new: true }
-  );
+  const deletedEvent = await Event.findByIdAndDelete(id);
   
   if (!deletedEvent) {
     return sendResponse(res, {

@@ -321,15 +321,11 @@ const updateMovie = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Delete movie (soft delete)
+// Delete movie (hard delete)
 const deleteMovie = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   
-  const deletedMovie = await Movie.findByIdAndUpdate(
-    id,
-    { isActive: false },
-    { new: true }
-  );
+  const deletedMovie = await Movie.findByIdAndDelete(id);
   
   if (!deletedMovie) {
     return sendResponse(res, {
