@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CloudflareStreamController = void 0;
+exports.CloudflareStreamController = exports.triggerCloudflareDownload = void 0;
 const http_status_1 = __importDefault(require("http-status"));
 const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
@@ -339,6 +339,74 @@ const listVideos = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, 
     });
 }));
 /**
+ * Enable MP4 download for a Cloudflare Stream video.
+ * This calls the Cloudflare API equivalent of clicking "Generate Download" in the dashboard.
+ * Cloudflare will asynchronously encode an MP4; once ready the download URL becomes active.
+ */
+const enableDownload = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const { videoId } = req.params;
+    if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.INTERNAL_SERVER_ERROR,
+            success: false,
+            message: 'Cloudflare configuration missing',
+            data: null,
+        });
+    }
+    const response = yield axios_1.default.post(`https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/${videoId}/downloads`, {}, {
+        headers: {
+            'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+            'Content-Type': 'application/json',
+        },
+        validateStatus: (status) => status < 500,
+    });
+    if (!response.data.success) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.BAD_REQUEST,
+            success: false,
+            message: 'Failed to enable download on Cloudflare',
+            data: response.data.errors,
+        });
+    }
+    const result = (_a = response.data.result) === null || _a === void 0 ? void 0 : _a.default;
+    (0, sendResponse_1.sendResponse)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Download generation triggered successfully',
+        data: {
+            uid: videoId,
+            status: (result === null || result === void 0 ? void 0 : result.status) || 'inprogress',
+            url: (result === null || result === void 0 ? void 0 : result.url) || `https://customer-${CLOUDFLARE_STREAM_CUSTOMER_CODE}.cloudflarestream.com/${videoId}/downloads/default.mp4`,
+        },
+    });
+}));
+/**
+ * Reusable helper — call this internally (not via HTTP) to trigger download generation.
+ * Returns true if successful, false otherwise (never throws so it won't break video creation).
+ */
+const triggerCloudflareDownload = (videoUid) => __awaiter(void 0, void 0, void 0, function* () {
+    if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_TOKEN || !videoUid)
+        return false;
+    try {
+        const response = yield axios_1.default.post(`https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/stream/${videoUid}/downloads`, {}, {
+            headers: {
+                'Authorization': `Bearer ${CLOUDFLARE_API_TOKEN}`,
+                'Content-Type': 'application/json',
+            },
+            validateStatus: (status) => status < 500,
+        });
+        const ok = response.data.success === true;
+        console.log(`[Cloudflare] triggerDownload uid=${videoUid} success=${ok}`);
+        return ok;
+    }
+    catch (err) {
+        console.error(`[Cloudflare] triggerDownload failed for uid=${videoUid}:`, err.message);
+        return false;
+    }
+});
+exports.triggerCloudflareDownload = triggerCloudflareDownload;
+/**
  * Get Cloudflare Stream configuration for frontend
  */
 const getConfig = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -360,4 +428,5 @@ exports.CloudflareStreamController = {
     deleteVideo,
     listVideos,
     getConfig,
+    enableDownload,
 };

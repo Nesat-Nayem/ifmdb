@@ -21,6 +21,7 @@ const sendResponse_1 = require("../../utils/sendResponse");
 const watch_videos_model_1 = require("./watch-videos.model");
 const notifications_service_1 = __importDefault(require("../notifications/notifications.service"));
 const videoExpiryScheduler_1 = __importDefault(require("../../schedulers/videoExpiryScheduler"));
+const cloudflare_stream_controller_1 = require("../cloudflare-stream/cloudflare-stream.controller");
 // ==================== DEEP LINK REDIRECT ====================
 /**
  * Handle deep link redirects for mobile app
@@ -421,6 +422,16 @@ const createWatchVideo = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(vo
         videoData.totalEpisodes = videoData.seasons.reduce((total, season) => { var _a; return total + (((_a = season.episodes) === null || _a === void 0 ? void 0 : _a.length) || 0); }, 0);
     }
     const newVideo = yield watch_videos_model_1.WatchVideo.create(videoData);
+    // Auto-trigger Cloudflare MP4 download generation so the download URL is ready for users.
+    // Extract UID from stored field or from the iframe videoUrl.
+    const cfUid = videoData.cloudflareVideoUid || (() => {
+        const m = (videoData.videoUrl || '').match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+        return m ? m[1] : '';
+    })();
+    if (cfUid) {
+        // Fire-and-forget — don't await so video creation isn't delayed
+        (0, cloudflare_stream_controller_1.triggerCloudflareDownload)(cfUid).catch(() => { });
+    }
     // Notify channel subscribers about the new video
     try {
         yield notifications_service_1.default.notifyChannelSubscribers({
@@ -623,8 +634,23 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     // Build Cloudflare download URL for users who can watch
     const cloudflareCustomerCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
     let downloadUrl = null;
-    if ((canWatch || isAdminOrVendor) && videoObj.cloudflareVideoUid && cloudflareCustomerCode) {
-        downloadUrl = `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${videoObj.cloudflareVideoUid}/downloads/default.mp4`;
+    // Resolve the Cloudflare UID — prefer stored field, fall back to extracting from videoUrl
+    let resolvedCloudflareUid = videoObj.cloudflareVideoUid || null;
+    if (!resolvedCloudflareUid && videoObj.videoUrl) {
+        // videoUrl format: https://customer-<code>.cloudflarestream.com/<uid>/iframe
+        const cfMatch = videoObj.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+        if (cfMatch) {
+            resolvedCloudflareUid = cfMatch[1];
+            console.log(`[WatchVideo] Extracted Cloudflare UID from videoUrl: ${resolvedCloudflareUid}`);
+        }
+    }
+    console.log(`[WatchVideo] canWatch=${canWatch}, isAdminOrVendor=${isAdminOrVendor}, resolvedCloudflareUid=${resolvedCloudflareUid}, cloudflareCustomerCode=${cloudflareCustomerCode ? 'set' : 'NOT SET'}`);
+    if ((canWatch || isAdminOrVendor) && resolvedCloudflareUid && cloudflareCustomerCode) {
+        downloadUrl = `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${resolvedCloudflareUid}/downloads/default.mp4`;
+        console.log(`[WatchVideo] downloadUrl generated: ${downloadUrl}`);
+    }
+    else {
+        console.log(`[WatchVideo] downloadUrl NOT generated — missing: ${!resolvedCloudflareUid ? 'cloudflareUid' : ''} ${!cloudflareCustomerCode ? 'CLOUDFLARE_STREAM_CUSTOMER_CODE env var' : ''}`);
     }
     if (!canWatch && !isAdminOrVendor) {
         // Hide actual video URLs for unpurchased paid content (public users only)
@@ -1254,8 +1280,15 @@ const getSecureVideoStream = (0, catchAsync_1.catchAsync)((req, res) => __awaite
         const streamToken = generateStreamToken(videoId, userId || 'anonymous', 60);
         const videoDataFree = video;
         const cfCodeFree = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
-        const downloadUrlFree = videoDataFree.cloudflareVideoUid && cfCodeFree
-            ? `https://customer-${cfCodeFree}.cloudflarestream.com/${videoDataFree.cloudflareVideoUid}/downloads/default.mp4`
+        // Resolve UID: prefer stored field, fall back to extracting from videoUrl
+        let freeUid = videoDataFree.cloudflareVideoUid || null;
+        if (!freeUid && videoDataFree.videoUrl) {
+            const m = videoDataFree.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+            if (m)
+                freeUid = m[1];
+        }
+        const downloadUrlFree = freeUid && cfCodeFree
+            ? `https://customer-${cfCodeFree}.cloudflarestream.com/${freeUid}/downloads/default.mp4`
             : null;
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.OK,
@@ -1303,8 +1336,15 @@ const getSecureVideoStream = (0, catchAsync_1.catchAsync)((req, res) => __awaite
     // For regular videos, return the URL with our signed token
     const videoData = video;
     const cfCode = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
-    const downloadUrl = videoData.cloudflareVideoUid && cfCode
-        ? `https://customer-${cfCode}.cloudflarestream.com/${videoData.cloudflareVideoUid}/downloads/default.mp4`
+    // Resolve UID: prefer stored field, fall back to extracting from videoUrl
+    let resolvedUid = videoData.cloudflareVideoUid || null;
+    if (!resolvedUid && videoData.videoUrl) {
+        const m = videoData.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+        if (m)
+            resolvedUid = m[1];
+    }
+    const downloadUrl = resolvedUid && cfCode
+        ? `https://customer-${cfCode}.cloudflarestream.com/${resolvedUid}/downloads/default.mp4`
         : null;
     return (0, sendResponse_1.sendResponse)(res, {
         statusCode: http_status_1.default.OK,
