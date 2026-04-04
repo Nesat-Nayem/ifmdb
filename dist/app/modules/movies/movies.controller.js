@@ -293,10 +293,10 @@ const updateMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
         data: updatedMovie
     });
 }));
-// Delete movie (soft delete)
+// Delete movie (hard delete)
 const deleteMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    const deletedMovie = yield movies_model_1.default.findByIdAndUpdate(id, { isActive: false }, { new: true });
+    const deletedMovie = yield movies_model_1.default.findByIdAndDelete(id);
     if (!deletedMovie) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,

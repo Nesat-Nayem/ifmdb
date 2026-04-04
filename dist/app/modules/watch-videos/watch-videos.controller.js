@@ -709,9 +709,10 @@ const updateWatchVideo = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(vo
     });
 }));
 // Delete Watch Video
+// Delete Watch Video (hard delete)
 const deleteWatchVideo = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    const video = yield watch_videos_model_1.WatchVideo.findByIdAndUpdate(id, { isActive: false, status: 'archived' }, { new: true });
+    const video = yield watch_videos_model_1.WatchVideo.findByIdAndDelete(id);
     if (!video) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
