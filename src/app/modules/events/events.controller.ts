@@ -42,6 +42,7 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
     endDate,
     minPrice,
     maxPrice,
+    homeSection,
     sortBy = 'startDate',
     sortOrder = 'asc'
   } = req.query;
@@ -93,6 +94,7 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
   if (eventLanguage) filter.eventLanguage = { $regex: eventLanguage, $options: 'i' };
   if (city) filter['location.city'] = { $regex: city, $options: 'i' };
   if (status) filter.status = status;
+  if (homeSection) filter.homeSection = homeSection;
 
   // Date range filter
   if (startDate || endDate) {
