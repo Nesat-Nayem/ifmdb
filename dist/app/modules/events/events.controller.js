@@ -36,7 +36,7 @@ const createEvent = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
 // Get all events with filtering, searching, and pagination
 const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const user = req.user;
-    const { page = 1, limit = 10, search, eventType, category, categoryId, eventLanguage, city, status, startDate, endDate, minPrice, maxPrice, sortBy = 'startDate', sortOrder = 'asc' } = req.query;
+    const { page = 1, limit = 10, search, eventType, category, categoryId, eventLanguage, city, status, startDate, endDate, minPrice, maxPrice, homeSection, sortBy = 'startDate', sortOrder = 'asc' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -84,6 +84,8 @@ const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
         filter['location.city'] = { $regex: city, $options: 'i' };
     if (status)
         filter.status = status;
+    if (homeSection)
+        filter.homeSection = homeSection;
     // Date range filter
     if (startDate || endDate) {
         filter.startDate = {};
