@@ -652,6 +652,21 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
     else {
         console.log(`[WatchVideo] downloadUrl NOT generated — missing: ${!resolvedCloudflareUid ? 'cloudflareUid' : ''} ${!cloudflareCustomerCode ? 'CLOUDFLARE_STREAM_CUSTOMER_CODE env var' : ''}`);
     }
+    // Build per-episode downloadUrls for series (only when user can watch or is admin/vendor)
+    if (videoObj.seasons && (canWatch || isAdminOrVendor) && cloudflareCustomerCode) {
+        videoObj.seasons = videoObj.seasons.map((season) => {
+            var _a;
+            return (Object.assign(Object.assign({}, season), { episodes: (_a = season.episodes) === null || _a === void 0 ? void 0 : _a.map((ep) => {
+                    let epUid = ep.cloudflareVideoUid || null;
+                    if (!epUid && ep.videoUrl) {
+                        const epMatch = ep.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+                        if (epMatch)
+                            epUid = epMatch[1];
+                    }
+                    return Object.assign(Object.assign({}, ep), { downloadUrl: epUid ? `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${epUid}/downloads/default.mp4` : null });
+                }) }));
+        });
+    }
     if (!canWatch && !isAdminOrVendor) {
         // Hide actual video URLs for unpurchased paid content (public users only)
         videoObj.videoUrl = null;
@@ -660,7 +675,7 @@ const getWatchVideoById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
         if (videoObj.seasons) {
             videoObj.seasons = videoObj.seasons.map((season) => {
                 var _a;
-                return (Object.assign(Object.assign({}, season), { episodes: (_a = season.episodes) === null || _a === void 0 ? void 0 : _a.map((ep) => (Object.assign(Object.assign({}, ep), { videoUrl: null }))) }));
+                return (Object.assign(Object.assign({}, season), { episodes: (_a = season.episodes) === null || _a === void 0 ? void 0 : _a.map((ep) => (Object.assign(Object.assign({}, ep), { videoUrl: null, downloadUrl: null }))) }));
             });
         }
     }
