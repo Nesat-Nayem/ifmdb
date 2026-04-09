@@ -781,6 +781,24 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
     console.log(`[WatchVideo] downloadUrl NOT generated — missing: ${!resolvedCloudflareUid ? 'cloudflareUid' : ''} ${!cloudflareCustomerCode ? 'CLOUDFLARE_STREAM_CUSTOMER_CODE env var' : ''}`);
   }
   
+  // Build per-episode downloadUrls for series (only when user can watch or is admin/vendor)
+  if (videoObj.seasons && (canWatch || isAdminOrVendor) && cloudflareCustomerCode) {
+    videoObj.seasons = videoObj.seasons.map((season: any) => ({
+      ...season,
+      episodes: season.episodes?.map((ep: any) => {
+        let epUid: string | null = ep.cloudflareVideoUid || null;
+        if (!epUid && ep.videoUrl) {
+          const epMatch = ep.videoUrl.match(/cloudflarestream\.com\/([a-f0-9]+)\//i);
+          if (epMatch) epUid = epMatch[1];
+        }
+        return {
+          ...ep,
+          downloadUrl: epUid ? `https://customer-${cloudflareCustomerCode}.cloudflarestream.com/${epUid}/downloads/default.mp4` : null,
+        };
+      }),
+    }));
+  }
+
   if (!canWatch && !isAdminOrVendor) {
     // Hide actual video URLs for unpurchased paid content (public users only)
     videoObj.videoUrl = null;
@@ -792,6 +810,7 @@ const getWatchVideoById = catchAsync(async (req: Request, res: Response) => {
         episodes: season.episodes?.map((ep: any) => ({
           ...ep,
           videoUrl: null, // Hide episode video URL
+          downloadUrl: null, // Hide episode download URL
         }))
       }));
     }
