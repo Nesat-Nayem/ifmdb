@@ -124,10 +124,35 @@ const updatePlatformSetting = (req, res, next) => __awaiter(void 0, void 0, void
 exports.updatePlatformSetting = updatePlatformSetting;
 // ============ VENDOR APPLICATIONS ============
 // Pre-payment validation - check unique fields before payment
+const INDIA_PHONE_REGEX = /^(?:\+?91)?[6-9]\d{9}$/;
+const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const validateVendorApplication = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { email, phone, gstNumber } = req.body;
+        const { email, phone, gstNumber, country } = req.body;
         const errors = [];
+        // Format validations
+        if (phone) {
+            const isIndia = !country || country === 'IN';
+            if (isIndia) {
+                if (!INDIA_PHONE_REGEX.test(phone.replace(/\s/g, ''))) {
+                    errors.push('Invalid Indian mobile number (10 digits starting with 6–9)');
+                }
+            }
+            else {
+                const digits = phone.replace(/\D/g, '');
+                if (digits.length < 7 || digits.length > 15) {
+                    errors.push('Phone number must be 7–15 digits');
+                }
+            }
+        }
+        if (gstNumber && gstNumber.trim()) {
+            if (!GST_REGEX.test(gstNumber.trim().toUpperCase())) {
+                errors.push('Invalid GST number format (e.g. 27ABCDE1234F1Z5)');
+            }
+        }
+        if (errors.length > 0) {
+            return res.status(400).json({ success: false, statusCode: 400, message: errors[0], errors, isValid: false });
+        }
         // Check email uniqueness
         if (email) {
             const existingAppByEmail = yield vendor_model_1.VendorApplication.findOne({
@@ -245,7 +270,30 @@ const createVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
         if (paymentInfo) {
             parsedPaymentInfo = typeof paymentInfo === 'string' ? JSON.parse(paymentInfo) : paymentInfo;
         }
-        const doc = yield vendor_model_1.VendorApplication.create(Object.assign(Object.assign({ userId: (_g = req.user) === null || _g === void 0 ? void 0 : _g._id }, validated), { aadharFrontUrl,
+        // Generate temp credentials and pre-create vendor user account
+        const tempPassword = (0, emailService_1.generatePassword)();
+        let vendorUser = yield auth_model_1.User.findOne({
+            $or: [{ email: validated.email }, { phone: validated.phone }],
+        });
+        if (vendorUser) {
+            vendorUser.role = 'vendor';
+            vendorUser.password = tempPassword;
+            vendorUser.name = vendorName;
+            yield vendorUser.save();
+        }
+        else {
+            const serviceTypes = services.map((s) => s.serviceType);
+            vendorUser = yield auth_model_1.User.create({
+                name: vendorName,
+                email: validated.email,
+                phone: validated.phone,
+                password: tempPassword,
+                role: 'vendor',
+                authProvider: 'local',
+                vendorServices: serviceTypes,
+            });
+        }
+        const doc = yield vendor_model_1.VendorApplication.create(Object.assign(Object.assign({ userId: ((_g = req.user) === null || _g === void 0 ? void 0 : _g._id) || vendorUser._id }, validated), { aadharFrontUrl,
             aadharBackUrl,
             panImageUrl, selectedServices: services, paymentInfo: requiresPayment ? {
                 amount: totalAmount,
@@ -254,28 +302,20 @@ const createVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
                 paymentMethod: parsedPaymentInfo === null || parsedPaymentInfo === void 0 ? void 0 : parsedPaymentInfo.paymentMethod,
                 paidAt: (parsedPaymentInfo === null || parsedPaymentInfo === void 0 ? void 0 : parsedPaymentInfo.status) === 'completed' ? new Date() : undefined,
             } : undefined, requiresPayment,
-            totalAmount, status: 'pending' }));
-        // Send confirmation email
-        try {
-            const template = emailService_1.emailTemplates.vendorApplicationReceived(vendorName);
-            yield (0, emailService_1.sendEmail)(Object.assign({ to: email }, template));
-        }
-        catch (emailErr) {
-            console.error('Failed to send confirmation email:', emailErr);
-        }
-        // Send WhatsApp confirmation message
-        try {
-            const whatsappMessage = whatsappService_1.whatsappTemplates.vendorApplicationReceived(vendorName);
-            yield (0, whatsappService_1.sendWhatsAppMessage)({ phone, message: whatsappMessage });
-        }
-        catch (whatsappErr) {
-            console.error('Failed to send WhatsApp confirmation:', whatsappErr);
-        }
+            totalAmount, status: 'pending', vendorUserId: vendorUser._id }));
+        // Fire email & WhatsApp in background — do NOT await, respond immediately
+        (0, emailService_1.sendEmail)(Object.assign({ to: email }, emailService_1.emailTemplates.vendorApplicationReceived(vendorName)))
+            .catch((err) => console.error('Background email failed:', err));
+        (0, whatsappService_1.sendWhatsAppMessage)({ phone, message: whatsappService_1.whatsappTemplates.vendorApplicationReceived(vendorName) })
+            .catch((err) => console.error('Background WhatsApp failed:', err));
         res.status(201).json({
             success: true,
             statusCode: 201,
             message: 'Vendor application submitted successfully',
-            data: doc,
+            data: Object.assign(Object.assign({}, doc.toObject()), { tempCredentials: {
+                    email: validated.email,
+                    password: tempPassword,
+                } }),
         });
     }
     catch (error) {
