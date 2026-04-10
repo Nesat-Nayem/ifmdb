@@ -110,11 +110,39 @@ export const updatePlatformSetting = async (req: userInterface, res: Response, n
 // ============ VENDOR APPLICATIONS ============
 
 // Pre-payment validation - check unique fields before payment
+const INDIA_PHONE_REGEX = /^(?:\+?91)?[6-9]\d{9}$/;
+const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
 export const validateVendorApplication = async (req: userInterface, res: Response, next: NextFunction) => {
   try {
-    const { email, phone, gstNumber } = req.body;
+    const { email, phone, gstNumber, country } = req.body;
 
     const errors: string[] = [];
+
+    // Format validations
+    if (phone) {
+      const isIndia = !country || country === 'IN';
+      if (isIndia) {
+        if (!INDIA_PHONE_REGEX.test(phone.replace(/\s/g, ''))) {
+          errors.push('Invalid Indian mobile number (10 digits starting with 6–9)');
+        }
+      } else {
+        const digits = phone.replace(/\D/g, '');
+        if (digits.length < 7 || digits.length > 15) {
+          errors.push('Phone number must be 7–15 digits');
+        }
+      }
+    }
+
+    if (gstNumber && gstNumber.trim()) {
+      if (!GST_REGEX.test(gstNumber.trim().toUpperCase())) {
+        errors.push('Invalid GST number format (e.g. 27ABCDE1234F1Z5)');
+      }
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({ success: false, statusCode: 400, message: errors[0], errors, isValid: false });
+    }
 
     // Check email uniqueness
     if (email) {
@@ -244,8 +272,31 @@ export const createVendorApplication = async (req: userInterface, res: Response,
       parsedPaymentInfo = typeof paymentInfo === 'string' ? JSON.parse(paymentInfo) : paymentInfo;
     }
 
+    // Generate temp credentials and pre-create vendor user account
+    const tempPassword = generatePassword();
+    let vendorUser = await User.findOne({
+      $or: [{ email: validated.email }, { phone: validated.phone }],
+    });
+    if (vendorUser) {
+      vendorUser.role = 'vendor';
+      vendorUser.password = tempPassword;
+      vendorUser.name = vendorName;
+      await vendorUser.save();
+    } else {
+      const serviceTypes = services.map((s: any) => s.serviceType);
+      vendorUser = await User.create({
+        name: vendorName,
+        email: validated.email,
+        phone: validated.phone,
+        password: tempPassword,
+        role: 'vendor',
+        authProvider: 'local',
+        vendorServices: serviceTypes,
+      });
+    }
+
     const doc = await VendorApplication.create({
-      userId: req.user?._id,
+      userId: req.user?._id || vendorUser._id,
       ...validated,
       aadharFrontUrl,
       aadharBackUrl,
@@ -261,29 +312,26 @@ export const createVendorApplication = async (req: userInterface, res: Response,
       requiresPayment,
       totalAmount,
       status: 'pending',
+      vendorUserId: vendorUser._id,
     });
 
-    // Send confirmation email
-    try {
-      const template = emailTemplates.vendorApplicationReceived(vendorName);
-      await sendEmail({ to: email, ...template });
-    } catch (emailErr) {
-      console.error('Failed to send confirmation email:', emailErr);
-    }
-
-    // Send WhatsApp confirmation message
-    try {
-      const whatsappMessage = whatsappTemplates.vendorApplicationReceived(vendorName);
-      await sendWhatsAppMessage({ phone, message: whatsappMessage });
-    } catch (whatsappErr) {
-      console.error('Failed to send WhatsApp confirmation:', whatsappErr);
-    }
+    // Fire email & WhatsApp in background — do NOT await, respond immediately
+    sendEmail({ to: email, ...emailTemplates.vendorApplicationReceived(vendorName) })
+      .catch((err: any) => console.error('Background email failed:', err));
+    sendWhatsAppMessage({ phone, message: whatsappTemplates.vendorApplicationReceived(vendorName) })
+      .catch((err: any) => console.error('Background WhatsApp failed:', err));
 
     res.status(201).json({
       success: true,
       statusCode: 201,
       message: 'Vendor application submitted successfully',
-      data: doc,
+      data: {
+        ...doc.toObject(),
+        tempCredentials: {
+          email: validated.email,
+          password: tempPassword,
+        },
+      },
     });
   } catch (error) {
     next(error);
