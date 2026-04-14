@@ -9,9 +9,14 @@ const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const CLOUDFLARE_STREAM_CUSTOMER_CODE = process.env.CLOUDFLARE_STREAM_CUSTOMER_CODE;
 
 const getMaxAllowedBytes = (uploadType?: string, videoType?: string) => {
-  if (uploadType === 'trailer') return 100 * 1024 * 1024;
-  if (videoType === 'series') return 500 * 1024 * 1024;
-  return 2 * 1024 * 1024 * 1024;
+  if (uploadType === 'trailer') return 100 * 1024 * 1024;       // 100 MB
+  if (uploadType === 'episode') return 500 * 1024 * 1024;       // 500 MB
+  return 2 * 1024 * 1024 * 1024;                                 // 2 GB (main video)
+};
+
+const formatBytesLabel = (bytes: number) => {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(0)}GB`;
+  return `${(bytes / (1024 * 1024)).toFixed(0)}MB`;
 };
 
 /**
@@ -50,7 +55,7 @@ const getDirectUploadUrl = catchAsync(async (req: Request, res: Response) => {
     return sendResponse(res, {
       statusCode: httpStatus.BAD_REQUEST,
       success: false,
-      message: 'File too large for this upload type',
+      message: `File too large. Maximum allowed size for ${uploadType || 'main'} upload is ${formatBytesLabel(maxAllowedBytes)}.`,
       data: {
         fileSize,
         maxAllowedBytes,
@@ -138,7 +143,7 @@ const getTusUploadUrl = catchAsync(async (req: Request, res: Response) => {
     return sendResponse(res, {
       statusCode: httpStatus.BAD_REQUEST,
       success: false,
-      message: 'File too large for this upload type',
+      message: `File too large. Maximum allowed size for ${uploadType || 'main'} upload is ${formatBytesLabel(maxAllowedBytes)}.`,
       data: {
         fileSize,
         maxAllowedBytes,

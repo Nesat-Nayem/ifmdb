@@ -93,13 +93,13 @@ router.get('/config', CloudflareStreamController.getConfig);
  *                 example: 3600
  *               uploadType:
  *                 type: string
- *                 enum: [main, trailer]
- *                 description: Type of upload — trailers are limited to 100MB
+ *                 enum: [main, trailer, episode]
+ *                 description: Type of upload — trailers max 100MB, episodes max 500MB, main max 2GB
  *                 example: main
  *               videoType:
  *                 type: string
  *                 enum: [single, series]
- *                 description: Series videos allow up to 500MB, single movies up to 2GB
+ *                 description: Video type metadata (size limit is determined by uploadType)
  *                 example: single
  *               meta:
  *                 type: object
@@ -144,10 +144,10 @@ router.post('/upload-url', auth(), CloudflareStreamController.getDirectUploadUrl
  *       Generates a TUS protocol upload URL for resumable uploads of large video files.
  *       Use this for files over 200MB. The upload can be paused and resumed.
  *
- *       **Size limits by type:**
+ *       **Size limits by uploadType:**
  *       - `trailer`: max 100MB
- *       - `series` episode: max 500MB
- *       - `single` movie: max 2GB
+ *       - `episode`: max 500MB
+ *       - `main`: max 2GB
  *     tags: [Cloudflare Stream]
  *     security:
  *       - bearerAuth: []
@@ -175,7 +175,8 @@ router.post('/upload-url', auth(), CloudflareStreamController.getDirectUploadUrl
  *                 example: 7200
  *               uploadType:
  *                 type: string
- *                 enum: [main, trailer]
+ *                 enum: [main, trailer, episode]
+ *                 description: Type of upload — trailers max 100MB, episodes max 500MB, main max 2GB
  *                 example: main
  *               videoType:
  *                 type: string
