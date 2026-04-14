@@ -14,7 +14,7 @@ const episodeSchema = z.object({
   episodeNumber: z.number().min(1),
   title: z.string().min(1),
   description: z.string().optional(),
-  videoUrl: z.string().url(),
+  videoUrl: z.string().url().or(z.literal('')).optional().default(''),
   thumbnailUrl: z.string().optional(),
   duration: z.number().min(0),
   releaseDate: z.string().datetime().optional(),
