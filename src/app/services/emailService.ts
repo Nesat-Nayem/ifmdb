@@ -1,10 +1,47 @@
 import nodemailer from 'nodemailer';
 
-// Create transporter with flexible SMTP configuration
+// ─── Resend API (HTTPS-based, works on DigitalOcean where SMTP ports are blocked) ───
+const sendViaResend = async (options: EmailOptions): Promise<boolean> => {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return false;
+
+  try {
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'MovieMart <onboarding@resend.dev>';
+
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [options.to],
+        subject: options.subject,
+        html: options.html,
+        text: options.text || undefined,
+      }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.text();
+      console.error('Resend API error:', res.status, errorBody);
+      return false;
+    }
+
+    const data = await res.json();
+    console.log(`Email sent via Resend to ${options.to} (id: ${data.id})`);
+    return true;
+  } catch (error) {
+    console.error('Resend email failed:', error);
+    return false;
+  }
+};
+
+// ─── Nodemailer SMTP (works locally / when SMTP ports are open) ───
 const createTransporter = () => {
-  // Check if using Gmail or GoDaddy
   const isGmail = process.env.SMTP_HOST?.includes('gmail') || !process.env.SMTP_HOST;
-  
+
   const config = isGmail ? {
     service: 'gmail',
     auth: {
@@ -25,16 +62,39 @@ const createTransporter = () => {
   };
 
   console.log('SMTP Configuration:', {
-    type: isGmail ? 'Gmail' : 'GoDaddy',
-    host: config.host || 'gmail',
-    port: config.port || 'default',
+    type: isGmail ? 'Gmail' : 'Custom SMTP',
+    host: (config as any).host || 'gmail',
+    port: (config as any).port || 'default',
     user: config.auth.user,
     passwordSet: !!config.auth.pass,
   });
 
-  return nodemailer.createTransport(config);
+  return nodemailer.createTransport(config as any);
 };
 
+const sendViaSMTP = async (options: EmailOptions): Promise<boolean> => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: `"MovieMart" <info@moviemart.org>`,
+      replyTo: process.env.SMTP_EMAIL,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text || '',
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Email sent via SMTP to ${options.to}`);
+    return true;
+  } catch (error) {
+    console.error('SMTP email failed:', error);
+    return false;
+  }
+};
+
+// ─── Main sendEmail: tries Resend first (HTTPS), falls back to SMTP ───
 interface EmailOptions {
   to: string;
   subject: string;
@@ -43,25 +103,15 @@ interface EmailOptions {
 }
 
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
-  try {
-    const transporter = createTransporter();
-    
-    const mailOptions = {
-      from: `"MovieMart" <info@moviemart.org>`, // Always show MovieMart email
-      replyTo: process.env.SMTP_EMAIL, // Replies go to configured email
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text || '',
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`Email sent successfully to ${options.to}`);
-    return true;
-  } catch (error) {
-    console.error('Email sending failed:', error);
-    return false;
+  // If RESEND_API_KEY is set, use Resend (works on VPS where SMTP is blocked)
+  if (process.env.RESEND_API_KEY) {
+    const resendResult = await sendViaResend(options);
+    if (resendResult) return true;
+    console.warn('Resend failed, falling back to SMTP...');
   }
+
+  // Fallback to SMTP (works locally)
+  return sendViaSMTP(options);
 };
 
 // Generate random 8-digit password
