@@ -15,7 +15,7 @@ const episodeSchema = zod_1.z.object({
     episodeNumber: zod_1.z.number().min(1),
     title: zod_1.z.string().min(1),
     description: zod_1.z.string().optional(),
-    videoUrl: zod_1.z.string().url(),
+    videoUrl: zod_1.z.string().url().or(zod_1.z.literal('')).optional().default(''),
     thumbnailUrl: zod_1.z.string().optional(),
     duration: zod_1.z.number().min(0),
     releaseDate: zod_1.z.string().datetime().optional(),
