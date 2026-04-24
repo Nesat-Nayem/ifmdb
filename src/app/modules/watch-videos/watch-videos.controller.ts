@@ -17,6 +17,7 @@ import {
   VideoLike
 } from './watch-videos.model';
 import notificationService from '../notifications/notifications.service';
+import { getBlockedVendorUserIds } from '../vendor/vendor-block.util';
 import videoExpiryScheduler from '../../schedulers/videoExpiryScheduler';
 import { triggerCloudflareDownload } from '../cloudflare-stream/cloudflare-stream.controller';
 
@@ -596,6 +597,7 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
         ]
       }
     ];
+
   }
 
   if (search) {
@@ -611,6 +613,24 @@ const getAllWatchVideos = catchAsync(async (req: Request, res: Response) => {
   if (isFree !== undefined) query.isFree = isFree === 'true';
   if (isFeatured !== undefined) query.isFeatured = isFeatured === 'true';
   if (uploadedBy && (!user || user.role !== 'vendor')) query.uploadedBy = uploadedBy;
+
+  // Hide videos uploaded by blocked vendors (public only). Admin-uploaded videos
+  // (uploadedByType === 'admin') pass through because their uploader is not in
+  // the blocked list. We apply this AFTER the explicit `uploadedBy` filter so
+  // requests asking for a specific (blocked) uploader also get no results.
+  if (!isAdminOrVendor) {
+    const blockedVendorIds = await getBlockedVendorUserIds();
+    if (blockedVendorIds.length > 0) {
+      if (query.uploadedBy && typeof query.uploadedBy === 'string') {
+        // Requested a specific uploader — if blocked, force empty result set.
+        if (blockedVendorIds.some((bid) => String(bid) === String(query.uploadedBy))) {
+          query._id = null;
+        }
+      } else {
+        query.uploadedBy = { $nin: blockedVendorIds };
+      }
+    }
+  }
   
   if (minPrice || maxPrice) {
     query.defaultPrice = {};

@@ -8,6 +8,7 @@ import { appError } from '../../errors/appError';
 import { userInterface } from '../../middlewares/userInterface';
 import { sendEmail, generatePassword, emailTemplates } from '../../services/emailService';
 import { sendWhatsAppMessage, whatsappTemplates } from '../../services/whatsappService';
+import { invalidateBlockedVendorCache } from './vendor-block.util';
 
 // ============ VENDOR PACKAGES ============
 export const createVendorPackage = async (req: userInterface, res: Response, next: NextFunction) => {
@@ -359,6 +360,8 @@ export const listVendorApplications = async (req: userInterface, res: Response, 
 
     const items = await VendorApplication.find(filter)
       .populate('selectedServices.packageId')
+      // Populate the linked user account so the admin UI can show block state.
+      .populate('vendorUserId', 'name email phone role isBlocked blockedAt blockedReason')
       .sort({ createdAt: -1 });
       
     res.json({
@@ -537,6 +540,98 @@ export const deleteVendorApplication = async (req: userInterface, res: Response,
         ? 'Application and vendor account deleted successfully' 
         : 'Application deleted successfully',
       data: { userDeleted }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ============ VENDOR BLOCK / UNBLOCK ============
+// Admin toggles the block flag on the linked User account for a vendor application.
+// When blocked:
+//   • the vendor cannot log in (see loginController)
+//   • all content owned by this vendor is hidden from public listings
+//     (events, movies, watch-videos) via getBlockedVendorUserIds()
+const resolveVendorUserId = async (app: any): Promise<string | null> => {
+  if (app.vendorUserId) return String(app.vendorUserId);
+  // Fallback: find the user by email/phone with role 'vendor'
+  const fallback = await User.findOne({
+    role: 'vendor',
+    $or: [{ email: app.email }, { phone: app.phone }],
+  }).select('_id');
+  return fallback ? String(fallback._id) : null;
+};
+
+export const blockVendorApplication = async (req: userInterface, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { reason } = (req.body || {}) as { reason?: string };
+
+    const app = await VendorApplication.findOne({ _id: id, isDeleted: false });
+    if (!app) return next(new appError('Vendor application not found', 404));
+    if (app.status !== 'approved') {
+      return next(new appError('Only approved vendors can be blocked', 400));
+    }
+
+    const vendorUserId = await resolveVendorUserId(app);
+    if (!vendorUserId) return next(new appError('Linked vendor account not found', 404));
+
+    const updated = await User.findByIdAndUpdate(
+      vendorUserId,
+      {
+        $set: {
+          isBlocked: true,
+          blockedAt: new Date(),
+          blockedReason: reason?.trim() || '',
+        },
+      },
+      { new: true, select: '_id name email phone role isBlocked blockedAt blockedReason' }
+    );
+    if (!updated) return next(new appError('Linked vendor account not found', 404));
+
+    invalidateBlockedVendorCache();
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: 'Vendor blocked successfully',
+      data: { application: app, vendorUser: updated },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const unblockVendorApplication = async (req: userInterface, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+
+    const app = await VendorApplication.findOne({ _id: id, isDeleted: false });
+    if (!app) return next(new appError('Vendor application not found', 404));
+
+    const vendorUserId = await resolveVendorUserId(app);
+    if (!vendorUserId) return next(new appError('Linked vendor account not found', 404));
+
+    const updated = await User.findByIdAndUpdate(
+      vendorUserId,
+      {
+        $set: {
+          isBlocked: false,
+          blockedReason: '',
+        },
+        $unset: { blockedAt: 1 },
+      },
+      { new: true, select: '_id name email phone role isBlocked blockedAt blockedReason' }
+    );
+    if (!updated) return next(new appError('Linked vendor account not found', 404));
+
+    invalidateBlockedVendorCache();
+
+    res.json({
+      success: true,
+      statusCode: 200,
+      message: 'Vendor unblocked successfully',
+      data: { application: app, vendorUser: updated },
     });
   } catch (error) {
     next(error);

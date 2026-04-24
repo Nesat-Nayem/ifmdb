@@ -8,6 +8,8 @@ import {
   getVendorApplicationById, 
   listVendorApplications,
   deleteVendorApplication,
+  blockVendorApplication,
+  unblockVendorApplication,
   // Packages
   createVendorPackage,
   listVendorPackages,
@@ -278,6 +280,9 @@ router.get('/applications/:id', auth(), getVendorApplicationById);
  *         description: Decision applied
  */
 router.patch('/applications/:id/decision', auth('admin'), decideVendorApplication);
+// Block / unblock a vendor (toggles isBlocked on their linked User account)
+router.patch('/applications/:id/block', auth('admin'), blockVendorApplication);
+router.patch('/applications/:id/unblock', auth('admin'), unblockVendorApplication);
 router.delete('/applications/:id', auth('admin'), deleteVendorApplication);
 
 // ============ VENDOR PACKAGES ROUTES ============

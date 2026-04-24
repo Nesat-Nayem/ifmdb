@@ -165,8 +165,10 @@ const eventSchema: Schema = new Schema(
       required: [true, 'Event description is required']
     },
     eventType: {
+      // Event types are now admin-managed via the EventType CRUD.
+      // We store the title string and no longer restrict it with a hard enum.
       type: String,
-      enum: ['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other'],
+      trim: true,
       required: [true, 'Event type is required']
     },
     category: {

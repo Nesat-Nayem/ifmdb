@@ -74,6 +74,10 @@ const userSchema = new mongoose_1.Schema({
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'VendorApplication'
     },
+    // Block flag used by admin to disable vendor login and hide their content
+    isBlocked: { type: Boolean, default: false, index: true },
+    blockedAt: { type: Date },
+    blockedReason: { type: String, default: '' },
     //   menuBookmarks: {
     //   type: [MenuBookmarkSchema],
     //   default: []

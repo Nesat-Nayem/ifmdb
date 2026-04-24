@@ -252,6 +252,9 @@ router.get('/applications/:id', (0, authMiddleware_1.auth)(), vendor_controller_
  *         description: Decision applied
  */
 router.patch('/applications/:id/decision', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.decideVendorApplication);
+// Block / unblock a vendor (toggles isBlocked on their linked User account)
+router.patch('/applications/:id/block', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.blockVendorApplication);
+router.patch('/applications/:id/unblock', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.unblockVendorApplication);
 router.delete('/applications/:id', (0, authMiddleware_1.auth)('admin'), vendor_controller_1.deleteVendorApplication);
 // ============ VENDOR PACKAGES ROUTES ============
 /**

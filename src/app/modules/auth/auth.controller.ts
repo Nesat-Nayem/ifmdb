@@ -299,7 +299,18 @@ export const loginController: RequestHandler = async (req, res, next): Promise<v
       return;
     }
 
-
+    // Block check: admin can block a vendor/user account. Blocked users cannot log in.
+    if ((user as any).isBlocked) {
+      res.status(403).json({
+        success: false,
+        statusCode: 403,
+        message:
+          (user as any).blockedReason?.trim()
+            ? `Your account has been blocked by the admin. Reason: ${(user as any).blockedReason}`
+            : "Your account has been blocked by the admin. Please contact support.",
+      });
+      return;
+    }
 
     const token = generateToken(user);
 

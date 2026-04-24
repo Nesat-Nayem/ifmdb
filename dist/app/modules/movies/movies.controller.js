@@ -18,6 +18,7 @@ const movies_model_1 = __importDefault(require("./movies.model"));
 const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const movieCategory_model_1 = require("./movieCategory.model");
+const vendor_block_util_1 = require("../vendor/vendor-block.util");
 // Create a new movie
 const createMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const user = req.user;
@@ -117,6 +118,12 @@ const getAllMovies = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
                 ]
             }
         ];
+        // Hide movies owned by blocked vendors (admin blocks a vendor account).
+        // vendorId is null for admin-created movies, which $nin preserves.
+        const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+        if (blockedVendorIds.length > 0) {
+            filter.vendorId = { $nin: blockedVendorIds };
+        }
     }
     // Vendor sees only their own movies (all statuses, active + inactive)
     if (isVendor) {

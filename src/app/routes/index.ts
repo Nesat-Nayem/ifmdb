@@ -36,6 +36,7 @@ import watchlistRouter from "../modules/watchlist/watchlist.routes";
 import dashboardRouter from "../modules/dashboard/dashboard.routes";
 import { homepageCategoryRouter } from "../modules/homepage-category/homepage-category.routes";
 import { eventParticipationTypeRouter } from "../modules/event-participation-type/event-participation-type.routes";
+import { eventTypeRouter } from "../modules/event-type/event-type.routes";
 
 const router = Router();
 const moduleRoutes = [
@@ -210,6 +211,10 @@ const moduleRoutes = [
   {
     path: "/event-participation-types",
     route: eventParticipationTypeRouter,
+  },
+  {
+    path: "/event-types",
+    route: eventTypeRouter,
   },
 ];
 

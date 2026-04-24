@@ -54,6 +54,10 @@ export interface IUser extends Document {
   packageFeatures?: string[];
   vendorServices?: VendorServiceType[];
   vendorApplicationId?: mongoose.Types.ObjectId;
+  // Admin can block a vendor/user to stop their login and hide their content on the frontend
+  isBlocked?: boolean;
+  blockedAt?: Date;
+  blockedReason?: string;
   // menuBookmarks?: typeof MenuBookmarkSchema[];
   comparePassword(password: string): Promise<boolean>;
   compareOtp(otp: string): boolean;
@@ -91,6 +95,11 @@ const userSchema: Schema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'VendorApplication'
     },
+
+    // Block flag used by admin to disable vendor login and hide their content
+    isBlocked: { type: Boolean, default: false, index: true },
+    blockedAt: { type: Date },
+    blockedReason: { type: String, default: '' },
 
   //   menuBookmarks: {
   //   type: [MenuBookmarkSchema],

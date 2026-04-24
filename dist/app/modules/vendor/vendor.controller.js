@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteVendorApplication = exports.decideVendorApplication = exports.getVendorApplicationById = exports.listVendorApplications = exports.createVendorApplication = exports.validateVendorApplication = exports.updatePlatformSetting = exports.getPlatformSettings = exports.deleteVendorPackage = exports.updateVendorPackage = exports.getVendorPackageById = exports.listVendorPackages = exports.createVendorPackage = void 0;
+exports.unblockVendorApplication = exports.blockVendorApplication = exports.deleteVendorApplication = exports.decideVendorApplication = exports.getVendorApplicationById = exports.listVendorApplications = exports.createVendorApplication = exports.validateVendorApplication = exports.updatePlatformSetting = exports.getPlatformSettings = exports.deleteVendorPackage = exports.updateVendorPackage = exports.getVendorPackageById = exports.listVendorPackages = exports.createVendorPackage = void 0;
 const vendor_model_1 = require("./vendor.model");
 const vendorPackage_model_1 = require("./vendorPackage.model");
 const platformSettings_model_1 = require("./platformSettings.model");
@@ -18,6 +18,7 @@ const vendor_validation_1 = require("./vendor.validation");
 const appError_1 = require("../../errors/appError");
 const emailService_1 = require("../../services/emailService");
 const whatsappService_1 = require("../../services/whatsappService");
+const vendor_block_util_1 = require("./vendor-block.util");
 // ============ VENDOR PACKAGES ============
 const createVendorPackage = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -344,6 +345,8 @@ const listVendorApplications = (req, res, next) => __awaiter(void 0, void 0, voi
         }
         const items = yield vendor_model_1.VendorApplication.find(filter)
             .populate('selectedServices.packageId')
+            // Populate the linked user account so the admin UI can show block state.
+            .populate('vendorUserId', 'name email phone role isBlocked blockedAt blockedReason')
             .sort({ createdAt: -1 });
         res.json({
             success: true,
@@ -528,3 +531,85 @@ const deleteVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
     }
 });
 exports.deleteVendorApplication = deleteVendorApplication;
+// ============ VENDOR BLOCK / UNBLOCK ============
+// Admin toggles the block flag on the linked User account for a vendor application.
+// When blocked:
+//   • the vendor cannot log in (see loginController)
+//   • all content owned by this vendor is hidden from public listings
+//     (events, movies, watch-videos) via getBlockedVendorUserIds()
+const resolveVendorUserId = (app) => __awaiter(void 0, void 0, void 0, function* () {
+    if (app.vendorUserId)
+        return String(app.vendorUserId);
+    // Fallback: find the user by email/phone with role 'vendor'
+    const fallback = yield auth_model_1.User.findOne({
+        role: 'vendor',
+        $or: [{ email: app.email }, { phone: app.phone }],
+    }).select('_id');
+    return fallback ? String(fallback._id) : null;
+});
+const blockVendorApplication = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const { reason } = (req.body || {});
+        const app = yield vendor_model_1.VendorApplication.findOne({ _id: id, isDeleted: false });
+        if (!app)
+            return next(new appError_1.appError('Vendor application not found', 404));
+        if (app.status !== 'approved') {
+            return next(new appError_1.appError('Only approved vendors can be blocked', 400));
+        }
+        const vendorUserId = yield resolveVendorUserId(app);
+        if (!vendorUserId)
+            return next(new appError_1.appError('Linked vendor account not found', 404));
+        const updated = yield auth_model_1.User.findByIdAndUpdate(vendorUserId, {
+            $set: {
+                isBlocked: true,
+                blockedAt: new Date(),
+                blockedReason: (reason === null || reason === void 0 ? void 0 : reason.trim()) || '',
+            },
+        }, { new: true, select: '_id name email phone role isBlocked blockedAt blockedReason' });
+        if (!updated)
+            return next(new appError_1.appError('Linked vendor account not found', 404));
+        (0, vendor_block_util_1.invalidateBlockedVendorCache)();
+        res.json({
+            success: true,
+            statusCode: 200,
+            message: 'Vendor blocked successfully',
+            data: { application: app, vendorUser: updated },
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.blockVendorApplication = blockVendorApplication;
+const unblockVendorApplication = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const app = yield vendor_model_1.VendorApplication.findOne({ _id: id, isDeleted: false });
+        if (!app)
+            return next(new appError_1.appError('Vendor application not found', 404));
+        const vendorUserId = yield resolveVendorUserId(app);
+        if (!vendorUserId)
+            return next(new appError_1.appError('Linked vendor account not found', 404));
+        const updated = yield auth_model_1.User.findByIdAndUpdate(vendorUserId, {
+            $set: {
+                isBlocked: false,
+                blockedReason: '',
+            },
+            $unset: { blockedAt: 1 },
+        }, { new: true, select: '_id name email phone role isBlocked blockedAt blockedReason' });
+        if (!updated)
+            return next(new appError_1.appError('Linked vendor account not found', 404));
+        (0, vendor_block_util_1.invalidateBlockedVendorCache)();
+        res.json({
+            success: true,
+            statusCode: 200,
+            message: 'Vendor unblocked successfully',
+            data: { application: app, vendorUser: updated },
+        });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+exports.unblockVendorApplication = unblockVendorApplication;

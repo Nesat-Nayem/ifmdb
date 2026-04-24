@@ -4,6 +4,7 @@ import Event from './events.model';
 import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import { userInterface } from '../../middlewares/userInterface';
+import { getBlockedVendorUserIds } from '../vendor/vendor-block.util';
 
 // Create a new event
 const createEvent = catchAsync(async (req: Request, res: Response) => {
@@ -71,6 +72,13 @@ const getAllEvents = catchAsync(async (req: Request, res: Response) => {
         ]
       }
     ];
+
+    // Hide events owned by blocked vendors (admin can block a vendor account).
+    // vendorId is null for admin-created events, which $nin preserves.
+    const blockedVendorIds = await getBlockedVendorUserIds();
+    if (blockedVendorIds.length > 0) {
+      filter.vendorId = { $nin: blockedVendorIds };
+    }
   }
 
   // Vendor always sees only their own events (active or inactive)
@@ -273,6 +281,10 @@ const getEventsByType = catchAsync(async (req: Request, res: Response) => {
     ...visibilityFilter
   };
 
+  // Hide events owned by blocked vendors
+  const blockedVendorIds = await getBlockedVendorUserIds();
+  if (blockedVendorIds.length > 0) (filter as any).vendorId = { $nin: blockedVendorIds };
+
   const events = await Event.find(filter)
     .sort({ startDate: 1 })
     .skip(skip)
@@ -323,6 +335,10 @@ const getUpcomingEvents = catchAsync(async (req: Request, res: Response) => {
     isActive: true,
     ...visibilityFilter
   };
+
+  // Hide events owned by blocked vendors
+  const blockedVendorIds = await getBlockedVendorUserIds();
+  if (blockedVendorIds.length > 0) (filter as any).vendorId = { $nin: blockedVendorIds };
 
   const events = await Event.find(filter)
     .sort({ startDate: 1 })
@@ -375,6 +391,10 @@ const getEventsByLocation = catchAsync(async (req: Request, res: Response) => {
     status: { $in: ['upcoming', 'ongoing'] },
     ...visibilityFilter
   };
+
+  // Hide events owned by blocked vendors
+  const blockedVendorIds = await getBlockedVendorUserIds();
+  if (blockedVendorIds.length > 0) (filter as any).vendorId = { $nin: blockedVendorIds };
 
   const events = await Event.find(filter)
     .sort({ startDate: 1 })
@@ -432,6 +452,10 @@ const getBestEventsThisWeek = catchAsync(async (req: Request, res: Response) => 
     ...visibilityFilter
   };
 
+  // Hide events owned by blocked vendors
+  const blockedVendorIds = await getBlockedVendorUserIds();
+  if (blockedVendorIds.length > 0) (filter as any).vendorId = { $nin: blockedVendorIds };
+
   const events = await Event.find(filter)
     .sort({ totalTicketsSold: -1 })
     .skip(skip)
@@ -485,6 +509,10 @@ const getEventsByCategory = catchAsync(async (req: Request, res: Response) => {
     ...visibilityFilter
   };
 
+  // Hide events owned by blocked vendors
+  const blockedVendorIds = await getBlockedVendorUserIds();
+  if (blockedVendorIds.length > 0) (filter as any).vendorId = { $nin: blockedVendorIds };
+
   const events = await Event.find(filter)
     .sort({ startDate: 1 })
     .skip(skip)
@@ -537,6 +565,10 @@ const getEventsByLanguage = catchAsync(async (req: Request, res: Response) => {
     status: { $in: ['upcoming', 'ongoing'] },
     ...visibilityFilter
   };
+
+  // Hide events owned by blocked vendors
+  const blockedVendorIds = await getBlockedVendorUserIds();
+  if (blockedVendorIds.length > 0) (filter as any).vendorId = { $nin: blockedVendorIds };
 
   const events = await Event.find(filter)
     .sort({ startDate: 1 })

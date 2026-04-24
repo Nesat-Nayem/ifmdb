@@ -17,6 +17,7 @@ const http_status_1 = __importDefault(require("http-status"));
 const events_model_1 = __importDefault(require("./events.model"));
 const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
+const vendor_block_util_1 = require("../vendor/vendor-block.util");
 // Create a new event
 const createEvent = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const user = req.user;
@@ -58,6 +59,12 @@ const getAllEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
                 ]
             }
         ];
+        // Hide events owned by blocked vendors (admin can block a vendor account).
+        // vendorId is null for admin-created events, which $nin preserves.
+        const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+        if (blockedVendorIds.length > 0) {
+            filter.vendorId = { $nin: blockedVendorIds };
+        }
     }
     // Vendor always sees only their own events (active or inactive)
     // Admin sees all events without any vendor restriction
@@ -233,6 +240,10 @@ const getEventsByType = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(voi
         ]
     };
     const filter = Object.assign({ eventType: type, isActive: true, status: { $in: ['upcoming', 'ongoing'] } }, visibilityFilter);
+    // Hide events owned by blocked vendors
+    const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+    if (blockedVendorIds.length > 0)
+        filter.vendorId = { $nin: blockedVendorIds };
     const events = yield events_model_1.default.find(filter)
         .sort({ startDate: 1 })
         .skip(skip)
@@ -272,6 +283,10 @@ const getUpcomingEvents = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(v
         ]
     };
     const filter = Object.assign({ startDate: { $gte: now }, status: 'upcoming', isActive: true }, visibilityFilter);
+    // Hide events owned by blocked vendors
+    const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+    if (blockedVendorIds.length > 0)
+        filter.vendorId = { $nin: blockedVendorIds };
     const events = yield events_model_1.default.find(filter)
         .sort({ startDate: 1 })
         .skip(skip)
@@ -312,6 +327,10 @@ const getEventsByLocation = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         ]
     };
     const filter = Object.assign({ 'location.city': { $regex: city, $options: 'i' }, isActive: true, status: { $in: ['upcoming', 'ongoing'] } }, visibilityFilter);
+    // Hide events owned by blocked vendors
+    const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+    if (blockedVendorIds.length > 0)
+        filter.vendorId = { $nin: blockedVendorIds };
     const events = yield events_model_1.default.find(filter)
         .sort({ startDate: 1 })
         .skip(skip)
@@ -355,6 +374,10 @@ const getBestEventsThisWeek = (0, catchAsync_1.catchAsync)((req, res) => __await
         ]
     };
     const filter = Object.assign({ isActive: true, status: { $in: ['upcoming', 'ongoing'] }, startDate: { $gte: new Date(), $lte: endOfWeek } }, visibilityFilter);
+    // Hide events owned by blocked vendors
+    const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+    if (blockedVendorIds.length > 0)
+        filter.vendorId = { $nin: blockedVendorIds };
     const events = yield events_model_1.default.find(filter)
         .sort({ totalTicketsSold: -1 })
         .skip(skip)
@@ -396,6 +419,10 @@ const getEventsByCategory = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         ]
     };
     const filter = Object.assign({ categoryId, isActive: true, status: { $in: ['upcoming', 'ongoing'] } }, visibilityFilter);
+    // Hide events owned by blocked vendors
+    const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+    if (blockedVendorIds.length > 0)
+        filter.vendorId = { $nin: blockedVendorIds };
     const events = yield events_model_1.default.find(filter)
         .sort({ startDate: 1 })
         .skip(skip)
@@ -437,6 +464,10 @@ const getEventsByLanguage = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         ]
     };
     const filter = Object.assign({ eventLanguage: { $regex: eventLanguage, $options: 'i' }, isActive: true, status: { $in: ['upcoming', 'ongoing'] } }, visibilityFilter);
+    // Hide events owned by blocked vendors
+    const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
+    if (blockedVendorIds.length > 0)
+        filter.vendorId = { $nin: blockedVendorIds };
     const events = yield events_model_1.default.find(filter)
         .sort({ startDate: 1 })
         .skip(skip)

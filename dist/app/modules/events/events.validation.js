@@ -38,7 +38,7 @@ const createEventValidation = zod_1.z.object({
     body: zod_1.z.object({
         title: zod_1.z.string().min(1, 'Event title is required'),
         description: zod_1.z.string().min(1, 'Event description is required'),
-        eventType: zod_1.z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']),
+        eventType: zod_1.z.string().min(1, 'Event type is required'),
         category: zod_1.z.string().min(1, 'Event category is required'),
         categoryId: zod_1.z.string().optional(),
         eventCategories: zod_1.z.array(zod_1.z.string()).min(1, 'At least one event category is required').optional(),
@@ -75,7 +75,7 @@ const updateEventValidation = zod_1.z.object({
     body: zod_1.z.object({
         title: zod_1.z.string().min(1, 'Event title is required').optional(),
         description: zod_1.z.string().min(1, 'Event description is required').optional(),
-        eventType: zod_1.z.enum(['comedy', 'music', 'concert', 'theater', 'sports', 'conference', 'workshop', 'other']).optional(),
+        eventType: zod_1.z.string().min(1, 'Event type is required').optional(),
         category: zod_1.z.string().min(1, 'Event category is required').optional(),
         categoryId: zod_1.z.string().optional(),
         eventCategories: zod_1.z.array(zod_1.z.string()).min(1, 'At least one event category is required').optional(),

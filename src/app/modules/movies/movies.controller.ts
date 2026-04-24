@@ -5,6 +5,7 @@ import { catchAsync } from '../../utils/catchAsync';
 import { sendResponse } from '../../utils/sendResponse';
 import { MovieCategory } from './movieCategory.model';
 import { userInterface } from '../../middlewares/userInterface';
+import { getBlockedVendorUserIds } from '../vendor/vendor-block.util';
 
 // Create a new movie
 const createMovie = catchAsync(async (req: Request, res: Response) => {
@@ -129,6 +130,13 @@ const getAllMovies = catchAsync(async (req: Request, res: Response) => {
         ]
       }
     ];
+
+    // Hide movies owned by blocked vendors (admin blocks a vendor account).
+    // vendorId is null for admin-created movies, which $nin preserves.
+    const blockedVendorIds = await getBlockedVendorUserIds();
+    if (blockedVendorIds.length > 0) {
+      filter.vendorId = { $nin: blockedVendorIds };
+    }
   }
 
   // Vendor sees only their own movies (all statuses, active + inactive)

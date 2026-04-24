@@ -41,6 +41,7 @@ const watchlist_routes_1 = __importDefault(require("../modules/watchlist/watchli
 const dashboard_routes_1 = __importDefault(require("../modules/dashboard/dashboard.routes"));
 const homepage_category_routes_1 = require("../modules/homepage-category/homepage-category.routes");
 const event_participation_type_routes_1 = require("../modules/event-participation-type/event-participation-type.routes");
+const event_type_routes_1 = require("../modules/event-type/event-type.routes");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -190,6 +191,10 @@ const moduleRoutes = [
     {
         path: "/event-participation-types",
         route: event_participation_type_routes_1.eventParticipationTypeRouter,
+    },
+    {
+        path: "/event-types",
+        route: event_type_routes_1.eventTypeRouter,
     },
 ];
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

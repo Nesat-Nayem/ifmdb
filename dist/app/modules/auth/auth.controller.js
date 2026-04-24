@@ -256,6 +256,7 @@ const updateUser = (req, res, next) => __awaiter(void 0, void 0, void 0, functio
 });
 exports.updateUser = updateUser;
 const loginController = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
         const { email, password } = auth_validation_1.loginValidation.parse(req.body);
         // First try to find in User model
@@ -283,9 +284,20 @@ const loginController = (req, res, next) => __awaiter(void 0, void 0, void 0, fu
             });
             return;
         }
+        // Block check: admin can block a vendor/user account. Blocked users cannot log in.
+        if (user.isBlocked) {
+            res.status(403).json({
+                success: false,
+                statusCode: 403,
+                message: ((_a = user.blockedReason) === null || _a === void 0 ? void 0 : _a.trim())
+                    ? `Your account has been blocked by the admin. Reason: ${user.blockedReason}`
+                    : "Your account has been blocked by the admin. Please contact support.",
+            });
+            return;
+        }
         const token = (0, generateToken_1.generateToken)(user);
         // remove password
-        const _a = user.toObject(), { password: _ } = _a, userObject = __rest(_a, ["password"]);
+        const _b = user.toObject(), { password: _ } = _b, userObject = __rest(_b, ["password"]);
         res.json({
             success: true,
             statusCode: 200,
