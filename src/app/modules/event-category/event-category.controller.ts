@@ -175,11 +175,7 @@ const updateEventCategory = catchAsync(async (req: Request, res: Response) => {
 const deleteEventCategory = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   
-  const deletedCategory = await EventCategory.findByIdAndUpdate(
-    id,
-    { isActive: false },
-    { new: true }
-  );
+  const deletedCategory = await EventCategory.findByIdAndDelete(id);
   
   if (!deletedCategory) {
     return sendResponse(res, {
