@@ -9,6 +9,7 @@ import { userInterface } from '../../middlewares/userInterface';
 import { sendEmail, generatePassword, emailTemplates } from '../../services/emailService';
 import { sendWhatsAppMessage, whatsappTemplates } from '../../services/whatsappService';
 import { invalidateBlockedVendorCache } from './vendor-block.util';
+import { computeDurationDays, addDays, invalidateExpiredFilmTradeCache } from './subscription.util';
 
 // ============ VENDOR PACKAGES ============
 export const createVendorPackage = async (req: userInterface, res: Response, next: NextFunction) => {
@@ -451,7 +452,36 @@ export const decideVendorApplication = async (req: userInterface, res: Response,
       item.approvedAt = new Date();
       item.approvedBy = req.user?._id;
       item.vendorUserId = vendorUser._id as any;
+
+      // Initialize film_trade subscription lifecycle based on selected package
+      const approvalDate = new Date();
+      for (const svc of item.selectedServices as any[]) {
+        if (svc.serviceType !== 'film_trade' || !svc.packageId) continue;
+        const pkg = await VendorPackage.findById(svc.packageId).lean();
+        if (!pkg) continue;
+        const days = computeDurationDays(pkg.duration, pkg.durationType as any);
+        svc.subscriptionStart = approvalDate;
+        svc.subscriptionEnd = addDays(approvalDate, days);
+        svc.subscriptionStatus = 'active';
+        svc.lastRenewedAt = approvalDate;
+        svc.paymentHistory = Array.isArray(svc.paymentHistory) ? svc.paymentHistory : [];
+        svc.paymentHistory.push({
+          transactionId: item.paymentInfo?.transactionId,
+          amount: item.paymentInfo?.amount || svc.packagePrice || pkg.price,
+          status: item.paymentInfo?.status === 'completed' ? 'completed' : 'pending',
+          paymentMethod: item.paymentInfo?.paymentMethod,
+          paidAt: item.paymentInfo?.paidAt || approvalDate,
+          type: 'initial',
+          packageId: pkg._id as any,
+          packageName: pkg.name,
+          durationDays: days,
+          periodStart: approvalDate,
+          periodEnd: addDays(approvalDate, days),
+        });
+      }
+      item.markModified('selectedServices');
       await item.save();
+      invalidateExpiredFilmTradeCache();
 
       // Send approval email with credentials
       const serviceNames = item.selectedServices.map(s => {

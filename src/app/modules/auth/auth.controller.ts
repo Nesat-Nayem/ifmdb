@@ -314,6 +314,20 @@ export const loginController: RequestHandler = async (req, res, next): Promise<v
 
     const token = generateToken(user);
 
+    // For vendors, recompute which services are currently usable (film_trade
+    // is only active when the subscription is not expired). The menu & content
+    // access layers rely on this value.
+    if ((user as any).role === 'vendor') {
+      try {
+        const { computeActiveServicesForVendor } = await import('../vendor/subscription.util');
+        const active = await computeActiveServicesForVendor(user._id as any);
+        (user as any).vendorActiveServices = active;
+        await User.findByIdAndUpdate(user._id, { vendorActiveServices: active });
+      } catch (e) {
+        // Non-fatal: fall back to vendorServices if subscription lookup fails
+      }
+    }
+
     // remove password
     const { password: _, ...userObject } = user.toObject();
 
@@ -805,6 +819,19 @@ export const getProfile: RequestHandler = async (req, res, next): Promise<void> 
         message: "User not found"
       });
       return;
+    }
+
+    // Refresh vendorActiveServices so the admin panel menu hides film_trade
+    // items as soon as the subscription lapses (no re-login required).
+    if ((user as any).role === 'vendor') {
+      try {
+        const { computeActiveServicesForVendor } = await import('../vendor/subscription.util');
+        const active = await computeActiveServicesForVendor(user._id as any);
+        (user as any).vendorActiveServices = active;
+        await User.findByIdAndUpdate(user._id, { vendorActiveServices: active });
+      } catch (e) {
+        // non-fatal
+      }
     }
 
     res.json({

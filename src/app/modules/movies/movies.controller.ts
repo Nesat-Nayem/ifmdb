@@ -6,6 +6,7 @@ import { sendResponse } from '../../utils/sendResponse';
 import { MovieCategory } from './movieCategory.model';
 import { userInterface } from '../../middlewares/userInterface';
 import { getBlockedVendorUserIds } from '../vendor/vendor-block.util';
+import { getExpiredFilmTradeVendorIds } from '../vendor/subscription.util';
 
 // Create a new movie
 const createMovie = catchAsync(async (req: Request, res: Response) => {
@@ -70,8 +71,18 @@ const createMovie = catchAsync(async (req: Request, res: Response) => {
     delete normalized.email;
   }
 
-  // If user is a vendor, add vendorId to the movie
+  // If user is a vendor, add vendorId to the movie and enforce an active
+  // film_trade subscription — vendors cannot add movies once expired.
   if (user && user.role === 'vendor') {
+    const expiredIds = await getExpiredFilmTradeVendorIds();
+    if (expiredIds.some((id) => String(id) === String(user._id))) {
+      return sendResponse(res, {
+        statusCode: httpStatus.FORBIDDEN,
+        success: false,
+        message: 'Your film trade subscription has expired. Please renew to add movies.',
+        data: null,
+      });
+    }
     normalized.vendorId = user._id;
   }
 
@@ -131,11 +142,20 @@ const getAllMovies = catchAsync(async (req: Request, res: Response) => {
       }
     ];
 
-    // Hide movies owned by blocked vendors (admin blocks a vendor account).
-    // vendorId is null for admin-created movies, which $nin preserves.
-    const blockedVendorIds = await getBlockedVendorUserIds();
-    if (blockedVendorIds.length > 0) {
-      filter.vendorId = { $nin: blockedVendorIds };
+    // Hide movies owned by blocked vendors AND vendors whose film_trade
+    // subscription has expired. vendorId is null for admin-created movies,
+    // which $nin preserves.
+    const [blockedVendorIds, expiredFilmTradeIds] = await Promise.all([
+      getBlockedVendorUserIds(),
+      getExpiredFilmTradeVendorIds(),
+    ]);
+    const hiddenIds = [
+      ...blockedVendorIds.map(String),
+      ...expiredFilmTradeIds.map(String),
+    ];
+    const uniqueHiddenIds = Array.from(new Set(hiddenIds));
+    if (uniqueHiddenIds.length > 0) {
+      filter.vendorId = { $nin: uniqueHiddenIds };
     }
   }
 

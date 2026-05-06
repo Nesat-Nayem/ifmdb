@@ -2,6 +2,20 @@ import { Document, Types } from 'mongoose';
 
 export type VendorServiceType = 'film_trade' | 'events' | 'movie_watch';
 
+export interface ISubscriptionPayment {
+  transactionId?: string;
+  amount: number;
+  status: 'pending' | 'completed' | 'failed';
+  paymentMethod?: string;
+  paidAt?: Date;
+  type: 'initial' | 'renewal';
+  packageId?: Types.ObjectId;
+  packageName?: string;
+  durationDays?: number;
+  periodStart?: Date;
+  periodEnd?: Date;
+}
+
 export interface ISelectedService {
   serviceType: VendorServiceType;
   packageId?: Types.ObjectId; // Only for film_trade
@@ -9,6 +23,12 @@ export interface ISelectedService {
   packagePrice?: number;
   platformFee?: number; // For events/movie_watch
   isGovernmentEvent?: boolean; // For events - government events have fixed 10% fee
+  // ===== Subscription lifecycle (film_trade only) =====
+  subscriptionStart?: Date;
+  subscriptionEnd?: Date;
+  subscriptionStatus?: 'active' | 'expired' | 'pending_payment';
+  lastRenewedAt?: Date;
+  paymentHistory?: ISubscriptionPayment[];
 }
 
 export interface IPaymentInfo {

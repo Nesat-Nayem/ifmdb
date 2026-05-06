@@ -25,6 +25,11 @@ import {
   verifyVendorPayment, 
   handleVendorPaymentWebhook 
 } from './vendor-payment.controller';
+import {
+  getMySubscription,
+  createRenewalOrder,
+  verifyRenewal,
+} from './subscription.controller';
 
 const router = express.Router();
 
@@ -441,5 +446,22 @@ router.post('/payment/verify/:orderId', verifyVendorPayment);
 
 // Razorpay webhook
 router.post('/payment/webhook', handleVendorPaymentWebhook);
+
+// ============ VENDOR SUBSCRIPTION (Film Trade) ============
+/**
+ * @swagger
+ * /v1/api/vendors/my-subscription:
+ *   get:
+ *     summary: Get current vendor's film_trade subscription + payment history
+ *     tags: [Vendors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Subscription details
+ */
+router.get('/my-subscription', auth('vendor'), getMySubscription);
+router.post('/my-subscription/renew/create-order', auth('vendor'), createRenewalOrder);
+router.post('/my-subscription/renew/verify', auth('vendor'), verifyRenewal);
 
 export const vendorRouter = router;

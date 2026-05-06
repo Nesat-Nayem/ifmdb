@@ -53,6 +53,11 @@ export interface IUser extends Document {
   authProvider: 'local' | 'google' | 'phone' | 'apple';
   packageFeatures?: string[];
   vendorServices?: VendorServiceType[];
+  // Services with a currently-valid subscription/fee setup. For film_trade the
+  // value is only present here when the subscription is not expired. Admin
+  // panel menu uses this to hide film_trade menu items once the subscription
+  // lapses. Populated on login and updated on renewal/expiry.
+  vendorActiveServices?: VendorServiceType[];
   vendorApplicationId?: mongoose.Types.ObjectId;
   // Admin can block a vendor/user to stop their login and hide their content on the frontend
   isBlocked?: boolean;
@@ -86,6 +91,12 @@ const userSchema: Schema = new Schema(
     },
 
     vendorServices: {
+      type: [String],
+      enum: ['film_trade', 'events', 'movie_watch'],
+      default: []
+    },
+
+    vendorActiveServices: {
       type: [String],
       enum: ['film_trade', 'events', 'movie_watch'],
       default: []
