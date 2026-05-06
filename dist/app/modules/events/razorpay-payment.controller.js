@@ -23,6 +23,7 @@ const event_booking_model_1 = require("./event-booking.model");
 const wallet_controller_1 = require("../wallet/wallet.controller");
 const razorpayService_1 = __importDefault(require("../../services/razorpayService"));
 const razorpayRouteService_1 = __importDefault(require("../../services/razorpayRouteService"));
+const event_booking_controller_1 = require("./event-booking.controller");
 // Generate unique booking reference
 const generateBookingReference = () => {
     const timestamp = Date.now().toString(36);
@@ -46,7 +47,7 @@ const generateTicketScannerId = () => {
 const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const { id: eventId } = req.params;
-    const { userId, quantity, seatType = 'Normal', eventCategory = 'Ticket Booking', customerDetails, countryCode = 'IN' } = req.body;
+    const { userId, quantity, seatType = 'Normal', eventCategory = 'Ticket Booking', attendanceDate, customerDetails, countryCode = 'IN' } = req.body;
     // Validate event
     const event = yield events_model_1.default.findById(eventId);
     if (!event || !event.isActive || !['upcoming', 'ongoing'].includes(event.status)) {
@@ -54,6 +55,19 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,
             message: 'Event not available for booking',
+            data: null,
+        });
+    }
+    // Validate attendance date (must fall within event start-end for multi-day events)
+    const attendance = (0, event_booking_controller_1.resolveAttendanceDate)(attendanceDate, {
+        startDate: event.startDate,
+        endDate: event.endDate,
+    });
+    if (!attendance.valid) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.BAD_REQUEST,
+            success: false,
+            message: attendance.message || 'Invalid attendance date',
             data: null,
         });
     }
@@ -163,6 +177,7 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             quantity,
             seatType,
             eventCategory,
+            attendanceDate: attendance.value,
             unitPrice,
             totalAmount,
             bookingFee,

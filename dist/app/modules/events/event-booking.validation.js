@@ -18,6 +18,12 @@ const createEventBookingValidation = zod_1.z.object({
         quantity: zod_1.z.number().min(1, 'Quantity must be at least 1'),
         seatType: zod_1.z.string().optional().default('Normal'),
         eventCategory: zod_1.z.string().min(1, 'Event category is required'),
+        attendanceDate: zod_1.z
+            .string()
+            .refine((date) => !isNaN(Date.parse(date)), {
+            message: 'Invalid attendance date format',
+        })
+            .optional(),
         bookingFee: zod_1.z.number().min(0).optional(),
         taxAmount: zod_1.z.number().min(0).optional(),
         discountAmount: zod_1.z.number().min(0).optional(),

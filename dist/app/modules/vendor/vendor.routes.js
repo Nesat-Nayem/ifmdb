@@ -9,6 +9,7 @@ const authMiddleware_1 = require("../../middlewares/authMiddleware");
 const cloudinary_1 = require("../../config/cloudinary");
 const vendor_controller_1 = require("./vendor.controller");
 const vendor_payment_controller_1 = require("./vendor-payment.controller");
+const subscription_controller_1 = require("./subscription.controller");
 const router = express_1.default.Router();
 /**
  * @swagger
@@ -405,4 +406,20 @@ router.post('/payment/create-order', vendor_payment_controller_1.createVendorPay
 router.post('/payment/verify/:orderId', vendor_payment_controller_1.verifyVendorPayment);
 // Razorpay webhook
 router.post('/payment/webhook', vendor_payment_controller_1.handleVendorPaymentWebhook);
+// ============ VENDOR SUBSCRIPTION (Film Trade) ============
+/**
+ * @swagger
+ * /v1/api/vendors/my-subscription:
+ *   get:
+ *     summary: Get current vendor's film_trade subscription + payment history
+ *     tags: [Vendors]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Subscription details
+ */
+router.get('/my-subscription', (0, authMiddleware_1.auth)('vendor'), subscription_controller_1.getMySubscription);
+router.post('/my-subscription/renew/create-order', (0, authMiddleware_1.auth)('vendor'), subscription_controller_1.createRenewalOrder);
+router.post('/my-subscription/renew/verify', (0, authMiddleware_1.auth)('vendor'), subscription_controller_1.verifyRenewal);
 exports.vendorRouter = router;

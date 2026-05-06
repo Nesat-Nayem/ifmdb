@@ -19,6 +19,7 @@ const catchAsync_1 = require("../../utils/catchAsync");
 const sendResponse_1 = require("../../utils/sendResponse");
 const movieCategory_model_1 = require("./movieCategory.model");
 const vendor_block_util_1 = require("../vendor/vendor-block.util");
+const subscription_util_1 = require("../vendor/subscription.util");
 // Create a new movie
 const createMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const user = req.user;
@@ -80,8 +81,18 @@ const createMovie = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0,
         delete normalized.phone;
         delete normalized.email;
     }
-    // If user is a vendor, add vendorId to the movie
+    // If user is a vendor, add vendorId to the movie and enforce an active
+    // film_trade subscription — vendors cannot add movies once expired.
     if (user && user.role === 'vendor') {
+        const expiredIds = yield (0, subscription_util_1.getExpiredFilmTradeVendorIds)();
+        if (expiredIds.some((id) => String(id) === String(user._id))) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.FORBIDDEN,
+                success: false,
+                message: 'Your film trade subscription has expired. Please renew to add movies.',
+                data: null,
+            });
+        }
         normalized.vendorId = user._id;
     }
     const newMovie = yield movies_model_1.default.create(normalized);
@@ -118,11 +129,20 @@ const getAllMovies = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0
                 ]
             }
         ];
-        // Hide movies owned by blocked vendors (admin blocks a vendor account).
-        // vendorId is null for admin-created movies, which $nin preserves.
-        const blockedVendorIds = yield (0, vendor_block_util_1.getBlockedVendorUserIds)();
-        if (blockedVendorIds.length > 0) {
-            filter.vendorId = { $nin: blockedVendorIds };
+        // Hide movies owned by blocked vendors AND vendors whose film_trade
+        // subscription has expired. vendorId is null for admin-created movies,
+        // which $nin preserves.
+        const [blockedVendorIds, expiredFilmTradeIds] = yield Promise.all([
+            (0, vendor_block_util_1.getBlockedVendorUserIds)(),
+            (0, subscription_util_1.getExpiredFilmTradeVendorIds)(),
+        ]);
+        const hiddenIds = [
+            ...blockedVendorIds.map(String),
+            ...expiredFilmTradeIds.map(String),
+        ];
+        const uniqueHiddenIds = Array.from(new Set(hiddenIds));
+        if (uniqueHiddenIds.length > 0) {
+            filter.vendorId = { $nin: uniqueHiddenIds };
         }
     }
     // Vendor sees only their own movies (all statuses, active + inactive)

@@ -70,6 +70,11 @@ const userSchema = new mongoose_1.Schema({
         enum: ['film_trade', 'events', 'movie_watch'],
         default: []
     },
+    vendorActiveServices: {
+        type: [String],
+        enum: ['film_trade', 'events', 'movie_watch'],
+        default: []
+    },
     vendorApplicationId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'VendorApplication'

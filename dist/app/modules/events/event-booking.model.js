@@ -67,6 +67,12 @@ const EventBookingSchema = new mongoose_1.Schema({
         required: true,
         default: 'Ticket Booking'
     },
+    // Attendance date - the specific day the user plans to attend (for multi-day events)
+    // For single-day events this will be the event's startDate
+    attendanceDate: {
+        type: Date,
+        default: null,
+    },
     unitPrice: {
         type: Number,
         required: true,

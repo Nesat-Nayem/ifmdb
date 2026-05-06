@@ -19,6 +19,7 @@ const appError_1 = require("../../errors/appError");
 const emailService_1 = require("../../services/emailService");
 const whatsappService_1 = require("../../services/whatsappService");
 const vendor_block_util_1 = require("./vendor-block.util");
+const subscription_util_1 = require("./subscription.util");
 // ============ VENDOR PACKAGES ============
 const createVendorPackage = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -380,7 +381,7 @@ const getVendorApplicationById = (req, res, next) => __awaiter(void 0, void 0, v
 });
 exports.getVendorApplicationById = getVendorApplicationById;
 const decideVendorApplication = (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c, _d, _e, _f;
     try {
         const { id } = req.params;
         const { decision, rejectionReason } = vendor_validation_1.vendorDecisionValidation.parse(req.body);
@@ -437,7 +438,37 @@ const decideVendorApplication = (req, res, next) => __awaiter(void 0, void 0, vo
             item.approvedAt = new Date();
             item.approvedBy = (_a = req.user) === null || _a === void 0 ? void 0 : _a._id;
             item.vendorUserId = vendorUser._id;
+            // Initialize film_trade subscription lifecycle based on selected package
+            const approvalDate = new Date();
+            for (const svc of item.selectedServices) {
+                if (svc.serviceType !== 'film_trade' || !svc.packageId)
+                    continue;
+                const pkg = yield vendorPackage_model_1.VendorPackage.findById(svc.packageId).lean();
+                if (!pkg)
+                    continue;
+                const days = (0, subscription_util_1.computeDurationDays)(pkg.duration, pkg.durationType);
+                svc.subscriptionStart = approvalDate;
+                svc.subscriptionEnd = (0, subscription_util_1.addDays)(approvalDate, days);
+                svc.subscriptionStatus = 'active';
+                svc.lastRenewedAt = approvalDate;
+                svc.paymentHistory = Array.isArray(svc.paymentHistory) ? svc.paymentHistory : [];
+                svc.paymentHistory.push({
+                    transactionId: (_b = item.paymentInfo) === null || _b === void 0 ? void 0 : _b.transactionId,
+                    amount: ((_c = item.paymentInfo) === null || _c === void 0 ? void 0 : _c.amount) || svc.packagePrice || pkg.price,
+                    status: ((_d = item.paymentInfo) === null || _d === void 0 ? void 0 : _d.status) === 'completed' ? 'completed' : 'pending',
+                    paymentMethod: (_e = item.paymentInfo) === null || _e === void 0 ? void 0 : _e.paymentMethod,
+                    paidAt: ((_f = item.paymentInfo) === null || _f === void 0 ? void 0 : _f.paidAt) || approvalDate,
+                    type: 'initial',
+                    packageId: pkg._id,
+                    packageName: pkg.name,
+                    durationDays: days,
+                    periodStart: approvalDate,
+                    periodEnd: (0, subscription_util_1.addDays)(approvalDate, days),
+                });
+            }
+            item.markModified('selectedServices');
             yield item.save();
+            (0, subscription_util_1.invalidateExpiredFilmTradeCache)();
             // Send approval email with credentials
             const serviceNames = item.selectedServices.map(s => {
                 if (s.serviceType === 'film_trade')

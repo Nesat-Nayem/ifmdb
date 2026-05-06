@@ -35,6 +35,19 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VendorApplication = void 0;
 const mongoose_1 = __importStar(require("mongoose"));
+const SubscriptionPaymentSchema = new mongoose_1.Schema({
+    transactionId: { type: String },
+    amount: { type: Number, required: true, default: 0 },
+    status: { type: String, enum: ['pending', 'completed', 'failed'], default: 'pending' },
+    paymentMethod: { type: String },
+    paidAt: { type: Date },
+    type: { type: String, enum: ['initial', 'renewal'], default: 'initial' },
+    packageId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'VendorPackage' },
+    packageName: { type: String },
+    durationDays: { type: Number },
+    periodStart: { type: Date },
+    periodEnd: { type: Date },
+}, { _id: false });
 const SelectedServiceSchema = new mongoose_1.Schema({
     serviceType: { type: String, enum: ['film_trade', 'events', 'movie_watch'], required: true },
     packageId: { type: mongoose_1.Schema.Types.ObjectId, ref: 'VendorPackage' },
@@ -42,6 +55,12 @@ const SelectedServiceSchema = new mongoose_1.Schema({
     packagePrice: { type: Number, default: 0 },
     platformFee: { type: Number, default: 0 },
     isGovernmentEvent: { type: Boolean, default: false }, // Government events have fixed 10% platform fee
+    // Subscription lifecycle (film_trade only)
+    subscriptionStart: { type: Date },
+    subscriptionEnd: { type: Date },
+    subscriptionStatus: { type: String, enum: ['active', 'expired', 'pending_payment'], default: 'pending_payment' },
+    lastRenewedAt: { type: Date },
+    paymentHistory: { type: [SubscriptionPaymentSchema], default: [] },
 }, { _id: false });
 const PaymentInfoSchema = new mongoose_1.Schema({
     transactionId: { type: String },

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.EventBookingController = void 0;
+exports.resolveAttendanceDate = exports.EventBookingController = void 0;
 const http_status_1 = __importDefault(require("http-status"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const qrcode_1 = __importDefault(require("qrcode"));
@@ -39,16 +39,59 @@ const generateTicketScannerId = () => {
     const checksum = Math.random().toString(36).substring(2, 4);
     return `SCAN${timestamp}${randomStr}${checksum}`.toUpperCase();
 };
+// Validate attendance date falls within the event's running window (start → end)
+// Returns a normalized Date (set to midnight UTC of the chosen day) or null.
+const resolveAttendanceDate = (attendanceDate, event) => {
+    // Helper to strip time portion
+    const toDayStart = (d) => {
+        const copy = new Date(d);
+        copy.setHours(0, 0, 0, 0);
+        return copy;
+    };
+    const eventStart = toDayStart(new Date(event.startDate));
+    const eventEnd = event.endDate ? toDayStart(new Date(event.endDate)) : eventStart;
+    // If no attendance date provided, default to event start date
+    if (!attendanceDate) {
+        return { valid: true, value: eventStart };
+    }
+    const parsed = new Date(attendanceDate);
+    if (isNaN(parsed.getTime())) {
+        return { valid: false, value: null, message: 'Invalid attendance date' };
+    }
+    const attendDay = toDayStart(parsed);
+    if (attendDay.getTime() < eventStart.getTime() || attendDay.getTime() > eventEnd.getTime()) {
+        return {
+            valid: false,
+            value: null,
+            message: 'Attendance date must be within the event duration',
+        };
+    }
+    return { valid: true, value: attendDay };
+};
+exports.resolveAttendanceDate = resolveAttendanceDate;
 // Create event ticket booking with seat type selection
 const createEventBooking = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id: eventId } = req.params;
-    const { userId, quantity, seatType = 'Normal', eventCategory = 'Ticket Booking', bookingFee = 0, taxAmount = 0, discountAmount = 0, paymentMethod = 'card', customerDetails } = req.body;
+    const { userId, quantity, seatType = 'Normal', eventCategory = 'Ticket Booking', attendanceDate, bookingFee = 0, taxAmount = 0, discountAmount = 0, paymentMethod = 'card', customerDetails } = req.body;
     const event = yield events_model_1.default.findById(eventId);
     if (!event || !event.isActive || !['upcoming', 'ongoing'].includes(event.status)) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
             success: false,
             message: 'Event not available for booking',
+            data: null,
+        });
+    }
+    // Validate attendance date for multi-day events
+    const attendance = resolveAttendanceDate(attendanceDate, {
+        startDate: event.startDate,
+        endDate: event.endDate,
+    });
+    if (!attendance.valid) {
+        return (0, sendResponse_1.sendResponse)(res, {
+            statusCode: http_status_1.default.BAD_REQUEST,
+            success: false,
+            message: attendance.message || 'Invalid attendance date',
             data: null,
         });
     }
@@ -125,6 +168,7 @@ const createEventBooking = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(
         quantity,
         seatType,
         eventCategory,
+        attendanceDate: attendance.value,
         unitPrice,
         totalAmount,
         bookingFee,
@@ -179,7 +223,7 @@ const getAllEventBookings = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
     sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
     const bookings = yield event_booking_model_1.EventBooking.find(filter)
         .populate('userId', 'name email phone')
-        .populate('eventId', 'title posterImage startDate startTime location ticketPrice')
+        .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice')
         .sort(sortOptions)
         .skip(skip)
         .limit(limitNum)
@@ -202,7 +246,7 @@ const getEventBookingById = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
     const { id } = req.params;
     const booking = yield event_booking_model_1.EventBooking.findById(id)
         .populate('userId', 'name email phone')
-        .populate('eventId', 'title posterImage startDate startTime location ticketPrice');
+        .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice');
     if (!booking) {
         return (0, sendResponse_1.sendResponse)(res, {
             statusCode: http_status_1.default.NOT_FOUND,
