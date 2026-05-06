@@ -32,6 +32,12 @@ const EventBookingSchema = new Schema({
     required: true,
     default: 'Ticket Booking'
   },
+  // Attendance date - the specific day the user plans to attend (for multi-day events)
+  // For single-day events this will be the event's startDate
+  attendanceDate: {
+    type: Date,
+    default: null,
+  },
   unitPrice: {
     type: Number,
     required: true,
@@ -213,6 +219,7 @@ export interface IEventBooking extends Document {
   quantity: number;
   seatType: string;
   eventCategory: string;
+  attendanceDate?: Date | null;
   unitPrice: number;
   totalAmount: number;
   bookingFee: number;

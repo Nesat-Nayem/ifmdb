@@ -9,6 +9,7 @@ import { EventBooking, EventETicket, EventPaymentTransaction } from './event-boo
 import { WalletController } from '../wallet/wallet.controller';
 import razorpayService from '../../services/razorpayService';
 import razorpayRouteService from '../../services/razorpayRouteService';
+import { resolveAttendanceDate } from './event-booking.controller';
 
 // Generate unique booking reference
 const generateBookingReference = (): string => {
@@ -40,6 +41,7 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
     quantity, 
     seatType = 'Normal',
     eventCategory = 'Ticket Booking',
+    attendanceDate,
     customerDetails,
     countryCode = 'IN'
   } = req.body;
@@ -51,6 +53,20 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
       statusCode: httpStatus.NOT_FOUND,
       success: false,
       message: 'Event not available for booking',
+      data: null,
+    });
+  }
+
+  // Validate attendance date (must fall within event start-end for multi-day events)
+  const attendance = resolveAttendanceDate(attendanceDate, {
+    startDate: event.startDate,
+    endDate: event.endDate,
+  });
+  if (!attendance.valid) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: attendance.message || 'Invalid attendance date',
       data: null,
     });
   }
@@ -179,6 +195,7 @@ const createRazorpayOrder = catchAsync(async (req: Request, res: Response) => {
       quantity,
       seatType,
       eventCategory,
+      attendanceDate: attendance.value,
       unitPrice,
       totalAmount,
       bookingFee,

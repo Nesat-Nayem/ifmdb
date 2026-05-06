@@ -30,6 +30,45 @@ const generateTicketScannerId = (): string => {
   return `SCAN${timestamp}${randomStr}${checksum}`.toUpperCase();
 };
 
+// Validate attendance date falls within the event's running window (start → end)
+// Returns a normalized Date (set to midnight UTC of the chosen day) or null.
+const resolveAttendanceDate = (
+  attendanceDate: string | Date | undefined | null,
+  event: { startDate: Date; endDate?: Date | null }
+): { valid: boolean; value: Date | null; message?: string } => {
+  // Helper to strip time portion
+  const toDayStart = (d: Date) => {
+    const copy = new Date(d);
+    copy.setHours(0, 0, 0, 0);
+    return copy;
+  };
+
+  const eventStart = toDayStart(new Date(event.startDate));
+  const eventEnd = event.endDate ? toDayStart(new Date(event.endDate)) : eventStart;
+
+  // If no attendance date provided, default to event start date
+  if (!attendanceDate) {
+    return { valid: true, value: eventStart };
+  }
+
+  const parsed = new Date(attendanceDate as any);
+  if (isNaN(parsed.getTime())) {
+    return { valid: false, value: null, message: 'Invalid attendance date' };
+  }
+
+  const attendDay = toDayStart(parsed);
+
+  if (attendDay.getTime() < eventStart.getTime() || attendDay.getTime() > eventEnd.getTime()) {
+    return {
+      valid: false,
+      value: null,
+      message: 'Attendance date must be within the event duration',
+    };
+  }
+
+  return { valid: true, value: attendDay };
+};
+
 // Create event ticket booking with seat type selection
 const createEventBooking = catchAsync(async (req: Request, res: Response) => {
   const { id: eventId } = req.params;
@@ -38,6 +77,7 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     quantity, 
     seatType = 'Normal',
     eventCategory = 'Ticket Booking',
+    attendanceDate,
     bookingFee = 0, 
     taxAmount = 0, 
     discountAmount = 0, 
@@ -51,6 +91,20 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
       statusCode: httpStatus.NOT_FOUND,
       success: false,
       message: 'Event not available for booking',
+      data: null,
+    });
+  }
+
+  // Validate attendance date for multi-day events
+  const attendance = resolveAttendanceDate(attendanceDate, {
+    startDate: event.startDate,
+    endDate: event.endDate,
+  });
+  if (!attendance.valid) {
+    return sendResponse(res, {
+      statusCode: httpStatus.BAD_REQUEST,
+      success: false,
+      message: attendance.message || 'Invalid attendance date',
       data: null,
     });
   }
@@ -145,6 +199,7 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     quantity,
     seatType,
     eventCategory,
+    attendanceDate: attendance.value,
     unitPrice,
     totalAmount,
     bookingFee,
@@ -213,7 +268,7 @@ const getAllEventBookings = catchAsync(async (req: Request, res: Response) => {
 
   const bookings = await EventBooking.find(filter)
     .populate('userId', 'name email phone')
-    .populate('eventId', 'title posterImage startDate startTime location ticketPrice')
+    .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice')
     .sort(sortOptions)
     .skip(skip)
     .limit(limitNum)
@@ -239,7 +294,7 @@ const getEventBookingById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const booking = await EventBooking.findById(id)
     .populate('userId', 'name email phone')
-    .populate('eventId', 'title posterImage startDate startTime location ticketPrice');
+    .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice');
 
   if (!booking) {
     return sendResponse(res, {
@@ -592,3 +647,5 @@ export const EventBookingController = {
   checkTicketStatus,
   deleteEventBooking,
 };
+
+export { resolveAttendanceDate };
