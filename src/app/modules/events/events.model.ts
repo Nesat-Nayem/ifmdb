@@ -24,6 +24,41 @@ const SeatTypeSchema = new Schema({
   }
 });
 
+// Event Pass Schema - grants access to ALL days of a multi-day event.
+// Similar to a seat type but sold as a multi-day pass instead of a single-day ticket.
+const EventPassSchema = new Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  totalPasses: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  availablePasses: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
+  // Max passes a single user can buy
+  maxPassesPerPerson: {
+    type: Number,
+    default: 5,
+    min: 1,
+  },
+  description: {
+    type: String,
+    default: '',
+  },
+});
+
 // Event Performer Schema
 const EventPerformerSchema = new Schema({
   name: {
@@ -105,6 +140,16 @@ export interface ISeatType {
   availableSeats: number;
 }
 
+// Event Pass Interface - grants access to all days of a multi-day event
+export interface IEventPass {
+  name: string;
+  price: number;
+  totalPasses: number;
+  availablePasses: number;
+  maxPassesPerPerson: number;
+  description?: string;
+}
+
 // Default Event Categories (Participation Types)
 export const DEFAULT_EVENT_CATEGORIES = [
   'Awardee & Represent our show',
@@ -131,6 +176,7 @@ export interface IEvent extends Document {
   totalSeats: number;
   availableSeats: number;
   seatTypes: ISeatType[];
+  eventPasses: IEventPass[];
   maxTicketsPerPerson: number;
   posterImage: string;
   verticalPoster?: string;
@@ -229,6 +275,10 @@ const eventSchema: Schema = new Schema(
     },
     seatTypes: {
       type: [SeatTypeSchema],
+      default: []
+    },
+    eventPasses: {
+      type: [EventPassSchema],
       default: []
     },
     maxTicketsPerPerson: {

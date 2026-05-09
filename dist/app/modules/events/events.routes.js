@@ -158,6 +158,28 @@ const router = express_1.default.Router();
  *             type: string
  *           description: Participation types available for this event (e.g., Awardee & Represent our show, Sponsored, Ticket Booking, Participate)
  *           default: ['Awardee & Represent our show', 'Sponsored', 'Ticket Booking', 'Participate']
+ *         eventPasses:
+ *           type: array
+ *           description: Multi-day event passes. A pass grants access to all days of the event.
+ *           items:
+ *             type: object
+ *             required: [name, price, totalPasses, availablePasses]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Gold Pass
+ *               price:
+ *                 type: number
+ *                 example: 2999
+ *               totalPasses:
+ *                 type: integer
+ *               availablePasses:
+ *                 type: integer
+ *               maxPassesPerPerson:
+ *                 type: integer
+ *                 default: 5
+ *               description:
+ *                 type: string
  *         startDate:
  *           type: string
  *           format: date
@@ -301,10 +323,18 @@ const router = express_1.default.Router();
  *           type: integer
  *           minimum: 1
  *           description: Number of tickets to book
+ *         bookingType:
+ *           type: string
+ *           enum: [ticket, pass]
+ *           default: ticket
+ *           description: Type of booking - "ticket" for single-day, "pass" for multi-day access
  *         seatType:
  *           type: string
  *           default: Normal
  *           description: Type of seat (e.g., Normal, VIP, Premium, VVIP). Must match one of the event's seat types
+ *         eventPass:
+ *           type: string
+ *           description: Required when bookingType="pass". Name of the event pass (e.g. "Gold Pass").
  *         eventCategory:
  *           type: string
  *           description: User's selected participation type. Must be one of the event's eventCategories (e.g., Awardee & Represent our show, Sponsored, Ticket Booking, Participate)

@@ -19,6 +19,16 @@ const seatTypeSchema = z.object({
   availableSeats: z.number().min(0, 'Available seats cannot be negative')
 });
 
+// Event pass validation schema - grants access to all days of a multi-day event
+const eventPassSchema = z.object({
+  name: z.string().min(1, 'Event pass name is required'),
+  price: z.number().min(0, 'Price cannot be negative'),
+  totalPasses: z.number().min(0, 'Total passes cannot be negative'),
+  availablePasses: z.number().min(0, 'Available passes cannot be negative'),
+  maxPassesPerPerson: z.number().min(1).optional(),
+  description: z.string().optional()
+});
+
 // Performer validation schema
 const performerSchema = z.object({
   name: z.string().min(1, 'Performer name is required'),
@@ -58,6 +68,7 @@ const createEventValidation = z.object({
     totalSeats: z.number().min(1, 'Total seats must be at least 1'),
     availableSeats: z.number().min(0, 'Available seats cannot be negative'),
     seatTypes: z.array(seatTypeSchema).optional(),
+    eventPasses: z.array(eventPassSchema).optional(),
     maxTicketsPerPerson: z.number().min(1).optional().default(10),
     posterImage: z.string().min(1, 'Poster image is required'),
     galleryImages: z.array(z.string()).optional(),
@@ -96,6 +107,7 @@ const updateEventValidation = z.object({
     totalSeats: z.number().min(1, 'Total seats must be at least 1').optional(),
     availableSeats: z.number().min(0, 'Available seats cannot be negative').optional(),
     seatTypes: z.array(seatTypeSchema).optional(),
+    eventPasses: z.array(eventPassSchema).optional(),
     maxTicketsPerPerson: z.number().min(1).optional(),
     posterImage: z.string().min(1, 'Poster image is required').optional(),
     videoUrl: z.string().optional(),

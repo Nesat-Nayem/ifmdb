@@ -58,6 +58,40 @@ const SeatTypeSchema = new mongoose_1.Schema({
         min: 0
     }
 });
+// Event Pass Schema - grants access to ALL days of a multi-day event.
+// Similar to a seat type but sold as a multi-day pass instead of a single-day ticket.
+const EventPassSchema = new mongoose_1.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+    },
+    price: {
+        type: Number,
+        required: true,
+        min: 0,
+    },
+    totalPasses: {
+        type: Number,
+        required: true,
+        min: 0,
+    },
+    availablePasses: {
+        type: Number,
+        required: true,
+        min: 0,
+    },
+    // Max passes a single user can buy
+    maxPassesPerPerson: {
+        type: Number,
+        default: 5,
+        min: 1,
+    },
+    description: {
+        type: String,
+        default: '',
+    },
+});
 // Event Performer Schema
 const EventPerformerSchema = new mongoose_1.Schema({
     name: {
@@ -210,6 +244,10 @@ const eventSchema = new mongoose_1.Schema({
     },
     seatTypes: {
         type: [SeatTypeSchema],
+        default: []
+    },
+    eventPasses: {
+        type: [EventPassSchema],
         default: []
     },
     maxTicketsPerPerson: {

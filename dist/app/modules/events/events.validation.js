@@ -19,6 +19,15 @@ const seatTypeSchema = zod_1.z.object({
     totalSeats: zod_1.z.number().min(0, 'Total seats cannot be negative'),
     availableSeats: zod_1.z.number().min(0, 'Available seats cannot be negative')
 });
+// Event pass validation schema - grants access to all days of a multi-day event
+const eventPassSchema = zod_1.z.object({
+    name: zod_1.z.string().min(1, 'Event pass name is required'),
+    price: zod_1.z.number().min(0, 'Price cannot be negative'),
+    totalPasses: zod_1.z.number().min(0, 'Total passes cannot be negative'),
+    availablePasses: zod_1.z.number().min(0, 'Available passes cannot be negative'),
+    maxPassesPerPerson: zod_1.z.number().min(1).optional(),
+    description: zod_1.z.string().optional()
+});
 // Performer validation schema
 const performerSchema = zod_1.z.object({
     name: zod_1.z.string().min(1, 'Performer name is required'),
@@ -56,6 +65,7 @@ const createEventValidation = zod_1.z.object({
         totalSeats: zod_1.z.number().min(1, 'Total seats must be at least 1'),
         availableSeats: zod_1.z.number().min(0, 'Available seats cannot be negative'),
         seatTypes: zod_1.z.array(seatTypeSchema).optional(),
+        eventPasses: zod_1.z.array(eventPassSchema).optional(),
         maxTicketsPerPerson: zod_1.z.number().min(1).optional().default(10),
         posterImage: zod_1.z.string().min(1, 'Poster image is required'),
         galleryImages: zod_1.z.array(zod_1.z.string()).optional(),
@@ -93,6 +103,7 @@ const updateEventValidation = zod_1.z.object({
         totalSeats: zod_1.z.number().min(1, 'Total seats must be at least 1').optional(),
         availableSeats: zod_1.z.number().min(0, 'Available seats cannot be negative').optional(),
         seatTypes: zod_1.z.array(seatTypeSchema).optional(),
+        eventPasses: zod_1.z.array(eventPassSchema).optional(),
         maxTicketsPerPerson: zod_1.z.number().min(1).optional(),
         posterImage: zod_1.z.string().min(1, 'Poster image is required').optional(),
         videoUrl: zod_1.z.string().optional(),

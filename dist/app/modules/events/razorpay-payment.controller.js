@@ -47,7 +47,7 @@ const generateTicketScannerId = () => {
 const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const { id: eventId } = req.params;
-    const { userId, quantity, seatType = 'Normal', eventCategory = 'Ticket Booking', attendanceDate, customerDetails, countryCode = 'IN' } = req.body;
+    const { userId, quantity, bookingType = 'ticket', seatType = 'Normal', eventPass, eventCategory = 'Ticket Booking', attendanceDate, customerDetails, countryCode = 'IN' } = req.body;
     // Validate event
     const event = yield events_model_1.default.findById(eventId);
     if (!event || !event.isActive || !['upcoming', 'ongoing'].includes(event.status)) {
@@ -81,8 +81,53 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         });
     }
     let unitPrice = event.ticketPrice;
-    // If event has seat types, find the matching seat type
-    if (event.seatTypes && event.seatTypes.length > 0) {
+    // === EVENT PASS BOOKING ===
+    if (bookingType === 'pass') {
+        if (!eventPass) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.BAD_REQUEST,
+                success: false,
+                message: 'Event pass is required for pass booking',
+                data: null,
+            });
+        }
+        if (!event.eventPasses || event.eventPasses.length === 0) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.BAD_REQUEST,
+                success: false,
+                message: 'This event does not offer passes',
+                data: null,
+            });
+        }
+        const selectedPass = event.eventPasses.find((p) => p.name.toLowerCase() === eventPass.toLowerCase());
+        if (!selectedPass) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.BAD_REQUEST,
+                success: false,
+                message: `Event pass "${eventPass}" not found for this event`,
+                data: null,
+            });
+        }
+        if (quantity > (selectedPass.maxPassesPerPerson || 5)) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.BAD_REQUEST,
+                success: false,
+                message: `Maximum ${selectedPass.maxPassesPerPerson || 5} ${eventPass} passes per person`,
+                data: null,
+            });
+        }
+        if (selectedPass.availablePasses < quantity) {
+            return (0, sendResponse_1.sendResponse)(res, {
+                statusCode: http_status_1.default.BAD_REQUEST,
+                success: false,
+                message: `Not enough ${eventPass} passes available`,
+                data: null,
+            });
+        }
+        unitPrice = selectedPass.price;
+    }
+    // === REGULAR TICKET (seat type) ===
+    else if (event.seatTypes && event.seatTypes.length > 0) {
         const selectedSeatType = event.seatTypes.find(st => st.name.toLowerCase() === seatType.toLowerCase());
         if (!selectedSeatType) {
             return (0, sendResponse_1.sendResponse)(res, {
@@ -175,9 +220,11 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             userId: new mongoose_1.default.Types.ObjectId(userId),
             bookingReference,
             quantity,
-            seatType,
+            bookingType,
+            seatType: bookingType === 'pass' ? (eventPass || 'Pass') : seatType,
+            eventPass: bookingType === 'pass' ? eventPass : '',
             eventCategory,
-            attendanceDate: attendance.value,
+            attendanceDate: bookingType === 'pass' ? null : attendance.value,
             unitPrice,
             totalAmount,
             bookingFee,
@@ -237,7 +284,7 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
 }));
 // Verify Razorpay payment
 const verifyRazorpayPayment = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     const { orderId, paymentId, signature } = req.body;
     // Verify signature
     const isValid = razorpayService_1.default.verifyPaymentSignature(orderId, paymentId, signature);
@@ -278,17 +325,28 @@ const verifyRazorpayPayment = (0, catchAsync_1.catchAsync)((req, res) => __await
             booking.paymentStatus = 'completed';
             booking.bookingStatus = 'confirmed';
             yield booking.save();
-            // Update event seat availability
+            // Update event seat / pass availability
             const event = yield events_model_1.default.findById(booking.eventId);
             if (event) {
-                if (event.seatTypes && event.seatTypes.length > 0) {
-                    const seatType = event.seatTypes.find((st) => st.name.toLowerCase() === booking.seatType.toLowerCase());
-                    if (seatType) {
-                        seatType.availableSeats = Math.max(0, seatType.availableSeats - booking.quantity);
+                if (booking.bookingType === 'pass' && booking.eventPass) {
+                    // Pass booking - decrement the specific event pass availability
+                    const pass = (_a = event.eventPasses) === null || _a === void 0 ? void 0 : _a.find((p) => p.name.toLowerCase() === booking.eventPass.toLowerCase());
+                    if (pass) {
+                        pass.availablePasses = Math.max(0, pass.availablePasses - booking.quantity);
                     }
+                    event.totalTicketsSold = (event.totalTicketsSold || 0) + booking.quantity;
                 }
-                event.availableSeats = Math.max(0, event.availableSeats - booking.quantity);
-                event.totalTicketsSold = (event.totalTicketsSold || 0) + booking.quantity;
+                else {
+                    // Regular ticket - decrement seat type + general availableSeats
+                    if (event.seatTypes && event.seatTypes.length > 0) {
+                        const seatType = event.seatTypes.find((st) => st.name.toLowerCase() === booking.seatType.toLowerCase());
+                        if (seatType) {
+                            seatType.availableSeats = Math.max(0, seatType.availableSeats - booking.quantity);
+                        }
+                    }
+                    event.availableSeats = Math.max(0, event.availableSeats - booking.quantity);
+                    event.totalTicketsSold = (event.totalTicketsSold || 0) + booking.quantity;
+                }
                 yield event.save();
             }
             // Generate e-tickets
@@ -323,7 +381,7 @@ const verifyRazorpayPayment = (0, catchAsync_1.catchAsync)((req, res) => __await
                     let razorpayTransferId = '';
                     try {
                         const transfersResult = yield razorpayRouteService_1.default.fetchPaymentTransfers(paymentId);
-                        if (transfersResult.success && ((_b = (_a = transfersResult.data) === null || _a === void 0 ? void 0 : _a.items) === null || _b === void 0 ? void 0 : _b.length) > 0) {
+                        if (transfersResult.success && ((_c = (_b = transfersResult.data) === null || _b === void 0 ? void 0 : _b.items) === null || _c === void 0 ? void 0 : _c.length) > 0) {
                             razorpayTransferId = transfersResult.data.items[0].id || '';
                             console.log(`Event payment ${paymentId} → Route transfer ${razorpayTransferId}`);
                         }
@@ -345,8 +403,8 @@ const verifyRazorpayPayment = (0, catchAsync_1.catchAsync)((req, res) => __await
                         razorpayPaymentId: paymentId,
                         metadata: {
                             bookingId: booking._id.toString(),
-                            customerName: (_c = booking.customerDetails) === null || _c === void 0 ? void 0 : _c.name,
-                            customerEmail: (_d = booking.customerDetails) === null || _d === void 0 ? void 0 : _d.email,
+                            customerName: (_d = booking.customerDetails) === null || _d === void 0 ? void 0 : _d.name,
+                            customerEmail: (_e = booking.customerDetails) === null || _e === void 0 ? void 0 : _e.email,
                             itemTitle: (event === null || event === void 0 ? void 0 : event.title) || '',
                         },
                     });
@@ -419,7 +477,19 @@ const handleRazorpayWebhook = (0, catchAsync_1.catchAsync)((req, res) => __await
             // Update event availability
             const eventDoc = yield events_model_1.default.findById(booking.eventId);
             if (eventDoc) {
-                if (eventDoc.seatTypes && eventDoc.seatTypes.length > 0) {
+                if (booking.bookingType === 'pass' && booking.eventPass) {
+                    // Pass booking - decrement pass availability
+                    yield events_model_1.default.findOneAndUpdate({
+                        _id: booking.eventId,
+                        'eventPasses.name': booking.eventPass,
+                    }, {
+                        $inc: {
+                            'eventPasses.$.availablePasses': -booking.quantity,
+                            totalTicketsSold: booking.quantity,
+                        },
+                    });
+                }
+                else if (eventDoc.seatTypes && eventDoc.seatTypes.length > 0) {
                     yield events_model_1.default.findOneAndUpdate({
                         _id: booking.eventId,
                         'seatTypes.name': booking.seatType,
@@ -566,10 +636,21 @@ const initiateRefund = (0, catchAsync_1.catchAsync)((req, res) => __awaiter(void
         booking.paymentStatus = 'refunded';
         booking.bookingStatus = 'cancelled';
         yield booking.save();
-        // Release seats back
+        // Release seats / passes back
         const event = yield events_model_1.default.findById(booking.eventId);
         if (event) {
-            if (event.seatTypes && event.seatTypes.length > 0) {
+            if (booking.bookingType === 'pass' && booking.eventPass) {
+                yield events_model_1.default.findOneAndUpdate({
+                    _id: booking.eventId,
+                    'eventPasses.name': booking.eventPass,
+                }, {
+                    $inc: {
+                        'eventPasses.$.availablePasses': booking.quantity,
+                        totalTicketsSold: -booking.quantity,
+                    },
+                });
+            }
+            else if (event.seatTypes && event.seatTypes.length > 0) {
                 yield events_model_1.default.findOneAndUpdate({
                     _id: booking.eventId,
                     'seatTypes.name': booking.seatType,

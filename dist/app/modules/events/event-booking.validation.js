@@ -16,7 +16,11 @@ const createEventBookingValidation = zod_1.z.object({
     body: zod_1.z.object({
         userId: zod_1.z.string().min(1, 'User ID is required'),
         quantity: zod_1.z.number().min(1, 'Quantity must be at least 1'),
+        // Booking type: regular single-day "ticket" vs multi-day "pass"
+        bookingType: zod_1.z.enum(['ticket', 'pass']).optional().default('ticket'),
         seatType: zod_1.z.string().optional().default('Normal'),
+        // For bookingType=pass, the name of the selected event pass
+        eventPass: zod_1.z.string().optional(),
         eventCategory: zod_1.z.string().min(1, 'Event category is required'),
         attendanceDate: zod_1.z
             .string()

@@ -75,7 +75,9 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
   const { 
     userId, 
     quantity, 
+    bookingType = 'ticket',
     seatType = 'Normal',
+    eventPass,
     eventCategory = 'Ticket Booking',
     attendanceDate,
     bookingFee = 0, 
@@ -95,7 +97,7 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  // Validate attendance date for multi-day events
+  // Validate attendance date for multi-day events (only for regular tickets)
   const attendance = resolveAttendanceDate(attendanceDate, {
     startDate: event.startDate,
     endDate: event.endDate,
@@ -122,8 +124,85 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
   let unitPrice = event.ticketPrice;
   let updateQuery: any = { $inc: { availableSeats: -quantity, totalTicketsSold: quantity } };
 
-  // If event has seat types, find the matching seat type
-  if (event.seatTypes && event.seatTypes.length > 0) {
+  // === EVENT PASS BOOKING ===
+  if (bookingType === 'pass') {
+    if (!eventPass) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: 'Event pass is required for pass booking',
+        data: null,
+      });
+    }
+
+    if (!event.eventPasses || event.eventPasses.length === 0) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: 'This event does not offer passes',
+        data: null,
+      });
+    }
+
+    const selectedPass = event.eventPasses.find(
+      (p) => p.name.toLowerCase() === eventPass.toLowerCase()
+    );
+    if (!selectedPass) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: `Event pass "${eventPass}" not found for this event`,
+        data: null,
+      });
+    }
+
+    if (quantity > (selectedPass.maxPassesPerPerson || 5)) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: `Maximum ${selectedPass.maxPassesPerPerson || 5} ${eventPass} passes per person`,
+        data: null,
+      });
+    }
+
+    if (selectedPass.availablePasses < quantity) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: `Not enough ${eventPass} passes available`,
+        data: null,
+      });
+    }
+
+    unitPrice = selectedPass.price;
+
+    // Atomically decrement pass availability
+    const updatedEvent = await Event.findOneAndUpdate(
+      {
+        _id: eventId,
+        'eventPasses.name': selectedPass.name,
+        'eventPasses.availablePasses': { $gte: quantity },
+      },
+      {
+        $inc: {
+          'eventPasses.$.availablePasses': -quantity,
+          totalTicketsSold: quantity,
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedEvent) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: 'Not enough passes available',
+        data: null,
+      });
+    }
+  }
+  // === REGULAR TICKET BOOKING (seat type) ===
+  else if (event.seatTypes && event.seatTypes.length > 0) {
     const selectedSeatType = event.seatTypes.find(st => st.name.toLowerCase() === seatType.toLowerCase());
     
     if (!selectedSeatType) {
@@ -197,9 +276,12 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     userId: new mongoose.Types.ObjectId(userId),
     bookingReference: generateBookingReference(),
     quantity,
-    seatType,
+    bookingType,
+    seatType: bookingType === 'pass' ? (eventPass || 'Pass') : seatType,
+    eventPass: bookingType === 'pass' ? eventPass : '',
     eventCategory,
-    attendanceDate: attendance.value,
+    // Passes cover all days, so attendance date is not meaningful; keep null.
+    attendanceDate: bookingType === 'pass' ? null : attendance.value,
     unitPrice,
     totalAmount,
     bookingFee,
@@ -268,7 +350,7 @@ const getAllEventBookings = catchAsync(async (req: Request, res: Response) => {
 
   const bookings = await EventBooking.find(filter)
     .populate('userId', 'name email phone')
-    .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice')
+    .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice eventPasses')
     .sort(sortOptions)
     .skip(skip)
     .limit(limitNum)
@@ -294,7 +376,7 @@ const getEventBookingById = catchAsync(async (req: Request, res: Response) => {
   const { id } = req.params;
   const booking = await EventBooking.findById(id)
     .populate('userId', 'name email phone')
-    .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice');
+    .populate('eventId', 'title posterImage startDate endDate startTime location ticketPrice eventPasses');
 
   if (!booking) {
     return sendResponse(res, {
@@ -417,7 +499,19 @@ const cancelEventBooking = catchAsync(async (req: Request, res: Response) => {
   );
 
   // Release tickets back to event availability
-  await Event.findByIdAndUpdate(booking.eventId, { $inc: { availableSeats: booking.quantity } });
+  if ((booking as any).bookingType === 'pass' && (booking as any).eventPass) {
+    await Event.findOneAndUpdate(
+      { _id: booking.eventId, 'eventPasses.name': (booking as any).eventPass },
+      {
+        $inc: {
+          'eventPasses.$.availablePasses': booking.quantity,
+          totalTicketsSold: -booking.quantity,
+        },
+      }
+    );
+  } else {
+    await Event.findByIdAndUpdate(booking.eventId, { $inc: { availableSeats: booking.quantity } });
+  }
 
   return sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -620,9 +714,21 @@ const deleteEventBooking = catchAsync(async (req: Request, res: Response) => {
 
   // Release seats back if booking was confirmed
   if (booking.bookingStatus === 'confirmed') {
-    await Event.findByIdAndUpdate(booking.eventId, { 
-      $inc: { availableSeats: booking.quantity, totalTicketsSold: -booking.quantity } 
-    });
+    if ((booking as any).bookingType === 'pass' && (booking as any).eventPass) {
+      await Event.findOneAndUpdate(
+        { _id: booking.eventId, 'eventPasses.name': (booking as any).eventPass },
+        {
+          $inc: {
+            'eventPasses.$.availablePasses': booking.quantity,
+            totalTicketsSold: -booking.quantity,
+          },
+        }
+      );
+    } else {
+      await Event.findByIdAndUpdate(booking.eventId, { 
+        $inc: { availableSeats: booking.quantity, totalTicketsSold: -booking.quantity } 
+      });
+    }
   }
 
   // Delete the booking

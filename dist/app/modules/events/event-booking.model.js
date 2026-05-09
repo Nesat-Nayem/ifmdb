@@ -62,6 +62,18 @@ const EventBookingSchema = new mongoose_1.Schema({
         required: true,
         default: 'Normal'
     },
+    // Booking type - either a regular "ticket" (single day) or a multi-day "pass"
+    bookingType: {
+        type: String,
+        enum: ['ticket', 'pass'],
+        default: 'ticket',
+        required: true,
+    },
+    // For pass bookings: the name of the selected event pass
+    eventPass: {
+        type: String,
+        default: '',
+    },
     eventCategory: {
         type: String,
         required: true,
