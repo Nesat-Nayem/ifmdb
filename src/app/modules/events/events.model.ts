@@ -53,6 +53,15 @@ const EventPassSchema = new Schema({
     default: 5,
     min: 1,
   },
+  // Pass perks
+  foodIncluded: {
+    type: Boolean,
+    default: false,
+  },
+  parkingAvailable: {
+    type: Boolean,
+    default: false,
+  },
   description: {
     type: String,
     default: '',
@@ -147,6 +156,8 @@ export interface IEventPass {
   totalPasses: number;
   availablePasses: number;
   maxPassesPerPerson: number;
+  foodIncluded?: boolean;
+  parkingAvailable?: boolean;
   description?: string;
 }
 

@@ -26,6 +26,8 @@ const eventPassSchema = z.object({
   totalPasses: z.number().min(0, 'Total passes cannot be negative'),
   availablePasses: z.number().min(0, 'Available passes cannot be negative'),
   maxPassesPerPerson: z.number().min(1).optional(),
+  foodIncluded: z.boolean().optional(),
+  parkingAvailable: z.boolean().optional(),
   description: z.string().optional()
 });
 

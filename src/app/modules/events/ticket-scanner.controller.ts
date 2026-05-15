@@ -8,6 +8,39 @@ import mongoose from 'mongoose';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const SCANNER_TOKEN_EXPIRY = '24h';
 
+// =============== Helpers ===============
+
+// Normalize a date to UTC midnight - used to identify "the day" for a scan.
+const toUtcDayStart = (d: Date | string): Date => {
+  const date = new Date(d);
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+};
+
+// Build the inclusive list of UTC-day-start Dates between start..end.
+const enumerateEventDays = (startDate: Date | string, endDate?: Date | string | null) => {
+  const start = toUtcDayStart(startDate);
+  const end = endDate ? toUtcDayStart(endDate) : start;
+  const days: Date[] = [];
+  const cursor = new Date(start);
+  let guard = 0;
+  while (cursor.getTime() <= end.getTime() && guard < 60) {
+    days.push(new Date(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    guard += 1;
+  }
+  return days;
+};
+
 // ============ SCANNER ACCESS CRUD (Vendor Management) ============
 
 /**
@@ -573,6 +606,210 @@ export const validateTicket = async (req: Request, res: Response) => {
         success: false,
         scanResult: 'invalid',
         message: `This booking is ${booking?.bookingStatus}. Entry not allowed.`,
+      });
+    }
+
+    // ===========================================================
+    // EVENT PASS — multi-day scan logic
+    // A pass can be scanned ONCE PER EVENT DAY for the duration of
+    // the event. We track each day's scan in `passUsageHistory` and
+    // only flip `isUsed = true` when every event day has been scanned.
+    // ===========================================================
+    if (booking?.bookingType === 'pass') {
+      const eventDays = enumerateEventDays(event?.startDate, event?.endDate);
+      const todayKey = toUtcDayStart(new Date()).getTime();
+
+      // Pre-scan window: 2 hours before first day, end of last day + 4 hours
+      const firstDayStart = eventDays[0];
+      const lastDayStart = eventDays[eventDays.length - 1] || firstDayStart;
+      const entryStartTime = new Date(
+        firstDayStart.getTime() - 2 * 60 * 60 * 1000,
+      );
+      const entryEndTime = new Date(
+        lastDayStart.getTime() + 28 * 60 * 60 * 1000, // end-of-day + 4h
+      );
+      const now = new Date();
+
+      // The day this scan corresponds to. If scanned outside the event window
+      // we still log it but report as expired / not yet active.
+      let scanDay: Date | null = eventDays.find(
+        (d) => d.getTime() === todayKey,
+      ) || null;
+
+      if (!scanDay) {
+        if (now < entryStartTime) {
+          await createScanLog(
+            'invalid',
+            'Pass scanned before the event has started.',
+            {
+              customerName: customer?.name,
+              eventName: event?.title,
+              eventDate: event?.startDate,
+              ticketType: booking?.eventPass || booking?.seatType,
+            },
+            event?._id,
+          );
+          return res.status(400).json({
+            success: false,
+            scanResult: 'invalid',
+            message: 'This event has not started yet.',
+          });
+        }
+        if (now > entryEndTime) {
+          await createScanLog(
+            'expired',
+            'Pass scanned after the event has ended.',
+            {
+              customerName: customer?.name,
+              eventName: event?.title,
+              eventDate: event?.startDate,
+              ticketType: booking?.eventPass || booking?.seatType,
+            },
+            event?._id,
+          );
+          return res.status(400).json({
+            success: false,
+            scanResult: 'expired',
+            message: 'This pass has expired - the event has ended.',
+          });
+        }
+        // Outside an exact event day but within the buffer window: assign to nearest day.
+        scanDay = eventDays.reduce((closest, d) =>
+          Math.abs(d.getTime() - now.getTime()) <
+          Math.abs(closest.getTime() - now.getTime())
+            ? d
+            : closest,
+        firstDayStart);
+      }
+
+      const usageHistory = ticket.passUsageHistory || [];
+      const alreadyScannedToday = usageHistory.some(
+        (u: any) => toUtcDayStart(u.dayDate).getTime() === scanDay!.getTime(),
+      );
+
+      if (alreadyScannedToday) {
+        const previous = usageHistory.find(
+          (u: any) => toUtcDayStart(u.dayDate).getTime() === scanDay!.getTime(),
+        );
+        await createScanLog(
+          'already_used',
+          `Pass already scanned on ${scanDay!.toDateString()}`,
+          {
+            customerName: customer?.name,
+            eventName: event?.title,
+            eventDate: scanDay,
+            ticketType: booking?.eventPass || booking?.seatType,
+          },
+          event?._id,
+        );
+        return res.status(400).json({
+          success: false,
+          scanResult: 'already_used',
+          message: 'This pass has already been scanned for today.',
+          usedAt: previous?.scannedAt,
+          ticketDetails: {
+            customerName: customer?.name,
+            eventName: event?.title,
+            quantity: ticket.quantity,
+            scanDay,
+            totalDays: eventDays.length,
+            daysScanned: usageHistory.length,
+          },
+        });
+      }
+
+      // ✅ Valid pass scan for this day
+      ticket.passUsageHistory = [
+        ...usageHistory,
+        {
+          dayDate: scanDay!,
+          scannedAt: new Date(),
+          scannedBy: scanner._id as mongoose.Types.ObjectId,
+          scanLocation: location?.address || '',
+        } as any,
+      ];
+
+      // If the pass has been scanned for every event day, mark it fully used.
+      if ((ticket.passUsageHistory?.length || 0) >= eventDays.length) {
+        ticket.isUsed = true;
+        ticket.usedAt = new Date();
+        ticket.scannedBy = scanner._id as mongoose.Types.ObjectId;
+        ticket.scanLocation = location?.address || '';
+      }
+
+      await ticket.save();
+
+      const dayIndex =
+        eventDays.findIndex((d) => d.getTime() === scanDay!.getTime()) + 1;
+      const totalDays = eventDays.length;
+      const daysScanned = ticket.passUsageHistory?.length || 0;
+      const daysRemaining = Math.max(0, totalDays - daysScanned);
+
+      const passPerks = booking?.passPerks || {};
+
+      const passDetails = {
+        customerName: customer?.name,
+        customerEmail: customer?.email,
+        customerPhone: customer?.phone,
+        ticketType: booking?.eventPass || booking?.seatType,
+        quantity: ticket.quantity,
+        eventName: event?.title,
+        eventDate: scanDay,
+        eventLocation: event?.location,
+        bookingType: 'pass',
+        passDay: dayIndex,
+        totalDays,
+        daysScanned,
+        daysRemaining,
+        foodIncluded: !!passPerks.foodIncluded,
+        parkingAvailable: !!passPerks.parkingAvailable,
+      };
+
+      await createScanLog(
+        'valid',
+        `Pass validated for day ${dayIndex} of ${totalDays}.`,
+        passDetails,
+        event?._id,
+      );
+
+      return res.status(200).json({
+        success: true,
+        scanResult: 'valid',
+        message: `Entry allowed - Day ${dayIndex} of ${totalDays}.`,
+        data: {
+          ticketNumber: ticket.ticketNumber,
+          bookingReference: booking?.bookingReference,
+          bookingType: 'pass',
+          customer: {
+            name: customer?.name,
+            email: customer?.email,
+            phone: customer?.phone,
+          },
+          event: {
+            title: event?.title,
+            date: scanDay,
+            startDate: event?.startDate,
+            endDate: event?.endDate,
+            location: event?.location,
+            posterImage: event?.posterImage,
+          },
+          ticket: {
+            type: booking?.eventPass || booking?.seatType,
+            quantity: ticket.quantity,
+            amount: booking?.finalAmount,
+          },
+          pass: {
+            day: dayIndex,
+            totalDays,
+            daysScanned,
+            daysRemaining,
+            foodIncluded: !!passPerks.foodIncluded,
+            parkingAvailable: !!passPerks.parkingAvailable,
+            description: passPerks.description || '',
+            fullyUsed: ticket.isUsed,
+          },
+          validatedAt: new Date(),
+        },
       });
     }
 

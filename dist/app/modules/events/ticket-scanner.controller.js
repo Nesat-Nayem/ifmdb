@@ -20,6 +20,26 @@ const events_model_1 = __importDefault(require("./events.model"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const SCANNER_TOKEN_EXPIRY = '24h';
+// =============== Helpers ===============
+// Normalize a date to UTC midnight - used to identify "the day" for a scan.
+const toUtcDayStart = (d) => {
+    const date = new Date(d);
+    return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0, 0));
+};
+// Build the inclusive list of UTC-day-start Dates between start..end.
+const enumerateEventDays = (startDate, endDate) => {
+    const start = toUtcDayStart(startDate);
+    const end = endDate ? toUtcDayStart(endDate) : start;
+    const days = [];
+    const cursor = new Date(start);
+    let guard = 0;
+    while (cursor.getTime() <= end.getTime() && guard < 60) {
+        days.push(new Date(cursor));
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        guard += 1;
+    }
+    return days;
+};
 // ============ SCANNER ACCESS CRUD (Vendor Management) ============
 /**
  * Create a new scanner access account
@@ -419,7 +439,7 @@ exports.scannerLogout = scannerLogout;
  * The barcode contains the bookingReference (e.g., EBKMJMS5WSZY069LI)
  */
 const validateTicket = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c;
     try {
         const scanner = req.scanner;
         const { bookingReference, deviceInfo, location } = req.body;
@@ -517,6 +537,163 @@ const validateTicket = (req, res) => __awaiter(void 0, void 0, void 0, function*
                 success: false,
                 scanResult: 'invalid',
                 message: `This booking is ${booking === null || booking === void 0 ? void 0 : booking.bookingStatus}. Entry not allowed.`,
+            });
+        }
+        // ===========================================================
+        // EVENT PASS — multi-day scan logic
+        // A pass can be scanned ONCE PER EVENT DAY for the duration of
+        // the event. We track each day's scan in `passUsageHistory` and
+        // only flip `isUsed = true` when every event day has been scanned.
+        // ===========================================================
+        if ((booking === null || booking === void 0 ? void 0 : booking.bookingType) === 'pass') {
+            const eventDays = enumerateEventDays(event === null || event === void 0 ? void 0 : event.startDate, event === null || event === void 0 ? void 0 : event.endDate);
+            const todayKey = toUtcDayStart(new Date()).getTime();
+            // Pre-scan window: 2 hours before first day, end of last day + 4 hours
+            const firstDayStart = eventDays[0];
+            const lastDayStart = eventDays[eventDays.length - 1] || firstDayStart;
+            const entryStartTime = new Date(firstDayStart.getTime() - 2 * 60 * 60 * 1000);
+            const entryEndTime = new Date(lastDayStart.getTime() + 28 * 60 * 60 * 1000);
+            const now = new Date();
+            // The day this scan corresponds to. If scanned outside the event window
+            // we still log it but report as expired / not yet active.
+            let scanDay = eventDays.find((d) => d.getTime() === todayKey) || null;
+            if (!scanDay) {
+                if (now < entryStartTime) {
+                    yield createScanLog('invalid', 'Pass scanned before the event has started.', {
+                        customerName: customer === null || customer === void 0 ? void 0 : customer.name,
+                        eventName: event === null || event === void 0 ? void 0 : event.title,
+                        eventDate: event === null || event === void 0 ? void 0 : event.startDate,
+                        ticketType: (booking === null || booking === void 0 ? void 0 : booking.eventPass) || (booking === null || booking === void 0 ? void 0 : booking.seatType),
+                    }, event === null || event === void 0 ? void 0 : event._id);
+                    return res.status(400).json({
+                        success: false,
+                        scanResult: 'invalid',
+                        message: 'This event has not started yet.',
+                    });
+                }
+                if (now > entryEndTime) {
+                    yield createScanLog('expired', 'Pass scanned after the event has ended.', {
+                        customerName: customer === null || customer === void 0 ? void 0 : customer.name,
+                        eventName: event === null || event === void 0 ? void 0 : event.title,
+                        eventDate: event === null || event === void 0 ? void 0 : event.startDate,
+                        ticketType: (booking === null || booking === void 0 ? void 0 : booking.eventPass) || (booking === null || booking === void 0 ? void 0 : booking.seatType),
+                    }, event === null || event === void 0 ? void 0 : event._id);
+                    return res.status(400).json({
+                        success: false,
+                        scanResult: 'expired',
+                        message: 'This pass has expired - the event has ended.',
+                    });
+                }
+                // Outside an exact event day but within the buffer window: assign to nearest day.
+                scanDay = eventDays.reduce((closest, d) => Math.abs(d.getTime() - now.getTime()) <
+                    Math.abs(closest.getTime() - now.getTime())
+                    ? d
+                    : closest, firstDayStart);
+            }
+            const usageHistory = ticket.passUsageHistory || [];
+            const alreadyScannedToday = usageHistory.some((u) => toUtcDayStart(u.dayDate).getTime() === scanDay.getTime());
+            if (alreadyScannedToday) {
+                const previous = usageHistory.find((u) => toUtcDayStart(u.dayDate).getTime() === scanDay.getTime());
+                yield createScanLog('already_used', `Pass already scanned on ${scanDay.toDateString()}`, {
+                    customerName: customer === null || customer === void 0 ? void 0 : customer.name,
+                    eventName: event === null || event === void 0 ? void 0 : event.title,
+                    eventDate: scanDay,
+                    ticketType: (booking === null || booking === void 0 ? void 0 : booking.eventPass) || (booking === null || booking === void 0 ? void 0 : booking.seatType),
+                }, event === null || event === void 0 ? void 0 : event._id);
+                return res.status(400).json({
+                    success: false,
+                    scanResult: 'already_used',
+                    message: 'This pass has already been scanned for today.',
+                    usedAt: previous === null || previous === void 0 ? void 0 : previous.scannedAt,
+                    ticketDetails: {
+                        customerName: customer === null || customer === void 0 ? void 0 : customer.name,
+                        eventName: event === null || event === void 0 ? void 0 : event.title,
+                        quantity: ticket.quantity,
+                        scanDay,
+                        totalDays: eventDays.length,
+                        daysScanned: usageHistory.length,
+                    },
+                });
+            }
+            // ✅ Valid pass scan for this day
+            ticket.passUsageHistory = [
+                ...usageHistory,
+                {
+                    dayDate: scanDay,
+                    scannedAt: new Date(),
+                    scannedBy: scanner._id,
+                    scanLocation: (location === null || location === void 0 ? void 0 : location.address) || '',
+                },
+            ];
+            // If the pass has been scanned for every event day, mark it fully used.
+            if ((((_b = ticket.passUsageHistory) === null || _b === void 0 ? void 0 : _b.length) || 0) >= eventDays.length) {
+                ticket.isUsed = true;
+                ticket.usedAt = new Date();
+                ticket.scannedBy = scanner._id;
+                ticket.scanLocation = (location === null || location === void 0 ? void 0 : location.address) || '';
+            }
+            yield ticket.save();
+            const dayIndex = eventDays.findIndex((d) => d.getTime() === scanDay.getTime()) + 1;
+            const totalDays = eventDays.length;
+            const daysScanned = ((_c = ticket.passUsageHistory) === null || _c === void 0 ? void 0 : _c.length) || 0;
+            const daysRemaining = Math.max(0, totalDays - daysScanned);
+            const passPerks = (booking === null || booking === void 0 ? void 0 : booking.passPerks) || {};
+            const passDetails = {
+                customerName: customer === null || customer === void 0 ? void 0 : customer.name,
+                customerEmail: customer === null || customer === void 0 ? void 0 : customer.email,
+                customerPhone: customer === null || customer === void 0 ? void 0 : customer.phone,
+                ticketType: (booking === null || booking === void 0 ? void 0 : booking.eventPass) || (booking === null || booking === void 0 ? void 0 : booking.seatType),
+                quantity: ticket.quantity,
+                eventName: event === null || event === void 0 ? void 0 : event.title,
+                eventDate: scanDay,
+                eventLocation: event === null || event === void 0 ? void 0 : event.location,
+                bookingType: 'pass',
+                passDay: dayIndex,
+                totalDays,
+                daysScanned,
+                daysRemaining,
+                foodIncluded: !!passPerks.foodIncluded,
+                parkingAvailable: !!passPerks.parkingAvailable,
+            };
+            yield createScanLog('valid', `Pass validated for day ${dayIndex} of ${totalDays}.`, passDetails, event === null || event === void 0 ? void 0 : event._id);
+            return res.status(200).json({
+                success: true,
+                scanResult: 'valid',
+                message: `Entry allowed - Day ${dayIndex} of ${totalDays}.`,
+                data: {
+                    ticketNumber: ticket.ticketNumber,
+                    bookingReference: booking === null || booking === void 0 ? void 0 : booking.bookingReference,
+                    bookingType: 'pass',
+                    customer: {
+                        name: customer === null || customer === void 0 ? void 0 : customer.name,
+                        email: customer === null || customer === void 0 ? void 0 : customer.email,
+                        phone: customer === null || customer === void 0 ? void 0 : customer.phone,
+                    },
+                    event: {
+                        title: event === null || event === void 0 ? void 0 : event.title,
+                        date: scanDay,
+                        startDate: event === null || event === void 0 ? void 0 : event.startDate,
+                        endDate: event === null || event === void 0 ? void 0 : event.endDate,
+                        location: event === null || event === void 0 ? void 0 : event.location,
+                        posterImage: event === null || event === void 0 ? void 0 : event.posterImage,
+                    },
+                    ticket: {
+                        type: (booking === null || booking === void 0 ? void 0 : booking.eventPass) || (booking === null || booking === void 0 ? void 0 : booking.seatType),
+                        quantity: ticket.quantity,
+                        amount: booking === null || booking === void 0 ? void 0 : booking.finalAmount,
+                    },
+                    pass: {
+                        day: dayIndex,
+                        totalDays,
+                        daysScanned,
+                        daysRemaining,
+                        foodIncluded: !!passPerks.foodIncluded,
+                        parkingAvailable: !!passPerks.parkingAvailable,
+                        description: passPerks.description || '',
+                        fullyUsed: ticket.isUsed,
+                    },
+                    validatedAt: new Date(),
+                },
             });
         }
         // Check if ticket is already used

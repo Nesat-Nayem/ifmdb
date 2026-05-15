@@ -87,6 +87,15 @@ const EventPassSchema = new mongoose_1.Schema({
         default: 5,
         min: 1,
     },
+    // Pass perks
+    foodIncluded: {
+        type: Boolean,
+        default: false,
+    },
+    parkingAvailable: {
+        type: Boolean,
+        default: false,
+    },
     description: {
         type: String,
         default: '',

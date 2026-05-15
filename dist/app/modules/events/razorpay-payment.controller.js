@@ -81,6 +81,7 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
         });
     }
     let unitPrice = event.ticketPrice;
+    let resolvedPass = null;
     // === EVENT PASS BOOKING ===
     if (bookingType === 'pass') {
         if (!eventPass) {
@@ -125,6 +126,7 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             });
         }
         unitPrice = selectedPass.price;
+        resolvedPass = selectedPass;
     }
     // === REGULAR TICKET (seat type) ===
     else if (event.seatTypes && event.seatTypes.length > 0) {
@@ -223,6 +225,13 @@ const createRazorpayOrder = (0, catchAsync_1.catchAsync)((req, res) => __awaiter
             bookingType,
             seatType: bookingType === 'pass' ? (eventPass || 'Pass') : seatType,
             eventPass: bookingType === 'pass' ? eventPass : '',
+            passPerks: bookingType === 'pass' && resolvedPass
+                ? {
+                    foodIncluded: !!resolvedPass.foodIncluded,
+                    parkingAvailable: !!resolvedPass.parkingAvailable,
+                    description: resolvedPass.description || '',
+                }
+                : undefined,
             eventCategory,
             attendanceDate: bookingType === 'pass' ? null : attendance.value,
             unitPrice,

@@ -39,6 +39,13 @@ const EventBookingSchema = new Schema({
     type: String,
     default: '',
   },
+  // For pass bookings: snapshot of pass perks at the time of purchase.
+  // Snapshotting prevents perk changes by the vendor from affecting issued passes.
+  passPerks: {
+    foodIncluded: { type: Boolean, default: false },
+    parkingAvailable: { type: Boolean, default: false },
+    description: { type: String, default: '' },
+  },
   eventCategory: {
     type: String,
     required: true,
@@ -142,6 +149,9 @@ const EventETicketSchema = new Schema({
     required: true,
     min: 1,
   },
+  // For "ticket" bookings, isUsed becomes true once the ticket is scanned.
+  // For "pass" bookings, isUsed only becomes true when the pass has been
+  // scanned for every day of the event (see passUsageHistory below).
   isUsed: {
     type: Boolean,
     default: false,
@@ -156,6 +166,23 @@ const EventETicketSchema = new Schema({
   scanLocation: {
     type: String,
     default: '',
+  },
+  // Multi-day pass scan history. Each entry represents one day the pass was
+  // scanned at the venue gate. A pass can only be scanned ONCE per day.
+  passUsageHistory: {
+    type: [
+      new Schema(
+        {
+          // The event day (UTC midnight) this scan corresponds to
+          dayDate: { type: Date, required: true },
+          scannedAt: { type: Date, default: Date.now },
+          scannedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+          scanLocation: { type: String, default: '' },
+        },
+        { _id: false },
+      ),
+    ],
+    default: [],
   },
   generatedAt: {
     type: Date,
@@ -232,6 +259,11 @@ export interface IEventBooking extends Document {
   seatType: string;
   bookingType: 'ticket' | 'pass';
   eventPass?: string;
+  passPerks?: {
+    foodIncluded: boolean;
+    parkingAvailable: boolean;
+    description: string;
+  };
   eventCategory: string;
   attendanceDate?: Date | null;
   unitPrice: number;
@@ -266,6 +298,12 @@ export interface IEventETicket extends Document {
   usedAt?: Date;
   scannedBy?: mongoose.Types.ObjectId;
   scanLocation?: string;
+  passUsageHistory?: Array<{
+    dayDate: Date;
+    scannedAt: Date;
+    scannedBy?: mongoose.Types.ObjectId;
+    scanLocation?: string;
+  }>;
   generatedAt: Date;
   createdAt: Date;
   updatedAt: Date;

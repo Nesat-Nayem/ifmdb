@@ -123,6 +123,7 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
 
   let unitPrice = event.ticketPrice;
   let updateQuery: any = { $inc: { availableSeats: -quantity, totalTicketsSold: quantity } };
+  let resolvedPass: any = null;
 
   // === EVENT PASS BOOKING ===
   if (bookingType === 'pass') {
@@ -175,6 +176,7 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     }
 
     unitPrice = selectedPass.price;
+    resolvedPass = selectedPass;
 
     // Atomically decrement pass availability
     const updatedEvent = await Event.findOneAndUpdate(
@@ -279,6 +281,14 @@ const createEventBooking = catchAsync(async (req: Request, res: Response) => {
     bookingType,
     seatType: bookingType === 'pass' ? (eventPass || 'Pass') : seatType,
     eventPass: bookingType === 'pass' ? eventPass : '',
+    passPerks:
+      bookingType === 'pass' && resolvedPass
+        ? {
+            foodIncluded: !!resolvedPass.foodIncluded,
+            parkingAvailable: !!resolvedPass.parkingAvailable,
+            description: resolvedPass.description || '',
+          }
+        : undefined,
     eventCategory,
     // Passes cover all days, so attendance date is not meaningful; keep null.
     attendanceDate: bookingType === 'pass' ? null : attendance.value,
@@ -355,6 +365,21 @@ const getAllEventBookings = catchAsync(async (req: Request, res: Response) => {
     .skip(skip)
     .limit(limitNum)
     .lean();
+
+  // Attach matching e-ticket (for pass usage history & QR display) to each booking.
+  const bookingIds = bookings.map((b: any) => b._id);
+  if (bookingIds.length > 0) {
+    const eTickets = await EventETicket.find({ bookingId: { $in: bookingIds } })
+      .select(
+        'bookingId ticketNumber ticketScannerId qrCodeImageUrl isUsed usedAt passUsageHistory generatedAt',
+      )
+      .lean();
+    const byBooking = new Map<string, any>();
+    eTickets.forEach((t: any) => byBooking.set(String(t.bookingId), t));
+    bookings.forEach((b: any) => {
+      b.eTicket = byBooking.get(String(b._id)) || null;
+    });
+  }
 
   const total = await EventBooking.countDocuments(filter);
 

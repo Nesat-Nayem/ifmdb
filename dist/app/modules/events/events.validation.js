@@ -26,6 +26,8 @@ const eventPassSchema = zod_1.z.object({
     totalPasses: zod_1.z.number().min(0, 'Total passes cannot be negative'),
     availablePasses: zod_1.z.number().min(0, 'Available passes cannot be negative'),
     maxPassesPerPerson: zod_1.z.number().min(1).optional(),
+    foodIncluded: zod_1.z.boolean().optional(),
+    parkingAvailable: zod_1.z.boolean().optional(),
     description: zod_1.z.string().optional()
 });
 // Performer validation schema
