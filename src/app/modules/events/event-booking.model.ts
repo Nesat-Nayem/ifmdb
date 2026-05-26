@@ -113,7 +113,7 @@ const EventBookingSchema = new Schema({
   customerDetails: {
     name: { type: String, required: true },
     email: { type: String, required: true },
-    phone: { type: String, required: true },
+    phone: { type: String, required: false, default: '' },
   },
 }, {
   timestamps: true,
