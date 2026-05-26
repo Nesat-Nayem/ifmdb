@@ -6,7 +6,7 @@ const zod_1 = require("zod");
 const customerDetailsSchema = zod_1.z.object({
     name: zod_1.z.string().min(1, 'Customer name is required'),
     email: zod_1.z.string().email('Valid email is required'),
-    phone: zod_1.z.string().min(1, 'Phone number is required'),
+    phone: zod_1.z.string().optional().default(''),
 });
 // Create event booking validation
 const createEventBookingValidation = zod_1.z.object({
